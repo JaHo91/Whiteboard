@@ -1,0 +1,3029 @@
+whiteboard.html
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mini Whiteboard</title>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --toolbar:#ffffff;
+    --card-shadow:0 2px 6px rgba(0,0,0,.12);
+    --card-shadow-hi:0 6px 18px rgba(0,0,0,.25);
+    --line:#9aa0a6;
+    --line-hi:#ff6b00;
+    --anchor:#2b7fff;
+    --danger:#e53935;
+    --success:#2e7d32;
+    --warning:#f57c00;
+    --dim:.15;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#222;background:var(--bg);overflow:hidden}
+
+  .toolbar{
+    position:fixed;top:0;left:0;right:0;height:48px;
+    background:var(--toolbar);border-bottom:1px solid #e4e6eb;
+    display:flex;align-items:center;gap:8px;padding:0 12px;z-index:20;
+  }
+  .toolbar button, .toolbar label{
+    font-size:13px;padding:6px 10px;border:1px solid #d0d4da;background:#fff;border-radius:6px;cursor:pointer;
+  }
+  .toolbar button:hover{background:#f0f2f5}
+  .toolbar button:disabled{opacity:.4;cursor:not-allowed}
+  .toolbar button.active{background:#2b7fff;color:#fff;border-color:#2b7fff}
+  .toolbar .spacer{flex:1}
+  .toolbar .hint{font-size:12px;color:#666}
+  .toolbar .color-dot{
+    width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #aaa;cursor:pointer;display:inline-block
+  }
+  .toolbar .color-dot.active{box-shadow:0 0 0 2px #222}
+  .zoom-group{display:flex;align-items:center;gap:4px;border:1px solid #d0d4da;border-radius:6px;padding:2px;background:#fff}
+  .zoom-group button{border:none;padding:4px 8px}
+  #zoomLevel{font-size:12px;min-width:48px;text-align:center;color:#444}
+
+  .undo-group{display:flex;align-items:center;gap:4px;border:1px solid #d0d4da;border-radius:6px;padding:2px;background:#fff}
+  .undo-group button{border:none;padding:4px 8px;font-size:14px}
+
+  .board-switcher{
+    display:flex;align-items:center;gap:4px;border:1px solid #d0d4da;border-radius:6px;background:#fff;
+    max-width:260px;
+  }
+  .board-switcher .board-name{
+    padding:6px 10px;font-size:13px;font-weight:500;cursor:pointer;
+    max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    display:flex;align-items:center;gap:6px;
+  }
+  .board-switcher .board-name:hover{background:#f0f2f5;border-radius:6px 0 0 6px}
+  .board-switcher .board-name .shared-icon{color:var(--success);font-size:11px}
+  .board-switcher .board-menu-btn{
+    padding:6px 8px;border-left:1px solid #d0d4da;cursor:pointer;font-size:12px;
+  }
+  .board-switcher .board-menu-btn:hover{background:#f0f2f5;border-radius:0 6px 6px 0}
+
+  .sync-status{
+    display:flex;align-items:center;gap:6px;font-size:12px;color:#666;
+    padding:4px 10px;border:1px solid #d0d4da;border-radius:6px;background:#fff;cursor:pointer;
+  }
+  .sync-status:hover{background:#f0f2f5}
+  .sync-status .dot{width:8px;height:8px;border-radius:50%;background:#bbb}
+  .sync-status.ok .dot{background:var(--success)}
+  .sync-status.pending .dot{background:var(--warning);animation:pulse 1.5s infinite}
+  .sync-status.error .dot{background:var(--danger)}
+  .sync-status.syncing .dot{background:var(--anchor);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .burger-btn{
+    width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;
+    font-size:18px;
+  }
+
+  .viewport{
+    position:absolute;inset:48px 0 0 0;overflow:hidden;background:var(--bg);
+    background-image:radial-gradient(circle, #dfe1e5 1px, transparent 1px);
+    background-size:24px 24px;background-position:0 0;
+    cursor:grab;
+  }
+  .viewport.panning{cursor:grabbing}
+
+  .board{
+    position:absolute;left:0;top:0;width:8000px;height:6000px;
+    transform-origin:0 0;will-change:transform;
+  }
+
+  svg.bg-layout{
+    position:absolute;pointer-events:none;opacity:.85;
+  }
+  svg.bg-layout .layout-stroke{
+    fill:none;stroke:#222;stroke-width:3;vector-effect:non-scaling-stroke;
+  }
+  svg.bg-layout .layout-label{
+    font-family:system-ui,-apple-system,sans-serif;
+    font-size:28px;fill:#222;font-weight:500;
+  }
+
+  svg.links{
+    position:absolute;left:0;top:0;pointer-events:none;overflow:visible;
+  }
+  svg.links path.link-hit{
+    fill:none;stroke:transparent;stroke-width:24;pointer-events:stroke;cursor:pointer;
+  }
+  svg.links path.link{
+    fill:none;stroke:var(--line);stroke-width:2.2;opacity:.85;
+    transition:stroke .15s, stroke-width .15s, opacity .15s;
+    pointer-events:none;
+  }
+  svg.links path.link.hi{stroke:var(--line-hi);stroke-width:4;opacity:1}
+  svg.links path.link.dim{opacity:var(--dim)}
+  svg.links path.ghost{
+    fill:none;stroke:var(--anchor);stroke-width:2.5;stroke-dasharray:6 5;pointer-events:none;
+  }
+  svg.links path.ghost.delete{stroke:var(--danger);stroke-dasharray:4 4}
+  svg.links circle.endpoint{
+    fill:#fff;stroke:var(--anchor);stroke-width:2;cursor:grab;
+    pointer-events:all;r:8;
+    transition:r .15s, stroke-width .15s;
+  }
+  svg.links circle.endpoint:hover{r:10;stroke-width:3}
+  svg.links circle.endpoint.dragging{r:12;stroke-width:3;fill:var(--anchor)}
+
+  .card{
+    position:absolute;width:170px;min-width:60px;min-height:60px;border-radius:var(--radius);
+    background:#fff;box-shadow:var(--card-shadow);display:flex;flex-direction:column;
+    transition:box-shadow .15s, opacity .15s, outline-color .15s;
+    outline:2px solid transparent;
+    --card-font-scale:1;
+  }
+  .card.hi{box-shadow:var(--card-shadow-hi);outline-color:var(--line-hi)}
+  .card.sticky{box-shadow:var(--card-shadow-hi);outline-color:var(--line-hi)}
+  .card.dim{opacity:var(--dim)}
+  .card.editing{outline-color:var(--anchor);box-shadow:var(--card-shadow-hi);opacity:1 !important}
+
+  .card .title{
+    position:relative;padding:10px 32px 10px 10px;font-weight:600;
+    font-size:calc(14px * var(--card-font-scale));
+    line-height:1.25;
+    min-height:calc(40px * var(--card-font-scale));
+    cursor:grab;user-select:none;color:#222;outline:none;
+    border-radius:var(--radius) var(--radius) 0 0;flex:0 0 auto;
+  }
+  .card.dragging .title{cursor:grabbing}
+  .card .title .title-text{
+    display:inline-block;cursor:text;
+    padding:1px 3px;border-radius:3px;
+    word-break:break-word;
+  }
+  .card .title.editing{cursor:text;user-select:text}
+  .card .title.editing .title-text{
+    background:rgba(255,255,255,.35);outline:none;
+  }
+
+  .card .details{
+    padding:10px;background:#fff;
+    font-size:calc(13px * var(--card-font-scale));
+    line-height:1.35;
+    min-height:calc(40px * var(--card-font-scale));
+    outline:none;white-space:pre-wrap;word-break:break-word;
+    border-top:1px solid rgba(0,0,0,.06);border-radius:0 0 var(--radius) var(--radius);
+    cursor:text;flex:1 1 auto;overflow:hidden;
+  }
+  .card.autoH .details{overflow:visible}
+  .card .details:empty::before{content:attr(data-placeholder);color:#aaa;pointer-events:none}
+
+  .card.image-card{background:#222;overflow:hidden;padding:0}
+  .card.image-card .title,
+  .card.image-card .details{display:none}
+  .card.image-card .image-wrap{
+    position:relative;flex:1 1 auto;cursor:grab;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:var(--radius);overflow:hidden;background:#222;
+  }
+  .card.image-card.dragging .image-wrap{cursor:grabbing}
+  .card.image-card img{
+    display:block;width:100%;height:100%;object-fit:contain;
+    user-select:none;-webkit-user-drag:none;pointer-events:none;
+  }
+  .card.image-card .img-caption{
+    position:absolute;left:0;right:0;bottom:0;
+    background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
+    color:#fff;font-size:12px;padding:6px 8px;pointer-events:none;
+    opacity:0;transition:opacity .15s;
+  }
+  .card.image-card:hover .img-caption,
+  .card.image-card.hi .img-caption,
+  .card.image-card.sticky .img-caption{opacity:1}
+
+  .card .actions{position:absolute;top:4px;right:4px;display:flex;gap:2px;opacity:0;transition:opacity .15s;z-index:4}
+  .card:hover .actions{opacity:1}
+  .card .actions button{width:22px;height:22px;border:none;border-radius:4px;cursor:pointer;background:rgba(255,255,255,.7);font-size:12px;line-height:1}
+  .card .actions button:hover{background:#fff}
+
+  .anchor{
+    position:absolute;width:14px;height:14px;border-radius:50%;
+    background:var(--anchor);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15);
+    opacity:0;transform:translate(-50%,-50%) scale(.7);
+    transition:opacity .12s, transform .12s;cursor:crosshair;z-index:5;
+  }
+  .card:hover .anchor,.card.show-anchors .anchor{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .anchor:hover{transform:translate(-50%,-50%) scale(1.25)}
+  .anchor.top{left:50%;top:0}
+  .anchor.right{left:100%;top:50%}
+  .anchor.bottom{left:50%;top:100%}
+  .anchor.left{left:0;top:50%}
+  .anchor.active{background:#fff;border-color:var(--anchor);transform:translate(-50%,-50%) scale(1.4)}
+
+  .resize-h{position:absolute;z-index:3;opacity:0;transition:opacity .12s}
+  .card:hover .resize-h{opacity:1}
+  .resize-h.n,.resize-h.s{left:12px;right:12px;height:6px;cursor:ns-resize}
+  .resize-h.n{top:-3px}.resize-h.s{bottom:-3px}
+  .resize-h.e,.resize-h.w{top:12px;bottom:12px;width:6px;cursor:ew-resize}
+  .resize-h.e{right:-3px}.resize-h.w{left:-3px}
+  .resize-h.ne,.resize-h.nw,.resize-h.se,.resize-h.sw{
+    width:12px;height:12px;background:#fff;border:2px solid var(--anchor);border-radius:3px;
+  }
+  .resize-h.nw{left:-6px;top:-6px;cursor:nwse-resize}
+  .resize-h.ne{right:-6px;top:-6px;cursor:nesw-resize}
+  .resize-h.sw{left:-6px;bottom:-6px;cursor:nesw-resize}
+  .resize-h.se{right:-6px;bottom:-6px;cursor:nwse-resize}
+
+  .card.drop-target{outline-color:var(--anchor);outline-style:dashed}
+
+  .palette{display:flex;gap:6px;align-items:center}
+  .legend{font-size:12px;color:#666;margin-right:4px}
+
+  .ctx-menu{
+    position:fixed;z-index:100;min-width:220px;
+    background:#fff;border:1px solid #d0d4da;border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;font-size:13px;
+    max-height:80vh;overflow-y:auto;
+  }
+  .ctx-menu button{
+    display:flex;align-items:center;gap:8px;width:100%;
+    background:none;border:none;padding:8px 10px;border-radius:5px;
+    text-align:left;cursor:pointer;color:#222;
+  }
+  .ctx-menu button:hover{background:#f0f2f5}
+  .ctx-menu button.danger{color:var(--danger)}
+  .ctx-menu button.danger:hover{background:#fdecea}
+  .ctx-menu button.current{background:#e3f0ff;font-weight:500}
+  .ctx-menu .sep{height:1px;background:#e4e6eb;margin:4px 2px}
+  .ctx-menu .head{padding:6px 10px;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  .ctx-menu .info{padding:6px 10px;color:#666;font-size:11px;line-height:1.4}
+
+  .minimap{
+    position:fixed;right:16px;bottom:16px;z-index:15;
+    width:220px;height:165px;background:rgba(255,255,255,.92);
+    border:1px solid #d0d4da;border-radius:8px;
+    box-shadow:0 4px 14px rgba(0,0,0,.12);
+    overflow:hidden;cursor:crosshair;
+  }
+  .minimap svg{display:block;width:100%;height:100%}
+  .minimap .mm-card{fill-opacity:.85;stroke:rgba(0,0,0,.25);stroke-width:1;vector-effect:non-scaling-stroke}
+  .minimap .mm-layout{fill:none;stroke:#222;stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:.5}
+  .minimap .mm-viewport{fill:rgba(43,127,255,.12);stroke:var(--anchor);stroke-width:1.5;vector-effect:non-scaling-stroke}
+  .minimap-toggle{
+    position:absolute;top:4px;right:4px;width:22px;height:22px;border:none;
+    background:rgba(255,255,255,.85);border-radius:4px;cursor:pointer;font-size:12px;line-height:1;
+  }
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+    background:#222;color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;
+    z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;
+    box-shadow:0 4px 12px rgba(0,0,0,.25);
+  }
+  .toast.show{opacity:1}
+  .toast.error{background:var(--danger)}
+  .toast.success{background:var(--success)}
+
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .modal{
+    background:#fff;border-radius:10px;padding:20px;max-width:520px;width:90%;
+    box-shadow:0 10px 40px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto;
+  }
+  .modal h2{margin:0 0 12px 0;font-size:18px}
+  .modal p{margin:8px 0;font-size:13px;color:#555;line-height:1.5}
+  .modal input[type=text],.modal input[type=password]{
+    width:100%;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;
+    font-size:13px;font-family:ui-monospace,monospace;margin:4px 0 8px;
+  }
+  .modal .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .modal button{padding:8px 14px;border:1px solid #d0d4da;border-radius:6px;cursor:pointer;background:#fff;font-size:13px}
+  .modal button:hover{background:#f0f2f5}
+  .modal button.primary{background:#2b7fff;color:#fff;border-color:#2b7fff}
+  .modal button.primary:hover{background:#1f6de0}
+  .modal button.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+  .modal button.danger:hover{background:#c62828}
+  .modal a{color:var(--anchor);text-decoration:none}
+  .modal a:hover{text-decoration:underline}
+  .modal code{background:#f0f2f5;padding:2px 5px;border-radius:3px;font-size:12px}
+  .modal .small{font-size:11px;color:#888}
+
+  .confirm-warn{
+    background:#fff4e5;border:1px solid #ffcc80;color:#6d4200;
+    padding:10px 12px;border-radius:6px;font-size:13px;margin:8px 0;
+  }
+  .share-box{
+    background:#e8f5e9;border:1px solid #a5d6a7;padding:10px 12px;border-radius:6px;margin:8px 0;
+  }
+  .share-link{
+    display:flex;gap:6px;align-items:center;margin-top:6px;
+  }
+  .share-link input{flex:1;font-size:12px !important;margin:0 !important}
+
+  /* Viewer-Modus */
+  body.viewer-mode .toolbar .editor-only{display:none !important}
+  body.viewer-mode .card .actions{display:none !important}
+  body.viewer-mode .card .anchor{display:none !important}
+  body.viewer-mode .card .resize-h{display:none !important}
+  body.viewer-mode .viewport{cursor:grab}
+
+  .viewer-banner{
+    position:fixed;top:48px;left:0;right:0;z-index:18;
+    background:#2b7fff;color:#fff;padding:8px 14px;font-size:13px;
+    display:flex;align-items:center;justify-content:center;gap:14px;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+  }
+  .viewer-banner.error{background:var(--danger)}
+  .viewer-banner button{
+    background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);
+    padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;
+  }
+  .viewer-banner button:hover{background:rgba(255,255,255,.3)}
+  body.viewer-mode .viewport{top:88px !important}
+  body.viewer-mode .viewer-banner+.viewport{top:88px}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="board-switcher editor-only" id="boardSwitcher" title="Board wechseln">
+    <div class="board-name" id="boardName">
+      <span id="boardNameText">Whiteboard</span>
+      <span class="shared-icon" id="boardSharedIcon" style="display:none">●</span>
+      <span style="font-size:10px;color:#888">▼</span>
+    </div>
+    <div class="board-menu-btn" id="boardMenuBtn" title="Board-Menü">⋮</div>
+  </div>
+  <button id="addBtn" class="editor-only" title="Neue Karte">+ Karte</button>
+  <div class="palette editor-only" id="palette"><span class="legend">Farbe:</span></div>
+  <button id="autoColorBtn" class="editor-only" title="Neue Karten bekommen automatisch die Farbe der Zone">🎯 Auto-Farbe</button>
+  <div class="undo-group editor-only">
+    <button id="undoBtn" title="Rückgängig (Strg+Z)">↶</button>
+    <button id="redoBtn" title="Wiederherstellen (Strg+Y)">↷</button>
+  </div>
+  <div class="zoom-group">
+    <button id="zoomOutBtn" title="Rauszoomen">−</button>
+    <span id="zoomLevel">100%</span>
+    <button id="zoomInBtn" title="Reinzoomen">+</button>
+    <button id="zoomResetBtn" title="Auf Layout zentrieren">⟲</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="sync-status editor-only" id="syncStatus" title="Cloud-Sync Status (klicken für Details)">
+    <span class="dot"></span>
+    <span id="syncStatusText">Offline</span>
+  </div>
+  <button class="burger-btn editor-only" id="burgerBtn" title="Menü">☰</button>
+</div>
+
+<div class="viewport" id="viewport">
+  <div class="board" id="board">
+    <svg class="bg-layout" id="bgLayout" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+</div>
+
+<div class="minimap" id="minimap">
+  <svg id="minimapSvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
+  <button class="minimap-toggle" id="mmToggleBtn" title="Ausblenden">×</button>
+</div>
+
+<input id="importInput" type="file" accept="application/json" hidden />
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+  try {
+
+  // ========= KONSTANTEN =========
+  const COLORS = [
+    {name:'Gelb',bg:'#FFE066'},{name:'Rosa',bg:'#FFADAD'},{name:'Grün',bg:'#B5EAD7'},
+    {name:'Blau',bg:'#A0C4FF'},{name:'Lila',bg:'#CDB4DB'},{name:'Orange',bg:'#FFB86B'},
+  ];
+
+  // ASSUMPTION: Neue Storage-Struktur v15 für Multi-Board.
+  // Alte Keys (v13) werden beim Start migriert.
+  const BOARDS_KEY = 'mini_whiteboard_boards_v1';
+  const BOARD_PREFIX = 'mini_whiteboard_v15__';
+  const BACKUP_PREFIX = 'mini_whiteboard_v15_backup__';
+  const HISTORY_PREFIX = 'mini_whiteboard_v15_history__';
+  const LEGACY_STORAGE_KEY = 'mini_whiteboard_v13';
+  const LEGACY_BACKUP_KEY = 'mini_whiteboard_v13_backup';
+  const LEGACY_HISTORY_KEY = 'mini_whiteboard_v13_history';
+  const SYNC_KEY = 'mini_whiteboard_sync_v2';
+  const LEGACY_SYNC_KEY = 'mini_whiteboard_v13_sync';
+
+  const AUTOSAVE_INTERVAL = 3000;
+  const HISTORY_INTERVAL = 60000;
+  const MAX_HISTORY = 10;
+  const SYNC_INTERVAL = 60000;
+  const SYNC_DEBOUNCE = 3000;
+  const VIEWER_POLL_INTERVAL = 30000;
+  const BOARD_W = 8000, BOARD_H = 6000;
+  const LAYOUT_W = 2488, LAYOUT_H = 1672;
+  const LAYOUT_OFFSET_X = (BOARD_W - LAYOUT_W)/2;
+  const LAYOUT_OFFSET_Y = (BOARD_H - LAYOUT_H)/2;
+  const CLICK_MOVE_THRESHOLD = 4;
+  const CARD_MIN_W = 60, CARD_MIN_H = 60;
+  const CARD_MAX_W = 1200, CARD_MAX_H = 900;
+  const CARD_DEFAULT_W = 170;
+  const CARD_REF_W = 170, CARD_REF_H = 120;
+  const IMG_MAX_SIDE = 400;
+  const UNDO_LIMIT = 50;
+  const BOARD_WARN_LIMIT = 20;
+
+  const LAYOUT = {
+    waterY: 500,
+    circle: { cx: 1244, cy: 500, r: 414 },
+    tri: { apex: {x:1244, y:1540}, left:{x:830, y:500}, right:{x:1658, y:500} },
+  };
+
+  const ZONE_COLORS = {
+    value_proposition: '#FFE066',
+    market_risks:      '#FFADAD',
+    competition:       '#CDB4DB',
+    customers:         '#B5EAD7',
+    influencer:        '#A0C4FF',
+    outside:            null,
+  };
+
+  // ========= VIEWER-MODE =========
+  const urlParams = new URLSearchParams(window.location.search);
+  const VIEWER_GIST = urlParams.get('view');
+  const IS_VIEWER = !!VIEWER_GIST;
+  if(IS_VIEWER) document.body.classList.add('viewer-mode');
+
+  // ========= DOM =========
+  const viewport = document.getElementById('viewport');
+  const board = document.getElementById('board');
+  const svg = document.getElementById('links');
+  const bgLayout = document.getElementById('bgLayout');
+  const addBtn = document.getElementById('addBtn');
+  const autoColorBtn = document.getElementById('autoColorBtn');
+  const burgerBtn = document.getElementById('burgerBtn');
+  const palette = document.getElementById('palette');
+  const importInput = document.getElementById('importInput');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const zoomResetBtn = document.getElementById('zoomResetBtn');
+  const zoomLevel = document.getElementById('zoomLevel');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const minimap = document.getElementById('minimap');
+  const minimapSvg = document.getElementById('minimapSvg');
+  const mmToggleBtn = document.getElementById('mmToggleBtn');
+  const toastEl = document.getElementById('toast');
+  const syncStatusEl = document.getElementById('syncStatus');
+  const syncStatusText = document.getElementById('syncStatusText');
+  const boardSwitcher = document.getElementById('boardSwitcher');
+  const boardNameText = document.getElementById('boardNameText');
+  const boardSharedIcon = document.getElementById('boardSharedIcon');
+  const boardNameEl = document.getElementById('boardName');
+  const boardMenuBtn = document.getElementById('boardMenuBtn');
+
+  bgLayout.setAttribute('width', LAYOUT_W);
+  bgLayout.setAttribute('height', LAYOUT_H);
+  bgLayout.setAttribute('viewBox', `0 0 ${LAYOUT_W} ${LAYOUT_H}`);
+  bgLayout.style.left = LAYOUT_OFFSET_X + 'px';
+  bgLayout.style.top  = LAYOUT_OFFSET_Y + 'px';
+  bgLayout.innerHTML = `
+    <path class="layout-stroke" d="M 830 500 A 414 414 0 0 1 1658 500" />
+    <line class="layout-stroke" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
+    <polyline class="layout-stroke" points="830,500 1244,1540 1658,500" />
+    <text class="layout-label" x="1244" y="60"  text-anchor="middle">value proposition</text>
+    <text class="layout-label" x="820"  y="485" text-anchor="end">market risks</text>
+    <text class="layout-label" x="900"  y="530" text-anchor="middle">competition</text>
+    <text class="layout-label" x="1244" y="530" text-anchor="middle">customers</text>
+    <text class="layout-label" x="1664" y="530" text-anchor="middle">influencer</text>
+  `;
+  svg.setAttribute('width', BOARD_W);
+  svg.setAttribute('height', BOARD_H);
+
+  function defaultState(){
+    return {
+      cards:[], links:[], nextId:1, color:COLORS[0].bg,
+      showBg:true, showMm:true, view:null, sticky:null,
+      autoColor:true, lastModified: Date.now(),
+    };
+  }
+
+  // ========= MULTI-BOARD REGISTRY =========
+  function newBoardId(){
+    return 'b_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+  }
+
+  function loadBoardsIndex(){
+    try{
+      const raw = localStorage.getItem(BOARDS_KEY);
+      if(!raw) return null;
+      const data = JSON.parse(raw);
+      if(!data || !Array.isArray(data.boards)) return null;
+      return data;
+    }catch{ return null; }
+  }
+  function saveBoardsIndex(){
+    try{
+      localStorage.setItem(BOARDS_KEY, JSON.stringify(boardsIndex));
+    }catch(err){ console.warn('boards index save failed', err); }
+  }
+
+  // Migration v13 → v15 Multi-Board
+  function migrateLegacy(){
+    const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if(!legacyRaw) return null;
+    try{
+      const legacyData = JSON.parse(legacyRaw);
+      const id = newBoardId();
+      localStorage.setItem(BOARD_PREFIX + id, legacyRaw);
+      const legacyBackup = localStorage.getItem(LEGACY_BACKUP_KEY);
+      if(legacyBackup) localStorage.setItem(BACKUP_PREFIX + id, legacyBackup);
+      const legacyHistory = localStorage.getItem(LEGACY_HISTORY_KEY);
+      if(legacyHistory) localStorage.setItem(HISTORY_PREFIX + id, legacyHistory);
+      // Legacy sync: in erstes Board übernehmen
+      let syncGistId = null;
+      try{
+        const legacySync = localStorage.getItem(LEGACY_SYNC_KEY);
+        if(legacySync){
+          const s = JSON.parse(legacySync);
+          if(s.token){
+            const newSync = loadSyncConfig() || { token:null, enabled:false };
+            newSync.token = s.token;
+            newSync.enabled = s.enabled || false;
+            localStorage.setItem(SYNC_KEY, JSON.stringify(newSync));
+          }
+          syncGistId = s.gistId || null;
+        }
+      }catch{}
+      // Alte Keys behalten (Sicherheit), nur markieren
+      toast('Bestehende Daten migriert nach Multi-Board', 'success');
+      return { id, name:'Mein Whiteboard', gistId: syncGistId, publicGistId: null, createdAt: Date.now() };
+    }catch(err){
+      console.warn('legacy migration failed', err);
+      return null;
+    }
+  }
+
+  let boardsIndex = loadBoardsIndex();
+  if(!boardsIndex && !IS_VIEWER){
+    boardsIndex = { boards: [], activeId: null };
+    const migrated = migrateLegacy();
+    if(migrated){
+      boardsIndex.boards.push(migrated);
+      boardsIndex.activeId = migrated.id;
+    } else {
+      const id = newBoardId();
+      const first = { id, name:'Whiteboard 1', gistId:null, publicGistId:null, createdAt:Date.now() };
+      boardsIndex.boards.push(first);
+      boardsIndex.activeId = id;
+    }
+    saveBoardsIndex();
+  }
+
+  function getActiveBoard(){
+    if(!boardsIndex) return null;
+    return boardsIndex.boards.find(b => b.id === boardsIndex.activeId) || boardsIndex.boards[0] || null;
+  }
+  function updateBoardMeta(partial){
+    const b = getActiveBoard();
+    if(!b) return;
+    Object.assign(b, partial);
+    saveBoardsIndex();
+    updateBoardSwitcherUI();
+  }
+
+  function updateBoardSwitcherUI(){
+    if(IS_VIEWER) return;
+    const b = getActiveBoard();
+    if(!b){ boardNameText.textContent = 'Whiteboard'; return; }
+    boardNameText.textContent = b.name;
+    boardSharedIcon.style.display = b.publicGistId ? '' : 'none';
+    boardSharedIcon.title = b.publicGistId ? 'Öffentlich geteilt' : '';
+  }
+
+  // ========= STATE & TIMERS =========
+  let state;
+  let saveTimer = null;
+  let lastBackupAt = 0;
+  let lastHistoryAt = 0;
+  let syncTimer = null;
+  let syncInFlight = false;
+  let toastTimer = null;
+  let ctxMenuEl = null;
+  let modalEl = null;
+
+  let undoStack = [];
+  let redoStack = [];
+  let suspendSnapshots = false;
+
+  // ========= STORAGE KEYS for active board =========
+  function keyForActive(prefix){
+    const b = getActiveBoard();
+    return b ? (prefix + b.id) : null;
+  }
+
+  // ========= TOAST =========
+  function toast(msg, type){
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show' + (type ? ' '+type : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2500);
+  }
+
+  // ========= SYNC CONFIG =========
+  function loadSyncConfig(){
+    try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
+    catch{ return null; }
+  }
+  function saveSyncConfig(){
+    try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
+  }
+  let syncConfig = loadSyncConfig() || {
+    token: null, enabled: false,
+  };
+  // Pro-Board Sync-Status (In-Memory)
+  let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+
+  // ========= UNDO/REDO =========
+  function cloneState(){
+    const s = serializeState();
+    return JSON.parse(JSON.stringify(s));
+  }
+  function pushUndo(){
+    if(suspendSnapshots || IS_VIEWER) return;
+    try{
+      undoStack.push(cloneState());
+      if(undoStack.length > UNDO_LIMIT) undoStack.shift();
+      redoStack = [];
+      updateUndoButtons();
+    }catch(e){ console.warn('undo snapshot failed', e); }
+  }
+  function updateUndoButtons(){
+    if(IS_VIEWER) return;
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+  function applySnapshot(snap){
+    suspendSnapshots = true;
+    state = Object.assign(defaultState(), snap);
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    if(state.sticky && state.sticky.type==='link' && typeof state.sticky.linkIdx==='number'){
+      state.sticky = { type:'link', link: state.links[state.sticky.linkIdx] || null };
+      if(!state.sticky.link) state.sticky = null;
+    }
+    bgLayout.style.display = state.showBg ? '' : 'none';
+    minimap.style.display = state.showMm === false ? 'none' : '';
+    updateAutoColorButton();
+    if(!state.view) fitLayoutToView(); else applyView();
+    render();
+    saveImmediate();
+    suspendSnapshots = false;
+  }
+  function doUndo(){
+    if(IS_VIEWER || !undoStack.length) return;
+    redoStack.push(cloneState());
+    const snap = undoStack.pop();
+    applySnapshot(snap);
+    updateUndoButtons();
+    toast('Rückgängig');
+  }
+  function doRedo(){
+    if(IS_VIEWER || !redoStack.length) return;
+    undoStack.push(cloneState());
+    const snap = redoStack.pop();
+    applySnapshot(snap);
+    updateUndoButtons();
+    toast('Wiederhergestellt');
+  }
+  if(!IS_VIEWER){
+    undoBtn.addEventListener('click', doUndo);
+    redoBtn.addEventListener('click', doRedo);
+  }
+
+  // ========= LOAD/SAVE ACTIVE BOARD =========
+  function loadActiveBoardState(){
+    if(IS_VIEWER) return defaultState();
+    const key = keyForActive(BOARD_PREFIX);
+    if(!key) return defaultState();
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return defaultState();
+      const s = JSON.parse(raw);
+      if(s && s.sticky && s.sticky.type==='link' && typeof s.sticky.linkIdx==='number' && Array.isArray(s.links)){
+        s.sticky = { type:'link', link: s.links[s.sticky.linkIdx] || null };
+        if(!s.sticky.link) s.sticky = null;
+      }
+      return Object.assign(defaultState(), s);
+    }catch{ return defaultState(); }
+  }
+
+  function saveImmediate(){
+    if(IS_VIEWER) return;
+    const key = keyForActive(BOARD_PREFIX);
+    if(!key) return;
+    try{
+      const data = serializeState();
+      localStorage.setItem(key, JSON.stringify(data));
+    }catch(err){
+      console.warn('save failed', err);
+      if(err && /quota/i.test(err.name || err.message || '')){
+        toast('Speicher voll. Nutze Export, um zu sichern.', 'error');
+      }
+    }
+  }
+  function saveDelayed(){
+    if(IS_VIEWER) return;
+    try{
+      const now = Date.now();
+      const data = serializeState();
+      const json = JSON.stringify(data);
+      const backupKey = keyForActive(BACKUP_PREFIX);
+      const histKey = keyForActive(HISTORY_PREFIX);
+      if(backupKey){ try{ localStorage.setItem(backupKey, json); lastBackupAt = now; }catch{} }
+      if(histKey && now - lastHistoryAt > HISTORY_INTERVAL){
+        try{
+          const rawH = localStorage.getItem(histKey);
+          let hist = rawH ? JSON.parse(rawH) : [];
+          if(!Array.isArray(hist)) hist = [];
+          hist.push({ timestamp: now, data });
+          if(hist.length > MAX_HISTORY) hist = hist.slice(-MAX_HISTORY);
+          localStorage.setItem(histKey, JSON.stringify(hist));
+          lastHistoryAt = now;
+        }catch(e){ console.warn('history save failed', e); }
+      }
+    }catch(e){ console.warn(e); }
+  }
+
+  function save(){
+    if(IS_VIEWER) return;
+    state.lastModified = Date.now();
+    saveImmediate();
+    if(saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveDelayed, AUTOSAVE_INTERVAL);
+    if(syncConfig.enabled){
+      setSyncStatus('pending', 'Änderung ausstehend');
+      scheduleSync();
+    }
+  }
+
+  function serializeState(){
+    const serializable = Object.assign({}, state);
+    if(state.sticky && state.sticky.type==='link'){
+      const idx = state.links.indexOf(state.sticky.link);
+      serializable.sticky = idx>=0 ? { type:'link', linkIdx:idx } : null;
+    }
+    return serializable;
+  }
+
+  // ========= ZONENERKENNUNG =========
+  function detectZone(pBoard){
+    const x = pBoard.x - LAYOUT_OFFSET_X;
+    const y = pBoard.y - LAYOUT_OFFSET_Y;
+    if(y < LAYOUT.waterY){
+      const dx = x - LAYOUT.circle.cx, dy = y - LAYOUT.circle.cy;
+      if(dx*dx + dy*dy <= LAYOUT.circle.r * LAYOUT.circle.r) return 'value_proposition';
+      return 'market_risks';
+    }
+    if(pointInTriangle({x,y}, LAYOUT.tri.left, LAYOUT.tri.apex, LAYOUT.tri.right)) return 'customers';
+    if(x < LAYOUT.tri.apex.x) return 'competition';
+    return 'influencer';
+  }
+  function pointInTriangle(p,a,b,c){
+    const d1=sign(p,a,b), d2=sign(p,b,c), d3=sign(p,c,a);
+    const hasNeg=d1<0||d2<0||d3<0, hasPos=d1>0||d2>0||d3>0;
+    return !(hasNeg && hasPos);
+  }
+  function sign(p,a,b){ return (p.x-b.x)*(a.y-b.y)-(a.x-b.x)*(p.y-b.y); }
+  function colorForPoint(p){
+    if(!state.autoColor) return state.color;
+    return ZONE_COLORS[detectZone(p)] || state.color;
+  }
+  function updateAutoColorButton(){
+    if(IS_VIEWER) return;
+    autoColorBtn.classList.toggle('active', !!state.autoColor);
+  }
+
+  // ========= VIEW =========
+  function clampScale(s){ return Math.min(3, Math.max(0.15, s)); }
+  function applyView(){
+    const {scale,tx,ty} = state.view;
+    board.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    viewport.style.backgroundPosition = `${tx}px ${ty}px`;
+    viewport.style.backgroundSize = `${24*scale}px ${24*scale}px`;
+    zoomLevel.textContent = Math.round(scale*100)+'%';
+    renderMinimap();
+  }
+  function fitLayoutToView(){
+    const r = viewport.getBoundingClientRect();
+    const margin = 80;
+    const availW = Math.max(200, r.width - margin*2);
+    const availH = Math.max(200, r.height - margin*2);
+    const scale = clampScale(Math.min(availW/LAYOUT_W, availH/LAYOUT_H));
+    const cx = LAYOUT_OFFSET_X + LAYOUT_W/2, cy = LAYOUT_OFFSET_Y + LAYOUT_H/2;
+    state.view = { scale, tx: r.width/2 - cx*scale, ty: r.height/2 - cy*scale };
+    applyView(); if(!IS_VIEWER) save();
+  }
+  function zoomAt(factor, cx, cy){
+    const v = state.view;
+    const ns = clampScale(v.scale*factor);
+    const k = ns / v.scale;
+    v.tx = cx - (cx - v.tx)*k; v.ty = cy - (cy - v.ty)*k;
+    v.scale = ns; applyView(); if(!IS_VIEWER) save();
+  }
+
+  // ========= INIT STATE =========
+  state = loadActiveBoardState();
+  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+  if(!Array.isArray(state.links)) state.links = [];
+  state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
+  bgLayout.style.display = state.showBg ? '' : 'none';
+  minimap.style.display = state.showMm === false ? 'none' : '';
+  if(!IS_VIEWER) updateAutoColorButton();
+  if(!state.view || typeof state.view.scale !== 'number') fitLayoutToView();
+  else applyView();
+
+  viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = viewport.getBoundingClientRect();
+    zoomAt(Math.pow(1.0015, -e.deltaY), e.clientX-rect.left, e.clientY-rect.top);
+  }, {passive:false});
+  zoomInBtn.addEventListener('click', ()=>{const r=viewport.getBoundingClientRect(); zoomAt(1.2, r.width/2, r.height/2);});
+  zoomOutBtn.addEventListener('click', ()=>{const r=viewport.getBoundingClientRect(); zoomAt(1/1.2, r.width/2, r.height/2);});
+  zoomResetBtn.addEventListener('click', fitLayoutToView);
+
+  let lastMouse = { x: null, y: null, over: false };
+  viewport.addEventListener('mousemove', (e)=>{ lastMouse.x=e.clientX; lastMouse.y=e.clientY; lastMouse.over=true; });
+  viewport.addEventListener('mouseenter', (e)=>{ lastMouse.x=e.clientX; lastMouse.y=e.clientY; lastMouse.over=true; });
+  viewport.addEventListener('mouseleave', ()=>{ lastMouse.over=false; });
+
+  // ========= PAN =========
+  let panPending=null, pan=null;
+  viewport.addEventListener('mousedown', (e)=>{
+    hideContextMenu();
+    if(e.button !== 0 && e.button !== 1) return;
+    if(e.target.closest('.card')) return;
+    if(e.target.closest('.link-hit') || e.target.closest('circle.endpoint')) return;
+    panPending = { x:e.clientX, y:e.clientY, tx:state.view.tx, ty:state.view.ty };
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e)=>{
+    if(panPending && !pan){
+      if(Math.abs(e.clientX-panPending.x) > CLICK_MOVE_THRESHOLD || Math.abs(e.clientY-panPending.y) > CLICK_MOVE_THRESHOLD){
+        pan = panPending;
+        viewport.classList.add('panning');
+      }
+    }
+    if(pan){
+      state.view.tx = pan.tx + (e.clientX - pan.x);
+      state.view.ty = pan.ty + (e.clientY - pan.y);
+      applyView();
+    }
+  });
+  window.addEventListener('mouseup', (e)=>{
+    const wasPanning = !!pan;
+    if(pan){ pan=null; viewport.classList.remove('panning'); if(!IS_VIEWER) save(); }
+    const hadPending = !!panPending;
+    panPending = null;
+    if(!wasPanning && hadPending){
+      if(!e.target.closest('.card') && !e.target.closest('.link-hit') && !e.target.closest('circle.endpoint')
+         && !e.target.closest('.minimap') && !e.target.closest('.toolbar') && !e.target.closest('.ctx-menu')
+         && !e.target.closest('.modal-backdrop') && !e.target.closest('.viewer-banner')){
+        state.sticky = null;
+        deactivateAllCards();
+        if(!IS_VIEWER) save();
+      }
+    }
+  });
+
+  if(!IS_VIEWER){
+    viewport.addEventListener('dblclick', (e) => {
+      if(e.target.closest('.card')) return;
+      const p = toBoard(e.clientX, e.clientY);
+      pushUndo();
+      createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-60, color:colorForPoint(p)});
+    });
+  }
+
+  function toBoard(clientX, clientY){
+    const r = viewport.getBoundingClientRect();
+    const {scale,tx,ty} = state.view;
+    return { x:(clientX-r.left-tx)/scale, y:(clientY-r.top-ty)/scale };
+  }
+
+  // ========= PALETTE & TOOLBAR =========
+  if(!IS_VIEWER){
+    COLORS.forEach(c => {
+      const dot = document.createElement('span');
+      dot.className = 'color-dot';
+      dot.style.background = c.bg; dot.title = c.name;
+      if(c.bg === state.color) dot.classList.add('active');
+      dot.addEventListener('click', () => {
+        state.color = c.bg;
+        [...palette.querySelectorAll('.color-dot')].forEach(d=>d.classList.remove('active'));
+        dot.classList.add('active');
+        save();
+      });
+      palette.appendChild(dot);
+    });
+
+    autoColorBtn.addEventListener('click', ()=>{
+      pushUndo();
+      state.autoColor = !state.autoColor;
+      updateAutoColorButton();
+      toast(state.autoColor ? 'Auto-Farbe aktiv' : 'Manuelle Farbe aktiv');
+      save();
+    });
+    addBtn.addEventListener('click', () => {
+      const r = viewport.getBoundingClientRect();
+      const p = toBoard(r.left + r.width/2, r.top + r.height/2);
+      pushUndo();
+      createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-60, color:colorForPoint(p)});
+    });
+
+    mmToggleBtn.addEventListener('click', ()=>{
+      state.showMm = false; minimap.style.display = 'none'; save();
+    });
+
+    importInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0]; if(!file) return;
+      try{
+        const data = JSON.parse(await file.text());
+        if(Array.isArray(data.cards) && Array.isArray(data.links)){
+          pushUndo();
+          state = Object.assign(defaultState(), data);
+          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+          bgLayout.style.display = state.showBg ? '' : 'none';
+          minimap.style.display = state.showMm === false ? 'none' : '';
+          updateAutoColorButton();
+          if(!state.view) fitLayoutToView(); else applyView();
+          render(); save();
+          toast('Import erfolgreich', 'success');
+        }
+      }catch{ toast('Ungültige Datei', 'error'); }
+      importInput.value = '';
+    });
+  } else {
+    mmToggleBtn.addEventListener('click', ()=>{
+      minimap.style.display = 'none';
+    });
+  }
+
+  // ========= PASTE =========
+  if(!IS_VIEWER){
+    window.addEventListener('paste', async (e) => {
+      const active = document.activeElement;
+      if(active && (active.classList.contains('title-text') || active.classList.contains('details'))) return;
+      const items = e.clipboardData && e.clipboardData.items;
+      if(!items || !items.length) return;
+      let imageBlob = null;
+      for(const item of items){
+        if(item.kind === 'file' && item.type && item.type.startsWith('image/')){
+          imageBlob = item.getAsFile(); break;
+        }
+      }
+      if(!imageBlob) return;
+      e.preventDefault();
+      try{
+        const dataUrl = await blobToDataURL(imageBlob);
+        const { w, h } = await loadImageSize(dataUrl);
+        const scale = Math.min(1, IMG_MAX_SIDE / Math.max(w, h));
+        const cw = Math.round(w * scale), ch = Math.round(h * scale);
+        let pivot;
+        if(lastMouse.over && lastMouse.x!==null) pivot = toBoard(lastMouse.x, lastMouse.y);
+        else { const r = viewport.getBoundingClientRect(); pivot = toBoard(r.left + r.width/2, r.top + r.height/2); }
+        pushUndo();
+        createImageCard({
+          x: Math.max(0, Math.round(pivot.x - cw/2)),
+          y: Math.max(0, Math.round(pivot.y - ch/2)),
+          w: cw, h: ch, image: dataUrl,
+          caption: `Bild ${new Date().toLocaleString()}`,
+        });
+        toast('Bild eingefügt', 'success');
+      }catch(err){ toast('Einfügen fehlgeschlagen', 'error'); }
+    });
+  }
+
+  function blobToDataURL(blob){
+    return new Promise((resolve,reject)=>{
+      const fr = new FileReader();
+      fr.onload = ()=>resolve(fr.result); fr.onerror = ()=>reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  }
+  function loadImageSize(src){
+    return new Promise((resolve,reject)=>{
+      const img = new Image();
+      img.onload = ()=>resolve({w:img.naturalWidth||img.width, h:img.naturalHeight||img.height});
+      img.onerror = reject; img.src = src;
+    });
+  }
+
+  // ========= CARDS =========
+  function createCard({x,y,color,title='Neue Karte',details='',w,h,autoH=true}){
+    const card = { id: state.nextId++, x, y, color, title, details, w:w||null, h:h||null, autoH, image:null, caption:'' };
+    state.cards.push(card); renderCard(card);
+    updateLinks(); renderMinimap(); save();
+    return card;
+  }
+  function createImageCard({x,y,w,h,image,caption=''}){
+    const card = { id: state.nextId++, x, y, color: '#222', title: '', details: '', w, h, autoH:false, image, caption };
+    state.cards.push(card); renderCard(card);
+    updateLinks(); renderMinimap(); save();
+    return card;
+  }
+  function deleteCard(id){
+    state.cards = state.cards.filter(c=>c.id!==id);
+    state.links = state.links.filter(l=>l.a!==id && l.b!==id);
+    if(state.sticky && state.sticky.type==='card' && state.sticky.id===id) state.sticky=null;
+    render(); save();
+  }
+  function deleteLink(l){
+    state.links = state.links.filter(x=>x!==l);
+    if(state.sticky && state.sticky.type==='link' && state.sticky.link===l) state.sticky=null;
+    updateLinks(); renderMinimap(); save();
+  }
+
+  function updateCardFontScale(cardEl){
+    const w = cardEl.offsetWidth, h = cardEl.offsetHeight;
+    const s = Math.max(0.5, Math.min(1.6, Math.min(w/CARD_REF_W, h/CARD_REF_H)));
+    cardEl.style.setProperty('--card-font-scale', s.toFixed(3));
+  }
+  function autoResizeCard(card, cardEl){
+    if(card.image) return;
+    if(!card.autoH) return;
+    cardEl.classList.add('autoH');
+    cardEl.style.height = 'auto';
+    card.h = cardEl.offsetHeight;
+    updateCardFontScale(cardEl);
+  }
+
+  function renderCard(card){
+    const el = document.createElement('div');
+    el.className = 'card' + (card.image ? ' image-card' : '');
+    el.dataset.id = card.id;
+    el.style.left = card.x+'px'; el.style.top = card.y+'px';
+    if(card.w) el.style.width = card.w+'px';
+
+    if(card.image){
+      el.style.height = (card.h || 200) + 'px';
+      const wrap = document.createElement('div');
+      wrap.className = 'image-wrap';
+      const img = document.createElement('img');
+      img.src = card.image; img.alt = card.caption || '';
+      wrap.appendChild(img);
+      if(card.caption){
+        const cap = document.createElement('div');
+        cap.className = 'img-caption'; cap.textContent = card.caption;
+        wrap.appendChild(cap);
+      }
+      if(!IS_VIEWER){
+        wrap.addEventListener('mousedown', (e)=>onCardDragStart(e, el, card));
+      }
+      el.appendChild(wrap);
+    } else {
+      if(card.autoH){ el.classList.add('autoH'); el.style.height = 'auto'; }
+      else if(card.h){ el.style.height = card.h+'px'; }
+
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.style.background = card.color;
+      title.title = IS_VIEWER ? '' : 'Ziehen zum Verschieben · Doppelklick zum Bearbeiten';
+
+      const titleText = document.createElement('span');
+      titleText.className = 'title-text';
+      titleText.textContent = card.title;
+      titleText.spellcheck = false;
+      title.appendChild(titleText);
+
+      if(!IS_VIEWER){
+        let titleBeforeEdit = null;
+        function enterEdit(){
+          if(title.classList.contains('editing')) return;
+          title.classList.add('editing');
+          titleText.contentEditable = 'true';
+          el.classList.add('editing');
+          titleBeforeEdit = card.title;
+          const range = document.createRange();
+          range.selectNodeContents(titleText); range.collapse(false);
+          const sel = window.getSelection();
+          sel.removeAllRanges(); sel.addRange(range);
+          titleText.focus();
+        }
+        function exitEdit(){
+          if(!title.classList.contains('editing')) return;
+          title.classList.remove('editing');
+          titleText.contentEditable = 'false';
+          el.classList.remove('editing');
+          const newTitle = titleText.textContent;
+          if(titleBeforeEdit !== null && newTitle !== titleBeforeEdit){
+            card.title = titleBeforeEdit;
+            pushUndo();
+            card.title = newTitle;
+          }
+          titleBeforeEdit = null;
+          autoResizeCard(card, el);
+          updateLinks();
+          if(!state.sticky) clearHighlight(); else applyStickyVisual();
+          save();
+        }
+        titleText.addEventListener('dblclick', (e)=>{ e.stopPropagation(); enterEdit(); });
+        titleText.addEventListener('blur', exitEdit);
+        titleText.addEventListener('input', ()=>{ card.title = titleText.textContent; autoResizeCard(card, el); updateLinks(); });
+        titleText.addEventListener('keydown', (e)=>{
+          if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); titleText.blur(); }
+          if(e.key==='Escape'){ titleText.textContent = titleBeforeEdit ?? card.title; titleText.blur(); }
+          e.stopPropagation();
+        });
+        titleText.addEventListener('mousedown', (e)=>{
+          if(title.classList.contains('editing')){ e.stopPropagation(); return; }
+          onCardDragStart(e, el, card);
+        });
+        title.addEventListener('mousedown', (e)=>{
+          if(title.classList.contains('editing')) return;
+          if(e.target !== title) return;
+          onCardDragStart(e, el, card);
+        });
+      }
+
+      const details = document.createElement('div');
+      details.className = 'details';
+      if(!IS_VIEWER) details.contentEditable = 'true';
+      details.spellcheck = false;
+      details.textContent = card.details;
+      details.setAttribute('data-placeholder','Details...');
+
+      if(!IS_VIEWER){
+        let detailsBeforeEdit = null;
+        details.addEventListener('focus', ()=>{
+          el.classList.add('editing');
+          detailsBeforeEdit = card.details;
+        });
+        details.addEventListener('blur', ()=>{
+          el.classList.remove('editing');
+          const newDetails = details.textContent;
+          if(detailsBeforeEdit !== null && newDetails !== detailsBeforeEdit){
+            card.details = detailsBeforeEdit;
+            pushUndo();
+            card.details = newDetails;
+          }
+          detailsBeforeEdit = null;
+          autoResizeCard(card, el);
+          updateLinks();
+          if(!state.sticky) clearHighlight(); else applyStickyVisual();
+          save();
+        });
+        details.addEventListener('input', ()=>{
+          card.details = details.textContent;
+          autoResizeCard(card, el);
+          updateLinks();
+        });
+        details.addEventListener('mousedown', (e)=>e.stopPropagation());
+        details.addEventListener('keydown', (e)=>e.stopPropagation());
+      }
+
+      el.appendChild(title);
+      el.appendChild(details);
+    }
+
+    if(!IS_VIEWER){
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      if(!card.image){
+        const colorBtn = document.createElement('button');
+        colorBtn.textContent = '🎨'; colorBtn.title='Farbe ändern';
+        colorBtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          pushUndo();
+          const idx = COLORS.findIndex(c=>c.bg===card.color);
+          card.color = COLORS[(idx+1)%COLORS.length].bg;
+          const titleEl = el.querySelector('.title');
+          if(titleEl) titleEl.style.background = card.color;
+          renderMinimap(); save();
+        });
+        actions.appendChild(colorBtn);
+      }
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕'; delBtn.title='Löschen';
+      delBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        confirmDeleteCard(card);
+      });
+      actions.appendChild(delBtn);
+      el.appendChild(actions);
+
+      ['top','right','bottom','left'].forEach(side=>{
+        const a = document.createElement('div');
+        a.className = 'anchor '+side;
+        a.dataset.side = side;
+        a.addEventListener('mousedown', (e)=>onAnchorDragStart(e, card, side, a));
+        el.appendChild(a);
+      });
+
+      ['n','s','e','w','ne','nw','se','sw'].forEach(dir=>{
+        const h = document.createElement('div');
+        h.className = 'resize-h '+dir;
+        h.addEventListener('mousedown', (e)=>onResizeStart(e, card, el, dir));
+        el.appendChild(h);
+      });
+    }
+
+    el.addEventListener('mouseenter', ()=>{
+      if(connectDrag || endpointDrag || state.sticky) return;
+      highlightCard(card.id, false);
+    });
+    el.addEventListener('mouseleave', ()=>{
+      if(connectDrag || endpointDrag || state.sticky) return;
+      clearHighlight();
+    });
+    el.addEventListener('click', (e)=>{
+      if(e.target.closest('.actions') || e.target.closest('.resize-h') || e.target.closest('.anchor')) return;
+      if(e.target.closest('.title.editing') || e.target.closest('.details')) return;
+      if(state.sticky && state.sticky.type==='card' && state.sticky.id===card.id) clearSticky();
+      else setStickyCard(card.id);
+    });
+    if(!IS_VIEWER){
+      el.addEventListener('contextmenu', (e)=>{
+        e.preventDefault(); e.stopPropagation();
+        showCardMenu(e.clientX, e.clientY, card);
+      });
+    }
+
+    board.appendChild(el);
+    if(!card.image){ autoResizeCard(card, el); updateCardFontScale(el); }
+    else updateCardFontScale(el);
+  }
+
+  // ========= CARD DRAG =========
+  let cardDrag = null;
+  function onCardDragStart(e, cardEl, card){
+    if(IS_VIEWER) return;
+    if(e.button!==0) return;
+    const start = toBoard(e.clientX, e.clientY);
+    cardDrag = { card, cardEl, offX:start.x-card.x, offY:start.y-card.y, moved:false, sx:e.clientX, sy:e.clientY,
+                 origX: card.x, origY: card.y, snapshotTaken:false };
+    e.preventDefault(); e.stopPropagation();
+  }
+  window.addEventListener('mousemove', (e)=>{
+    if(!cardDrag) return;
+    if(!cardDrag.moved){
+      if(Math.abs(e.clientX-cardDrag.sx) < CLICK_MOVE_THRESHOLD && Math.abs(e.clientY-cardDrag.sy) < CLICK_MOVE_THRESHOLD) return;
+      cardDrag.moved = true;
+      if(!cardDrag.snapshotTaken){
+        const tmpX = cardDrag.card.x, tmpY = cardDrag.card.y;
+        cardDrag.card.x = cardDrag.origX; cardDrag.card.y = cardDrag.origY;
+        pushUndo();
+        cardDrag.card.x = tmpX; cardDrag.card.y = tmpY;
+        cardDrag.snapshotTaken = true;
+      }
+      cardDrag.cardEl.classList.add('dragging');
+    }
+    const p = toBoard(e.clientX, e.clientY);
+    cardDrag.card.x = Math.max(0, p.x - cardDrag.offX);
+    cardDrag.card.y = Math.max(0, p.y - cardDrag.offY);
+    cardDrag.cardEl.style.left = cardDrag.card.x+'px';
+    cardDrag.cardEl.style.top  = cardDrag.card.y+'px';
+    updateLinks(); renderMinimap();
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(cardDrag){ if(cardDrag.moved){ cardDrag.cardEl.classList.remove('dragging'); save(); } cardDrag=null; }
+  });
+
+  // ========= RESIZE =========
+  let resizeDrag = null;
+  function onResizeStart(e, card, cardEl, dir){
+    if(IS_VIEWER) return;
+    if(e.button!==0) return;
+    e.preventDefault(); e.stopPropagation();
+    pushUndo();
+    card.autoH = false;
+    cardEl.classList.remove('autoH');
+    resizeDrag = {
+      card, cardEl, dir,
+      startW: cardEl.offsetWidth, startH: cardEl.offsetHeight,
+      startX: card.x, startY: card.y,
+      sx: e.clientX, sy: e.clientY,
+    };
+  }
+  window.addEventListener('mousemove', (e)=>{
+    if(!resizeDrag) return;
+    const scale = state.view.scale;
+    const dx = (e.clientX - resizeDrag.sx)/scale;
+    const dy = (e.clientY - resizeDrag.sy)/scale;
+    let nw = resizeDrag.startW, nh = resizeDrag.startH;
+    let nx = resizeDrag.startX, ny = resizeDrag.startY;
+    const d = resizeDrag.dir;
+    if(d.includes('e')) nw = resizeDrag.startW + dx;
+    if(d.includes('s')) nh = resizeDrag.startH + dy;
+    if(d.includes('w')){ nw = resizeDrag.startW - dx; nx = resizeDrag.startX + dx; }
+    if(d.includes('n')){ nh = resizeDrag.startH - dy; ny = resizeDrag.startY + dy; }
+    if(nw < CARD_MIN_W){ if(d.includes('w')) nx -= (CARD_MIN_W - nw); nw = CARD_MIN_W; }
+    if(nw > CARD_MAX_W) nw = CARD_MAX_W;
+    if(nh < CARD_MIN_H){ if(d.includes('n')) ny -= (CARD_MIN_H - nh); nh = CARD_MIN_H; }
+    if(nh > CARD_MAX_H) nh = CARD_MAX_H;
+    resizeDrag.card.w = Math.round(nw); resizeDrag.card.h = Math.round(nh);
+    resizeDrag.card.x = Math.max(0, Math.round(nx));
+    resizeDrag.card.y = Math.max(0, Math.round(ny));
+    resizeDrag.cardEl.style.width = resizeDrag.card.w + 'px';
+    resizeDrag.cardEl.style.height = resizeDrag.card.h + 'px';
+    resizeDrag.cardEl.style.left = resizeDrag.card.x + 'px';
+    resizeDrag.cardEl.style.top = resizeDrag.card.y + 'px';
+    updateCardFontScale(resizeDrag.cardEl);
+    updateLinks(); renderMinimap();
+  });
+  window.addEventListener('mouseup', ()=>{ if(resizeDrag){ resizeDrag=null; save(); } });
+
+  // ========= ANCHOR (NEW LINK) =========
+  let connectDrag = null;
+  let ghostPath = null;
+  let hoverTarget = null;
+  let hoverAnchorEl = null;
+  let hoverAnchorSide = null;
+
+  function cleanupConnectDrag(){
+    if(ghostPath){ ghostPath.remove(); ghostPath=null; }
+    if(connectDrag){
+      if(connectDrag.fromEl) connectDrag.fromEl.classList.remove('show-anchors');
+      if(connectDrag.fromAnchor) connectDrag.fromAnchor.classList.remove('active');
+    }
+    if(hoverTarget) hoverTarget.classList.remove('drop-target');
+    if(hoverAnchorEl) hoverAnchorEl.classList.remove('active');
+    hoverAnchorEl=null; hoverAnchorSide=null; hoverTarget=null; connectDrag=null;
+    applyStickyVisual();
+  }
+
+  function onAnchorDragStart(e, card, side, anchorEl){
+    if(IS_VIEWER) return;
+    if(e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    clearHighlight();
+    const cardEl = board.querySelector(`.card[data-id="${card.id}"]`);
+    cardEl.classList.add('show-anchors');
+    anchorEl.classList.add('active');
+    connectDrag = { fromId: card.id, fromSide: side, fromEl: cardEl, fromAnchor: anchorEl };
+    ghostPath = document.createElementNS('http://www.w3.org/2000/svg','path');
+    ghostPath.setAttribute('class','ghost');
+    svg.appendChild(ghostPath);
+    updateGhost(e.clientX, e.clientY);
+  }
+
+  function nearestSide(card, point){
+    const r = cardRect(card);
+    const sides = {
+      top:{x:r.cx,y:r.y}, right:{x:r.x+r.w,y:r.cy},
+      bottom:{x:r.cx,y:r.y+r.h}, left:{x:r.x,y:r.cy},
+    };
+    let best='right', bestD=Infinity;
+    for(const s in sides){
+      const dx=sides[s].x-point.x, dy=sides[s].y-point.y;
+      const d=dx*dx+dy*dy;
+      if(d<bestD){bestD=d; best=s;}
+    }
+    return best;
+  }
+
+  function updateGhost(clientX, clientY){
+    if(!connectDrag) return;
+    const from = state.cards.find(c=>c.id===connectDrag.fromId);
+    const pA = sideAnchorPoint(from, connectDrag.fromSide);
+    let pB = toBoard(clientX, clientY);
+    const el = document.elementFromPoint(clientX, clientY);
+    const cardEl = el && el.closest('.card');
+    const newTarget = (cardEl && +cardEl.dataset.id !== connectDrag.fromId) ? cardEl : null;
+    if(newTarget !== hoverTarget){
+      if(hoverTarget){
+        hoverTarget.classList.remove('drop-target');
+        if(hoverAnchorEl){ hoverAnchorEl.classList.remove('active'); hoverAnchorEl=null; }
+      }
+      if(newTarget) newTarget.classList.add('drop-target');
+      hoverTarget = newTarget;
+    }
+    if(hoverTarget){
+      const targetCard = state.cards.find(c=>c.id === +hoverTarget.dataset.id);
+      const side = nearestSide(targetCard, pB);
+      pB = sideAnchorPoint(targetCard, side);
+      const newAnchorEl = hoverTarget.querySelector('.anchor.'+side);
+      if(newAnchorEl !== hoverAnchorEl){
+        if(hoverAnchorEl) hoverAnchorEl.classList.remove('active');
+        hoverAnchorEl = newAnchorEl; hoverAnchorSide = side;
+        if(hoverAnchorEl) hoverAnchorEl.classList.add('active');
+      }
+    }else if(hoverAnchorEl){
+      hoverAnchorEl.classList.remove('active'); hoverAnchorEl=null; hoverAnchorSide=null;
+    }
+    ghostPath.setAttribute('d', bezierPathDirected(pA, connectDrag.fromSide, pB, hoverAnchorSide));
+  }
+
+  window.addEventListener('mousemove', (e)=>{ if(connectDrag) updateGhost(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', ()=>{
+    if(!connectDrag) return;
+    if(hoverTarget && hoverAnchorSide){
+      const toId = +hoverTarget.dataset.id;
+      addLink(connectDrag.fromId, connectDrag.fromSide, toId, hoverAnchorSide);
+    }
+    cleanupConnectDrag();
+  });
+  window.addEventListener('mouseleave', ()=>{ if(connectDrag) cleanupConnectDrag(); });
+  window.addEventListener('blur', ()=>{ if(connectDrag) cleanupConnectDrag(); });
+
+  function addLink(a, sideA, b, sideB){
+    if(a===b) return;
+    if(state.links.some(l => (l.a===a&&l.b===b)||(l.a===b&&l.b===a))) return;
+    pushUndo();
+    state.links.push({a, b, sideA, sideB});
+    updateLinks(); renderMinimap(); save();
+  }
+
+  // ========= ENDPOINT DRAG =========
+  let endpointDrag = null;
+  function onEndpointDragStart(e, link, which, circleEl){
+    if(IS_VIEWER) return;
+    if(e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    clearHighlight();
+    endpointDrag = { link, which, ghost:null, circleEl, willDelete:false, snapshotTaken:false };
+    if(circleEl) circleEl.classList.add('dragging');
+    const ghost = document.createElementNS('http://www.w3.org/2000/svg','path');
+    ghost.setAttribute('class','ghost');
+    svg.appendChild(ghost);
+    endpointDrag.ghost = ghost;
+    updateEndpointGhost(e.clientX, e.clientY);
+  }
+  function updateEndpointGhost(clientX, clientY){
+    if(!endpointDrag) return;
+    const { link, which, ghost } = endpointDrag;
+    const other = which === 'a' ? 'b' : 'a';
+    const fixedCard = state.cards.find(c=>c.id === link[other]);
+    const fixedSide = link[other === 'a' ? 'sideA' : 'sideB'];
+    const pFixed = fixedSide ? sideAnchorPoint(fixedCard, fixedSide) : cardEdgeAnchor(fixedCard, toBoard(clientX,clientY));
+
+    let pDrag = toBoard(clientX, clientY);
+    const el = document.elementFromPoint(clientX, clientY);
+    const cardEl = el && el.closest('.card');
+    const candidateId = cardEl ? +cardEl.dataset.id : null;
+
+    document.querySelectorAll('.card.drop-target').forEach(c=>c.classList.remove('drop-target'));
+    let targetSide = null;
+
+    if(candidateId && candidateId !== link[other]){
+      const targetCard = state.cards.find(c=>c.id===candidateId);
+      targetSide = nearestSide(targetCard, pDrag);
+      pDrag = sideAnchorPoint(targetCard, targetSide);
+      cardEl.classList.add('drop-target');
+      endpointDrag.targetId = candidateId;
+      endpointDrag.targetSide = targetSide;
+      endpointDrag.willDelete = false;
+      ghost.classList.remove('delete');
+    } else {
+      endpointDrag.targetId = null;
+      endpointDrag.targetSide = null;
+      endpointDrag.willDelete = true;
+      ghost.classList.add('delete');
+    }
+
+    let pA, sideA, pB, sideB;
+    if(which === 'a'){ pA = pDrag; sideA = targetSide; pB = pFixed; sideB = fixedSide; }
+    else { pA = pFixed; sideA = fixedSide; pB = pDrag; sideB = targetSide; }
+    ghost.setAttribute('d', bezierPathDirected(pA, sideA, pB, sideB));
+  }
+  function cleanupEndpointDrag(){
+    if(!endpointDrag) return;
+    if(endpointDrag.ghost) endpointDrag.ghost.remove();
+    if(endpointDrag.circleEl) endpointDrag.circleEl.classList.remove('dragging');
+    document.querySelectorAll('.card.drop-target').forEach(c=>c.classList.remove('drop-target'));
+    endpointDrag = null;
+    applyStickyVisual();
+  }
+  window.addEventListener('mousemove', (e)=>{ if(endpointDrag) updateEndpointGhost(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', ()=>{
+    if(!endpointDrag) return;
+    const { link, which, targetId, targetSide, willDelete } = endpointDrag;
+    if(targetId && targetSide){
+      const other = which === 'a' ? 'b' : 'a';
+      const dup = state.links.some(l => l !== link &&
+        ((l.a === targetId && l.b === link[other]) || (l.b === targetId && l.a === link[other])));
+      if(!dup && targetId !== link[other]){
+        pushUndo();
+        if(which === 'a'){ link.a = targetId; link.sideA = targetSide; }
+        else { link.b = targetId; link.sideB = targetSide; }
+        updateLinks(); renderMinimap(); save();
+      }
+    } else if(willDelete){
+      confirmDeleteLink(link);
+    }
+    cleanupEndpointDrag();
+  });
+  window.addEventListener('blur', ()=>{ if(endpointDrag) cleanupEndpointDrag(); });
+
+  // ========= GEOMETRY =========
+  function cardRect(card){
+    const el = board.querySelector(`.card[data-id="${card.id}"]`);
+    const w = el ? el.offsetWidth  : (card.w || CARD_DEFAULT_W);
+    const h = el ? el.offsetHeight : (card.h || 120);
+    return {x:card.x, y:card.y, w, h, cx:card.x+w/2, cy:card.y+h/2};
+  }
+  function sideAnchorPoint(card, side){
+    const r = cardRect(card);
+    switch(side){
+      case 'top':    return {x:r.cx, y:r.y};
+      case 'right':  return {x:r.x+r.w, y:r.cy};
+      case 'bottom': return {x:r.cx, y:r.y+r.h};
+      case 'left':   return {x:r.x, y:r.cy};
+    }
+    return {x:r.cx, y:r.cy};
+  }
+  function cardEdgeAnchor(card, toward){
+    const r = cardRect(card);
+    const dx = toward.x - r.cx, dy = toward.y - r.cy;
+    if(dx===0 && dy===0) return {x:r.cx, y:r.cy};
+    const scale = 1 / Math.max(Math.abs(dx)/(r.w/2), Math.abs(dy)/(r.h/2));
+    return { x:r.cx + dx*scale, y:r.cy + dy*scale };
+  }
+  function dirForSide(side){
+    switch(side){ case 'top':return {x:0,y:-1}; case 'right':return {x:1,y:0}; case 'bottom':return {x:0,y:1}; case 'left':return {x:-1,y:0}; }
+    return null;
+  }
+  function bezierPathDirected(pA, sideA, pB, sideB){
+    const dist = Math.hypot(pB.x-pA.x, pB.y-pA.y);
+    const curve = Math.min(260, Math.max(60, dist*0.45));
+    let dA = dirForSide(sideA), dB = sideB ? dirForSide(sideB) : null;
+    if(!dA){ const dx=pB.x-pA.x, dy=pB.y-pA.y; dA = Math.abs(dx)>=Math.abs(dy) ? {x:Math.sign(dx)||1,y:0} : {x:0,y:Math.sign(dy)||1}; }
+    if(!dB){ const dx=pA.x-pB.x, dy=pA.y-pB.y; dB = Math.abs(dx)>=Math.abs(dy) ? {x:Math.sign(dx)||1,y:0} : {x:0,y:Math.sign(dy)||1}; }
+    const c1 = { x: pA.x + dA.x*curve, y: pA.y + dA.y*curve };
+    const c2 = { x: pB.x + dB.x*curve, y: pB.y + dB.y*curve };
+    return `M ${pA.x} ${pA.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${pB.x} ${pB.y}`;
+  }
+
+  function updateLinks(){
+    [...svg.querySelectorAll('g.link-group')].forEach(n=>n.remove());
+    state.links.forEach((l) => {
+      const a = state.cards.find(c=>c.id===l.a);
+      const b = state.cards.find(c=>c.id===l.b);
+      if(!a || !b) return;
+      let pA, pB;
+      if(l.sideA) pA = sideAnchorPoint(a, l.sideA);
+      else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
+      if(l.sideB) pB = sideAnchorPoint(b, l.sideB);
+      else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
+      const d = bezierPathDirected(pA, l.sideA, pB, l.sideB);
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('class','link-group');
+      const hit = document.createElementNS('http://www.w3.org/2000/svg','path');
+      hit.setAttribute('class','link-hit'); hit.setAttribute('d', d);
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','link'); path.setAttribute('d', d);
+      path.dataset.a = l.a; path.dataset.b = l.b;
+
+      const epA = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      epA.setAttribute('class','endpoint');
+      epA.setAttribute('cx', pA.x); epA.setAttribute('cy', pA.y); epA.setAttribute('r', 8);
+      epA.style.display = 'none';
+      if(!IS_VIEWER) epA.addEventListener('mousedown', (e)=>onEndpointDragStart(e, l, 'a', epA));
+
+      const epB = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      epB.setAttribute('class','endpoint');
+      epB.setAttribute('cx', pB.x); epB.setAttribute('cy', pB.y); epB.setAttribute('r', 8);
+      epB.style.display = 'none';
+      if(!IS_VIEWER) epB.addEventListener('mousedown', (e)=>onEndpointDragStart(e, l, 'b', epB));
+
+      hit.addEventListener('mouseenter', ()=>{
+        if(connectDrag || endpointDrag) return;
+        if(!state.sticky) highlightLink(l, false);
+        if(!IS_VIEWER){ epA.style.display = ''; epB.style.display = ''; }
+      });
+      hit.addEventListener('mouseleave', ()=>{
+        if(connectDrag || endpointDrag) return;
+        if(!state.sticky) clearHighlight();
+        if(!(state.sticky && state.sticky.type==='link' && state.sticky.link===l)){
+          epA.style.display='none'; epB.style.display='none';
+        }
+      });
+      hit.addEventListener('click', ()=>{
+        if(connectDrag || endpointDrag) return;
+        if(state.sticky && state.sticky.type==='link' && state.sticky.link===l) clearSticky();
+        else setStickyLink(l);
+      });
+      if(!IS_VIEWER){
+        hit.addEventListener('contextmenu', (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          showLinkMenu(e.clientX, e.clientY, l);
+        });
+      }
+
+      g.appendChild(hit); g.appendChild(path); g.appendChild(epA); g.appendChild(epB);
+      g._link = l; g._epA = epA; g._epB = epB;
+      svg.appendChild(g);
+    });
+    applyStickyVisual();
+  }
+
+  // ========= HIGHLIGHT / STICKY =========
+  function deactivateAllCards(){
+    const active = document.activeElement;
+    if(active && (active.classList.contains('title-text') || active.classList.contains('details'))) active.blur();
+    document.querySelectorAll('.card').forEach(el=>{
+      el.classList.remove('editing','hi','sticky','dim','show-anchors');
+      const title = el.querySelector('.title');
+      const titleText = el.querySelector('.title-text');
+      if(title && title.classList.contains('editing')){
+        title.classList.remove('editing');
+        if(titleText) titleText.contentEditable = 'false';
+      }
+    });
+    svg.querySelectorAll('path.link').forEach(p=>p.classList.remove('hi','dim'));
+    svg.querySelectorAll('circle.endpoint').forEach(c=>c.style.display='none');
+  }
+
+  function highlightCard(id, isSticky){
+    if(connectDrag || endpointDrag) return;
+    const connected = new Set([id]);
+    state.links.forEach(l=>{
+      if(l.a===id) connected.add(l.b);
+      if(l.b===id) connected.add(l.a);
+    });
+    document.querySelectorAll('.card').forEach(el=>{
+      const cid = +el.dataset.id;
+      const isConnected = connected.has(cid);
+      const isEditing = el.classList.contains('editing');
+      el.classList.toggle('hi', isConnected && !isSticky);
+      el.classList.toggle('sticky', isConnected && isSticky);
+      el.classList.toggle('dim', !isConnected && !isEditing);
+    });
+    svg.querySelectorAll('path.link').forEach(p=>{
+      const touches = +p.dataset.a===id || +p.dataset.b===id;
+      p.classList.toggle('hi', touches);
+      p.classList.toggle('dim', !touches);
+    });
+    svg.querySelectorAll('circle.endpoint').forEach(c=>c.style.display='none');
+  }
+  function highlightLink(l, isSticky){
+    if(connectDrag || endpointDrag) return;
+    document.querySelectorAll('.card').forEach(el=>{
+      const cid = +el.dataset.id;
+      const on = cid===l.a || cid===l.b;
+      const isEditing = el.classList.contains('editing');
+      el.classList.toggle('hi', on && !isSticky);
+      el.classList.toggle('sticky', on && isSticky);
+      el.classList.toggle('dim', !on && !isEditing);
+    });
+    svg.querySelectorAll('path.link').forEach(p=>{
+      const on = (+p.dataset.a===l.a && +p.dataset.b===l.b);
+      p.classList.toggle('hi', on);
+      p.classList.toggle('dim', !on);
+    });
+    svg.querySelectorAll('g.link-group').forEach(g=>{
+      if(g._link === l){ if(!IS_VIEWER){ g._epA.style.display=''; g._epB.style.display=''; } }
+      else { g._epA.style.display='none'; g._epB.style.display='none'; }
+    });
+  }
+  function clearHighlight(){
+    document.querySelectorAll('.card').forEach(el=>el.classList.remove('hi','dim','sticky'));
+    svg.querySelectorAll('path.link').forEach(p=>p.classList.remove('hi','dim'));
+    svg.querySelectorAll('circle.endpoint').forEach(c=>c.style.display='none');
+  }
+  function setStickyCard(id){ state.sticky = { type:'card', id }; applyStickyVisual(); if(!IS_VIEWER) save(); }
+  function setStickyLink(l){ state.sticky = { type:'link', link:l }; applyStickyVisual(); if(!IS_VIEWER) save(); }
+  function clearSticky(){ state.sticky = null; deactivateAllCards(); if(!IS_VIEWER) save(); }
+  function applyStickyVisual(){
+    if(!state.sticky){ clearHighlight(); return; }
+    if(state.sticky.type==='card'){
+      if(!state.cards.some(c=>c.id===state.sticky.id)){ state.sticky=null; clearHighlight(); return; }
+      highlightCard(state.sticky.id, true);
+    } else if(state.sticky.type==='link'){
+      if(!state.links.includes(state.sticky.link)){ state.sticky=null; clearHighlight(); return; }
+      highlightLink(state.sticky.link, true);
+    }
+  }
+
+  // ========= CONFIRM MODAL (Single-Step) =========
+  function confirmSimple(title, warnHtml, destructiveLabel, onConfirm){
+    showModal(title, (body)=>{
+      body.innerHTML = `<div class="confirm-warn">${warnHtml}</div>`;
+    }, destructiveLabel, ()=>{
+      closeModal();
+      onConfirm();
+    });
+  }
+
+  function confirmDeleteCard(card){
+    const name = card.image ? 'diese Bildkarte' : `die Karte "${card.title || 'Unbenannt'}"`;
+    const linkCount = state.links.filter(l=>l.a===card.id||l.b===card.id).length;
+    const extra = linkCount ? ` Zusätzlich werden <b>${linkCount}</b> Verbindung(en) entfernt.` : '';
+    confirmSimple(
+      'Karte löschen?',
+      `Möchtest du ${name} wirklich löschen?${extra}`,
+      'Löschen',
+      ()=>{
+        pushUndo();
+        deleteCard(card.id);
+        toast('Karte gelöscht');
+      }
+    );
+  }
+  function confirmDeleteLink(link){
+    confirmSimple(
+      'Verbindung löschen?',
+      'Möchtest du diese Verbindung wirklich entfernen?',
+      'Löschen',
+      ()=>{
+        pushUndo();
+        deleteLink(link);
+        toast('Verbindung gelöscht');
+      }
+    );
+  }
+
+  // ========= CONTEXT MENU =========
+  function hideContextMenu(){ if(ctxMenuEl){ ctxMenuEl.remove(); ctxMenuEl=null; } }
+  function showContextMenu(x, y, items){
+    hideContextMenu();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    items.forEach(it=>{
+      if(it.sep){ const s=document.createElement('div'); s.className='sep'; menu.appendChild(s); return; }
+      if(it.head){ const h=document.createElement('div'); h.className='head'; h.textContent=it.head; menu.appendChild(h); return; }
+      if(it.info){ const i=document.createElement('div'); i.className='info'; i.textContent=it.info; menu.appendChild(i); return; }
+      const btn = document.createElement('button');
+      if(it.danger) btn.classList.add('danger');
+      if(it.current) btn.classList.add('current');
+      btn.innerHTML = `<span>${it.icon||''}</span><span>${it.label}</span>`;
+      btn.addEventListener('click', ()=>{ hideContextMenu(); it.action && it.action(); });
+      menu.appendChild(btn);
+    });
+    document.body.appendChild(menu);
+    const mw=menu.offsetWidth, mh=menu.offsetHeight;
+    menu.style.left = Math.min(x, window.innerWidth - mw - 4) + 'px';
+    menu.style.top  = Math.min(y, window.innerHeight - mh - 4) + 'px';
+    ctxMenuEl = menu;
+  }
+  function showLinkMenu(x, y, link){
+    const cardA = state.cards.find(c=>c.id===link.a);
+    const cardB = state.cards.find(c=>c.id===link.b);
+    const nameA = cardA ? (cardA.title || (cardA.image ? 'Bild '+link.a : 'Karte '+link.a)) : ('Karte '+link.a);
+    const nameB = cardB ? (cardB.title || (cardB.image ? 'Bild '+link.b : 'Karte '+link.b)) : ('Karte '+link.b);
+    const sides = ['top','right','bottom','left'];
+    const sideLabels = {top:'oben', right:'rechts', bottom:'unten', left:'links'};
+    showContextMenu(x, y, [
+      { head:'Verbindung bearbeiten' },
+      { icon:'↺', label:'Richtung tauschen', action:()=>{
+          pushUndo();
+          const oldSideA = link.sideA, oldSideB = link.sideB;
+          const oldA = link.a;
+          link.a = link.b; link.b = oldA;
+          link.sideA = oldSideB; link.sideB = oldSideA;
+          updateLinks(); renderMinimap(); save();
+        }},
+      { head:`Startpunkt: ${nameA}` },
+      ...sides.map(s => ({ icon: link.sideA===s ? '●' : '○', label: 'Seite '+sideLabels[s],
+        action: ()=>{ pushUndo(); link.sideA = s; updateLinks(); renderMinimap(); save(); } })),
+      { head:`Endpunkt: ${nameB}` },
+      ...sides.map(s => ({ icon: link.sideB===s ? '●' : '○', label: 'Seite '+sideLabels[s],
+        action: ()=>{ pushUndo(); link.sideB = s; updateLinks(); renderMinimap(); save(); } })),
+      { sep:true },
+      { icon:'🗑', label:'Verbindung löschen...', danger:true, action:()=>confirmDeleteLink(link) }
+    ]);
+  }
+  function showCardMenu(x, y, card){
+    const linkCount = state.links.filter(l=>l.a===card.id||l.b===card.id).length;
+    const items = [];
+    if(card.image){
+      items.push(
+        { head:'Bildkarte' },
+        { icon:'✎', label:'Beschriftung bearbeiten', action:()=>{
+            const cap = prompt('Beschriftung:', card.caption || '');
+            if(cap !== null){ pushUndo(); card.caption = cap; render(); save(); }
+          }},
+        { icon:'📝', label:'In Textkarte umwandeln', action:()=>{
+            pushUndo();
+            card.image = null; card.caption=''; card.title = 'Neue Karte'; card.details=''; card.autoH=true;
+            const r = cardRect(card);
+            card.color = colorForPoint({x:r.cx, y:r.cy});
+            render(); save();
+          }},
+      );
+    } else {
+      items.push(
+        { icon:'✎', label:'Titel bearbeiten', action:()=>{
+            const tt = board.querySelector(`.card[data-id="${card.id}"] .title-text`);
+            if(tt) tt.dispatchEvent(new MouseEvent('dblclick', {bubbles:true}));
+          }},
+        { icon:'🎨', label:'Farbe wechseln', action:()=>{
+            pushUndo();
+            const idx = COLORS.findIndex(c=>c.bg===card.color);
+            card.color = COLORS[(idx+1)%COLORS.length].bg;
+            const el = board.querySelector(`.card[data-id="${card.id}"] .title`);
+            if(el) el.style.background = card.color;
+            renderMinimap(); save();
+          }},
+        { icon:'🎯', label:'Auf Zonenfarbe zurücksetzen', action:()=>{
+            pushUndo();
+            const r = cardRect(card);
+            card.color = colorForPoint({x:r.cx, y:r.cy});
+            const el = board.querySelector(`.card[data-id="${card.id}"] .title`);
+            if(el) el.style.background = card.color;
+            renderMinimap(); save();
+          }},
+        { icon: card.autoH ? '☑' : '☐', label:'Auto-Höhe (nach Text)', action:()=>{
+            pushUndo();
+            card.autoH = !card.autoH;
+            const el = board.querySelector(`.card[data-id="${card.id}"]`);
+            if(card.autoH){ el.classList.add('autoH'); el.style.height='auto'; autoResizeCard(card, el); }
+            else{ el.classList.remove('autoH'); card.h = el.offsetHeight; el.style.height=card.h+'px'; }
+            updateLinks(); save();
+          }},
+      );
+    }
+    items.push(
+      { icon:'🔗', label:`Alle Verbindungen entfernen (${linkCount})`, action:()=>{
+          if(!linkCount){ toast('Keine Verbindungen vorhanden'); return; }
+          pushUndo();
+          state.links = state.links.filter(l=>l.a!==card.id && l.b!==card.id);
+          updateLinks(); renderMinimap(); save();
+        }},
+      { sep:true },
+      { icon:'🗑', label:'Karte löschen...', danger:true, action:()=>confirmDeleteCard(card) }
+    );
+    showContextMenu(x, y, items);
+  }
+
+  // ========= BOARD SWITCHER =========
+  if(!IS_VIEWER){
+    boardNameEl.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      showBoardSwitcher();
+    });
+    boardMenuBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      showBoardMenu();
+    });
+    updateBoardSwitcherUI();
+  }
+
+  function showBoardSwitcher(){
+    const rect = boardSwitcher.getBoundingClientRect();
+    const items = [
+      { head:'Boards wechseln' }
+    ];
+    boardsIndex.boards.forEach(b => {
+      const shared = b.publicGistId ? ' ●' : '';
+      items.push({
+        icon: b.id === boardsIndex.activeId ? '✓' : '  ',
+        label: b.name + shared,
+        current: b.id === boardsIndex.activeId,
+        action: ()=>{
+          if(b.id !== boardsIndex.activeId) switchBoard(b.id);
+        }
+      });
+    });
+    items.push(
+      { sep:true },
+      { icon:'+', label:'Neues Board...', action: ()=> createNewBoardDialog() },
+      { icon:'🗂', label:'Alle Boards verwalten...', action: ()=> showBoardManager() },
+    );
+    showContextMenu(rect.left, rect.bottom + 4, items);
+  }
+
+  function showBoardMenu(){
+    const rect = boardSwitcher.getBoundingClientRect();
+    const b = getActiveBoard();
+    if(!b) return;
+    const items = [
+      { head: b.name },
+      { icon:'✎', label:'Umbenennen...', action: ()=> renameBoardDialog(b.id) },
+      { icon:'⧉', label:'Duplizieren', action: ()=> duplicateBoard(b.id) },
+      { sep:true },
+      { icon: b.publicGistId ? '🔗' : '🌐', label: b.publicGistId ? 'Freigabe verwalten...' : 'Teilen (Leseansicht)...',
+        action: ()=> openShareDialog() },
+      { sep:true },
+      { icon:'+', label:'Neues Board...', action: ()=> createNewBoardDialog() },
+    ];
+    if(boardsIndex.boards.length > 1){
+      items.push({ icon:'🗑', label:'Dieses Board löschen...', danger:true, action: ()=> confirmDeleteBoard(b.id) });
+    }
+    showContextMenu(rect.right - 220, rect.bottom + 4, items);
+  }
+
+  function suggestBoardName(){
+    const existing = new Set(boardsIndex.boards.map(b => b.name));
+    let i = boardsIndex.boards.length + 1;
+    while(existing.has('Board ' + i)) i++;
+    return 'Board ' + i;
+  }
+
+  function createNewBoardDialog(){
+    if(boardsIndex.boards.length >= BOARD_WARN_LIMIT){
+      if(!confirm(`Du hast bereits ${boardsIndex.boards.length} Boards. Weiteres anlegen?`)) return;
+    }
+    const defaultName = suggestBoardName();
+    showModal('Neues Board', (body)=>{
+      body.innerHTML = `
+        <p>Neues Board mit Zonen-Vorlage (Value Proposition, Market Risk, Customer, Competitor, Influencer) erstellen.</p>
+        <p><b>Name</b></p>
+        <input type="text" id="newBoardName" value="${escapeAttr(defaultName)}" autofocus />
+      `;
+      setTimeout(()=>{
+        const input = body.querySelector('#newBoardName');
+        input.focus(); input.select();
+        input.addEventListener('keydown', e=>{
+          if(e.key==='Enter'){ e.preventDefault(); body.closest('.modal').querySelector('.primary').click(); }
+        });
+      },50);
+    }, 'Erstellen', (box)=>{
+      const name = box.querySelector('#newBoardName').value.trim() || defaultName;
+      createNewBoard(name);
+      closeModal();
+    });
+  }
+
+  function createNewBoard(name){
+    const id = newBoardId();
+    const b = { id, name, gistId:null, publicGistId:null, createdAt:Date.now() };
+    boardsIndex.boards.push(b);
+    boardsIndex.activeId = id;
+    saveBoardsIndex();
+    // Initial state mit Zonen-Vorlage
+    state = defaultState();
+    initZoneTemplate();
+    saveImmediate();
+    undoStack = []; redoStack = []; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+    updateBoardSwitcherUI();
+    fitLayoutToView();
+    render();
+    toast('Board "'+name+'" erstellt', 'success');
+    if(syncConfig.enabled) scheduleSync();
+  }
+
+  function switchBoard(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    // aktuellen Sync abschließen (falls pending)
+    if(syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
+    boardsIndex.activeId = id;
+    saveBoardsIndex();
+    state = loadActiveBoardState();
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
+    bgLayout.style.display = state.showBg ? '' : 'none';
+    minimap.style.display = state.showMm === false ? 'none' : '';
+    updateAutoColorButton();
+    if(!state.view) fitLayoutToView(); else applyView();
+    undoStack = []; redoStack = []; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+    updateBoardSwitcherUI();
+    render();
+    toast('Gewechselt zu "'+b.name+'"');
+    if(syncConfig.enabled){
+      setSyncStatus('syncing','Verbinde...');
+      initialSyncForActive();
+    } else {
+      setSyncStatus('off','Offline (Sync aus)');
+    }
+  }
+
+  function renameBoardDialog(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    showModal('Board umbenennen', (body)=>{
+      body.innerHTML = `
+        <p>Neuer Name für das Board:</p>
+        <input type="text" id="renameInput" value="${escapeAttr(b.name)}" autofocus />
+      `;
+      setTimeout(()=>{
+        const input = body.querySelector('#renameInput');
+        input.focus(); input.select();
+        input.addEventListener('keydown', e=>{
+          if(e.key==='Enter'){ e.preventDefault(); body.closest('.modal').querySelector('.primary').click(); }
+        });
+      },50);
+    }, 'Speichern', (box)=>{
+      const name = box.querySelector('#renameInput').value.trim();
+      if(!name) return;
+      b.name = name;
+      saveBoardsIndex();
+      updateBoardSwitcherUI();
+      closeModal();
+      toast('Umbenannt zu "'+name+'"');
+      if(b.id === boardsIndex.activeId && syncConfig.enabled){
+        scheduleSync();
+      }
+    });
+  }
+
+  function duplicateBoard(id){
+    const srcBoard = boardsIndex.boards.find(x => x.id === id);
+    if(!srcBoard) return;
+    const srcKey = BOARD_PREFIX + id;
+    const data = localStorage.getItem(srcKey);
+    const newId = newBoardId();
+    const newName = srcBoard.name + ' (Kopie)';
+    try{
+      if(data) localStorage.setItem(BOARD_PREFIX + newId, data);
+    }catch(err){ toast('Speicher voll', 'error'); return; }
+    const newB = { id:newId, name:newName, gistId:null, publicGistId:null, createdAt:Date.now() };
+    boardsIndex.boards.push(newB);
+    boardsIndex.activeId = newId;
+    saveBoardsIndex();
+    state = loadActiveBoardState();
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    undoStack=[]; redoStack=[]; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+    updateBoardSwitcherUI();
+    if(!state.view) fitLayoutToView(); else applyView();
+    render();
+    toast('Board dupliziert');
+    if(syncConfig.enabled) scheduleSync();
+  }
+
+  function confirmDeleteBoard(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    if(boardsIndex.boards.length <= 1){
+      toast('Letztes Board kann nicht gelöscht werden', 'error');
+      return;
+    }
+    const sharedWarn = b.publicGistId ? '<br><b>Achtung:</b> Die Freigabe (öffentlicher Link) wird ebenfalls widerrufen.' : '';
+    const syncWarn = b.gistId ? '<br><b>Hinweis:</b> Der Secret Gist in der Cloud wird <u>nicht</u> automatisch gelöscht.' : '';
+    confirmSimple(
+      'Board löschen?',
+      `Das Board <b>"${escapeHtml(b.name)}"</b> inkl. aller Karten und Verbindungen wird lokal gelöscht.${sharedWarn}${syncWarn}`,
+      'Löschen',
+      async ()=>{
+        // Public Gist ggf. löschen
+        if(b.publicGistId && syncConfig.enabled && syncConfig.token){
+          try{ await githubRequest('/gists/'+b.publicGistId, 'DELETE'); }catch(e){ console.warn('public gist delete failed',e); }
+        }
+        try{
+          localStorage.removeItem(BOARD_PREFIX + id);
+          localStorage.removeItem(BACKUP_PREFIX + id);
+          localStorage.removeItem(HISTORY_PREFIX + id);
+        }catch{}
+        boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
+        if(boardsIndex.activeId === id){
+          boardsIndex.activeId = boardsIndex.boards[0].id;
+        }
+        saveBoardsIndex();
+        switchBoard(boardsIndex.activeId);
+        toast('Board gelöscht');
+      }
+    );
+  }
+
+  function showBoardManager(){
+    showModal('Alle Boards verwalten', (body)=>{
+      body.innerHTML = `<p>${boardsIndex.boards.length} Board(s) vorhanden:</p>`;
+      const list = document.createElement('div');
+      list.style.cssText = 'max-height:300px;overflow-y:auto;border:1px solid #e4e6eb;border-radius:6px;margin:8px 0';
+      boardsIndex.boards.forEach(b => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:8px 10px;border-bottom:1px solid #f0f2f5;display:flex;align-items:center;gap:8px';
+        const active = b.id === boardsIndex.activeId ? '<b style="color:var(--success)">●</b> ' : '';
+        const shared = b.publicGistId ? ' 🌐' : '';
+        const synced = b.gistId ? ' ☁' : '';
+        row.innerHTML = `<div style="flex:1;font-size:13px">${active}${escapeHtml(b.name)}${shared}${synced}<div style="font-size:10px;color:#888">${new Date(b.createdAt).toLocaleDateString()}</div></div>`;
+        const btnGo = document.createElement('button');
+        btnGo.textContent = 'Öffnen';
+        btnGo.style.cssText = 'font-size:11px;padding:4px 8px';
+        btnGo.addEventListener('click', ()=>{ closeModal(); if(b.id !== boardsIndex.activeId) switchBoard(b.id); });
+        row.appendChild(btnGo);
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+      body.innerHTML += `<p class="small">● = aktiv · 🌐 = geteilt · ☁ = cloud-synchronisiert</p>`;
+    }, null, null);
+  }
+
+  // ========= BURGER MENU =========
+  if(!IS_VIEWER){
+    burgerBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rect = burgerBtn.getBoundingClientRect();
+      const b = getActiveBoard();
+      const items = [
+        { head:'Ansicht' },
+        { icon: state.showBg ? '☑' : '☐', label:'Hintergrund-Layout anzeigen', action:()=>{
+            state.showBg = !state.showBg;
+            bgLayout.style.display = state.showBg ? '' : 'none';
+            renderMinimap(); save();
+          }},
+        { icon: state.showMm !== false ? '☑' : '☐', label:'Mini-Map anzeigen', action:()=>{
+            state.showMm = !(state.showMm !== false);
+            minimap.style.display = state.showMm ? '' : 'none';
+            save();
+          }},
+        { sep:true },
+        { head:'Cloud-Sync' },
+        { icon: syncConfig.enabled ? '☁' : '⊘', label: syncConfig.enabled ? 'Cloud-Sync konfiguriert' : 'Cloud-Sync einrichten...',
+          action:()=> openSyncModal() },
+      ];
+      if(syncConfig.enabled){
+        items.push(
+          { icon:'⟳', label:'Jetzt synchronisieren', action:()=> manualSync() },
+          { icon:'↓', label:'Vom Cloud laden (überschreibt lokal)', action:()=> manualPull() },
+        );
+      }
+      items.push(
+        { sep:true },
+        { head:'Teilen' },
+        { icon: b && b.publicGistId ? '🔗' : '🌐', label: b && b.publicGistId ? 'Freigabe verwalten...' : 'Leseansicht teilen...',
+          action:()=> openShareDialog() },
+        { sep:true },
+        { head:'Versionen' },
+        { icon:'🕒', label:'Versionshistorie...', action:()=> showHistoryMenu() },
+        { sep:true },
+        { head:'Datei' },
+        { icon:'⤓', label:'Export (JSON)', action:()=> exportData() },
+        { icon:'📄', label:'Export (PDF)...', action:()=> exportPDF() },
+        { icon:'⤒', label:'Import (JSON)...', action:()=> importInput.click() },
+        { sep:true },
+        { head:'Zurücksetzen' },
+        { icon:'🗑', label:'Karten löschen...', danger:true, action:()=> confirmClearCards() },
+        { icon:'♻', label:'Kompletter Reset...', danger:true, action:()=> confirmFullReset() },
+      );
+      showContextMenu(rect.right - 240, rect.bottom + 4, items);
+    });
+
+    syncStatusEl.addEventListener('click', ()=> openSyncModal());
+  }
+
+  function confirmClearCards(){
+    confirmSimple(
+      'Alle Karten löschen?',
+      `Alle <b>${state.cards.length}</b> Karten und <b>${state.links.length}</b> Verbindungen werden entfernt. Zoom/Position bleiben erhalten.`,
+      'Alles löschen',
+      ()=>{
+        pushUndo();
+        state.cards=[]; state.links=[]; state.nextId=1; state.sticky=null;
+        render(); save();
+        toast('Karten gelöscht');
+      }
+    );
+  }
+  function confirmFullReset(){
+    confirmSimple(
+      'Kompletter Reset?',
+      'ALLE Boards, Verbindungen, Cloud-Konfiguration und Undo-Verlauf werden gelöscht. Die Seite wird neu geladen.',
+      'Komplett zurücksetzen',
+      ()=>{
+        try{
+          // Alle Board-spezifischen Keys entfernen
+          const keysToRemove = [];
+          for(let i=0; i<localStorage.length; i++){
+            const key = localStorage.key(i);
+            if(key && (key.startsWith(BOARD_PREFIX) || key.startsWith(BACKUP_PREFIX) || key.startsWith(HISTORY_PREFIX))){
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          localStorage.removeItem(BOARDS_KEY);
+          localStorage.removeItem(SYNC_KEY);
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          localStorage.removeItem(LEGACY_BACKUP_KEY);
+          localStorage.removeItem(LEGACY_HISTORY_KEY);
+          localStorage.removeItem(LEGACY_SYNC_KEY);
+        }catch{}
+        location.reload();
+      }
+    );
+  }
+
+  function exportData(){
+    const b = getActiveBoard();
+    const name = b ? b.name.replace(/[^\w-]+/g,'_') : 'whiteboard';
+    const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name + '.json'; a.click();
+  }
+
+  // ========= PDF EXPORT =========
+  function exportPDF(){
+    let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
+    let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      if(r.x < minX) minX = r.x;
+      if(r.y < minY) minY = r.y;
+      if(r.x + r.w > maxX) maxX = r.x + r.w;
+      if(r.y + r.h > maxY) maxY = r.y + r.h;
+    });
+    const pad = 60;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+    const bw = maxX - minX, bh = maxY - minY;
+
+    const parts = [];
+    parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${bw} ${bh}" width="100%" style="background:#fff">`);
+
+    if(state.showBg){
+      parts.push(`<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})" opacity="0.8">
+        <path d="M 830 500 A 414 414 0 0 1 1658 500" fill="none" stroke="#222" stroke-width="3"/>
+        <line x1="0" y1="500" x2="${LAYOUT_W}" y2="500" stroke="#222" stroke-width="3"/>
+        <polyline points="830,500 1244,1540 1658,500" fill="none" stroke="#222" stroke-width="3"/>
+        <text x="1244" y="60" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#222">value proposition</text>
+        <text x="820" y="485" text-anchor="end" font-size="28" font-family="sans-serif" fill="#222">market risks</text>
+        <text x="900" y="530" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#222">competition</text>
+        <text x="1244" y="530" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#222">customers</text>
+        <text x="1664" y="530" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#222">influencer</text>
+      </g>`);
+    }
+
+    state.links.forEach(l=>{
+      const a = state.cards.find(c=>c.id===l.a);
+      const b = state.cards.find(c=>c.id===l.b);
+      if(!a || !b) return;
+      let pA, pB;
+      if(l.sideA) pA = sideAnchorPoint(a, l.sideA);
+      else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
+      if(l.sideB) pB = sideAnchorPoint(b, l.sideB);
+      else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
+      const d = bezierPathDirected(pA, l.sideA, pB, l.sideB);
+      parts.push(`<path d="${d}" fill="none" stroke="#9aa0a6" stroke-width="2.2" opacity="0.85"/>`);
+    });
+
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      if(c.image){
+        parts.push(`<g>
+          <rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="10" fill="#222"/>
+          <image href="${escapeAttr(c.image)}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" preserveAspectRatio="xMidYMid meet"/>
+        </g>`);
+      } else {
+        const titleH = 40;
+        parts.push(`<g>
+          <rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="10" fill="#fff" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>
+          <path d="M ${r.x+10} ${r.y} H ${r.x+r.w-10} A 10 10 0 0 1 ${r.x+r.w} ${r.y+10} V ${r.y+titleH} H ${r.x} V ${r.y+10} A 10 10 0 0 1 ${r.x+10} ${r.y} Z" fill="${c.color}"/>
+          <foreignObject x="${r.x+8}" y="${r.y+4}" width="${r.w-16}" height="${titleH-4}">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:sans-serif;font-size:13px;font-weight:600;color:#222;line-height:1.25;word-break:break-word;overflow:hidden">${escapeHtml(c.title||'')}</div>
+          </foreignObject>
+          <foreignObject x="${r.x+8}" y="${r.y+titleH+4}" width="${r.w-16}" height="${r.h-titleH-8}">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:sans-serif;font-size:12px;color:#222;line-height:1.35;white-space:pre-wrap;word-break:break-word;overflow:hidden">${escapeHtml(c.details||'')}</div>
+          </foreignObject>
+        </g>`);
+      }
+    });
+
+    parts.push(`</svg>`);
+    const svgStr = parts.join('');
+
+    const w = window.open('', '_blank');
+    if(!w){ toast('Pop-up blockiert. Bitte erlauben.', 'error'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Whiteboard Export</title>
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        html,body{margin:0;padding:0;background:#fff}
+        .wrap{width:100%;height:100vh;display:flex;align-items:center;justify-content:center}
+        svg{max-width:100%;max-height:100%;height:auto}
+        .hint{position:fixed;top:8px;left:8px;background:#2b7fff;color:#fff;padding:6px 10px;border-radius:6px;font-family:sans-serif;font-size:12px}
+        @media print { .hint{display:none} }
+      </style></head><body>
+      <div class="hint">Drucken → Ziel: "Als PDF speichern"</div>
+      <div class="wrap">${svgStr}</div>
+      <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));<\/script>
+      </body></html>`);
+    w.document.close();
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+  function escapeAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+  window.addEventListener('mousedown', (e)=>{ if(ctxMenuEl && !e.target.closest('.ctx-menu')) hideContextMenu(); });
+  window.addEventListener('keydown', (e)=>{
+    const inEditable = document.activeElement && (
+      document.activeElement.classList.contains('title-text') ||
+      document.activeElement.classList.contains('details') ||
+      document.activeElement.tagName === 'INPUT' ||
+      document.activeElement.tagName === 'TEXTAREA'
+    );
+
+    if(!IS_VIEWER){
+      if((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
+        if(inEditable) return;
+        e.preventDefault(); doUndo(); return;
+      }
+      if((e.ctrlKey || e.metaKey) && ((e.key === 'y' || e.key === 'Y') || (e.shiftKey && (e.key === 'z' || e.key === 'Z')))){
+        if(inEditable) return;
+        e.preventDefault(); doRedo(); return;
+      }
+    }
+
+    if(e.key==='Escape'){
+      hideContextMenu();
+      state.sticky = null;
+      deactivateAllCards();
+      if(connectDrag) cleanupConnectDrag();
+      if(endpointDrag) cleanupEndpointDrag();
+      closeModal();
+      if(!IS_VIEWER) save();
+    }
+  });
+  viewport.addEventListener('wheel', hideContextMenu);
+  viewport.addEventListener('contextmenu', (e)=>{
+    if(e.target.closest('.card') || e.target.closest('.link-hit')) return;
+    e.preventDefault(); hideContextMenu();
+  });
+
+  // ========= MINI-MAP =========
+  function renderMinimap(){
+    if(minimap.style.display === 'none') return;
+    let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
+    let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      if(r.x < minX) minX = r.x;
+      if(r.y < minY) minY = r.y;
+      if(r.x + r.w > maxX) maxX = r.x + r.w;
+      if(r.y + r.h > maxY) maxY = r.y + r.h;
+    });
+    const vpRect = viewport.getBoundingClientRect();
+    const {scale,tx,ty} = state.view;
+    const vX = -tx/scale, vY = -ty/scale;
+    const vW = vpRect.width/scale, vH = vpRect.height/scale;
+    minX = Math.min(minX, vX); minY = Math.min(minY, vY);
+    maxX = Math.max(maxX, vX + vW); maxY = Math.max(maxY, vY + vH);
+    const pad = 150;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+    const bw = maxX - minX, bh = maxY - minY;
+    minimapSvg.setAttribute('viewBox', `${minX} ${minY} ${bw} ${bh}`);
+    let html = '';
+    if(state.showBg){
+      html += `<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})">
+        <path class="mm-layout" d="M 830 500 A 414 414 0 0 1 1658 500" />
+        <line class="mm-layout" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
+        <polyline class="mm-layout" points="830,500 1244,1540 1658,500" />
+      </g>`;
+    }
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      const fill = c.image ? '#222' : c.color;
+      html += `<rect class="mm-card" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="4" fill="${fill}"/>`;
+    });
+    html += `<rect class="mm-viewport" x="${vX}" y="${vY}" width="${vW}" height="${vH}" rx="2"/>`;
+    minimapSvg.innerHTML = html;
+    minimapSvg.dataset.vb = JSON.stringify({minX,minY,bw,bh});
+  }
+
+  let mmDrag = false;
+  function mmPointToBoard(e){
+    const r = minimap.getBoundingClientRect();
+    const vb = JSON.parse(minimapSvg.dataset.vb||'null'); if(!vb) return null;
+    const fx = (e.clientX - r.left)/r.width, fy = (e.clientY - r.top)/r.height;
+    return { x: vb.minX + fx*vb.bw, y: vb.minY + fy*vb.bh };
+  }
+  function mmCenterOn(p){
+    const vpRect = viewport.getBoundingClientRect();
+    state.view.tx = vpRect.width/2 - p.x*state.view.scale;
+    state.view.ty = vpRect.height/2 - p.y*state.view.scale;
+    applyView(); if(!IS_VIEWER) save();
+  }
+  minimap.addEventListener('mousedown', (e)=>{
+    if(e.target === mmToggleBtn) return;
+    e.preventDefault(); e.stopPropagation();
+    mmDrag = true;
+    const p = mmPointToBoard(e); if(p) mmCenterOn(p);
+  });
+  window.addEventListener('mousemove', (e)=>{ if(mmDrag){ const p = mmPointToBoard(e); if(p) mmCenterOn(p); } });
+  window.addEventListener('mouseup', ()=>{ mmDrag = false; });
+
+  // ========= RENDER =========
+  function render(){
+    [...board.querySelectorAll('.card')].forEach(n=>n.remove());
+    state.cards.forEach(renderCard);
+    updateLinks(); renderMinimap(); applyStickyVisual();
+  }
+
+  function initZoneTemplate(){
+    const zones = [
+      { zone:'value_proposition', title:'Value Proposition', x: LAYOUT_OFFSET_X + 1159, y: LAYOUT_OFFSET_Y + 180 },
+      { zone:'market_risks',      title:'Market Risk',       x: LAYOUT_OFFSET_X + 300,  y: LAYOUT_OFFSET_Y + 350 },
+      { zone:'competition',       title:'Competitor',        x: LAYOUT_OFFSET_X + 700,  y: LAYOUT_OFFSET_Y + 560 },
+      { zone:'customers',         title:'Customer Segment',  x: LAYOUT_OFFSET_X + 1159, y: LAYOUT_OFFSET_Y + 850 },
+      { zone:'influencer',        title:'Influencer',        x: LAYOUT_OFFSET_X + 1640, y: LAYOUT_OFFSET_Y + 560 },
+    ];
+    zones.forEach(z => {
+      const card = {
+        id: state.nextId++, x: z.x, y: z.y,
+        color: ZONE_COLORS[z.zone] || COLORS[0].bg,
+        title: z.title, details: '',
+        w: null, h: null, autoH: true, image: null, caption: ''
+      };
+      state.cards.push(card);
+    });
+  }
+
+  function showHistoryMenu(){
+    let hist = [];
+    const histKey = keyForActive(HISTORY_PREFIX);
+    try{ if(histKey){ const raw = localStorage.getItem(histKey); hist = raw ? JSON.parse(raw) : []; } }catch{}
+    if(!Array.isArray(hist) || !hist.length){
+      toast('Noch keine Versionen vorhanden');
+      return;
+    }
+    const items = [{ head:'Versionshistorie (dieses Board)' }];
+    [...hist].reverse().forEach((entry)=>{
+      const d = new Date(entry.timestamp);
+      const label = d.toLocaleString();
+      const cardCount = entry.data.cards ? entry.data.cards.length : 0;
+      items.push({
+        icon:'🕒', label:`${label} (${cardCount} Karten)`,
+        action:()=>{
+          confirmSimple(
+            'Version wiederherstellen?',
+            `Version vom <b>${label}</b> laden? Der aktuelle Stand wird überschrieben (Undo möglich).`,
+            'Wiederherstellen',
+            ()=>{
+              pushUndo();
+              state = Object.assign(defaultState(), entry.data);
+              state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+              bgLayout.style.display = state.showBg ? '' : 'none';
+              minimap.style.display = state.showMm === false ? 'none' : '';
+              updateAutoColorButton();
+              if(!state.view) fitLayoutToView(); else applyView();
+              render(); save();
+              toast('Version wiederhergestellt', 'success');
+            }
+          );
+        }
+      });
+    });
+    const rect = burgerBtn.getBoundingClientRect();
+    showContextMenu(rect.right - 280, rect.bottom + 4, items);
+  }
+
+  // ========= MODAL =========
+  function closeModal(){ if(modalEl){ modalEl.remove(); modalEl = null; } }
+  function showModal(title, bodyFn, primaryLabel, primaryAction, extraButtons){
+    closeModal();
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeModal(); });
+    const box = document.createElement('div');
+    box.className = 'modal';
+    const h = document.createElement('h2'); h.textContent = title; box.appendChild(h);
+    const body = document.createElement('div'); box.appendChild(body);
+    bodyFn(body);
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    if(extraButtons){
+      extraButtons.forEach(btnDef => {
+        const b = document.createElement('button');
+        b.textContent = btnDef.label;
+        if(btnDef.danger) b.classList.add('danger');
+        b.addEventListener('click', ()=> btnDef.action(box));
+        actions.appendChild(b);
+      });
+    }
+    const cancel = document.createElement('button'); cancel.textContent = primaryLabel ? 'Abbrechen' : 'Schließen'; cancel.addEventListener('click', closeModal); actions.appendChild(cancel);
+    if(primaryLabel){
+      const ok = document.createElement('button'); ok.textContent = primaryLabel;
+      ok.classList.add(primaryLabel.toLowerCase().includes('löschen') || primaryLabel.toLowerCase().includes('reset') || primaryLabel.toLowerCase().includes('deaktivieren') || primaryLabel.toLowerCase().includes('widerrufen') ? 'danger' : 'primary');
+      ok.addEventListener('click', ()=> primaryAction(box));
+      actions.appendChild(ok);
+    }
+    box.appendChild(actions);
+    backdrop.appendChild(box);
+    document.body.appendChild(backdrop);
+    modalEl = backdrop;
+  }
+
+  function openSyncModal(){
+    showModal('GitHub Gist Cloud-Sync', (body)=>{
+      body.innerHTML = `
+        <p>Synchronisiert deine Whiteboards über <b>Secret Gists</b> auf GitHub (pro Board ein eigener Gist). Token wird global gespeichert.</p>
+        <p><b>1. Token erstellen:</b> Gehe zu <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens (Fine-grained)</a>, erstelle ein Token mit Permission <code>Gists: Read and write</code>.</p>
+        <p><b>GitHub Token</b></p>
+        <input type="password" id="syncTokenInput" placeholder="github_pat_..." value="${syncConfig.token || ''}" autocomplete="off" />
+        <p class="small">Token wird nur lokal im Browser gespeichert. Pro Board wird automatisch ein eigener Secret Gist erstellt.</p>
+        ${syncConfig.enabled ? `<p class="small">✓ Aktuell aktiv. ${boardsIndex.boards.filter(b=>b.gistId).length} von ${boardsIndex.boards.length} Boards synchronisiert.</p>` : ''}
+      `;
+    }, 'Speichern & Aktivieren', async (box)=>{
+      const token = box.querySelector('#syncTokenInput').value.trim();
+      if(!token){ alert('Bitte Token eingeben'); return; }
+      syncConfig.token = token;
+      syncConfig.enabled = true;
+      saveSyncConfig();
+      closeModal();
+      toast('Sync aktiviert, prüfe Verbindung...');
+      const ok = await initialSyncForActive();
+      if(ok) toast('Sync eingerichtet', 'success');
+    }, syncConfig.enabled ? [
+      { label:'Sync deaktivieren', danger:true, action:()=>{
+          confirmSimple('Sync deaktivieren?',
+            'Cloud-Sync deaktivieren? Lokale Daten bleiben erhalten. Token wird gelöscht.',
+            'Deaktivieren',
+            ()=>{
+              syncConfig = { token:null, enabled:false };
+              saveSyncConfig();
+              setSyncStatus('off', 'Offline');
+              toast('Sync deaktiviert');
+            });
+        }}
+    ] : null);
+  }
+
+  // ========= SHARE DIALOG =========
+  function openShareDialog(){
+    const b = getActiveBoard();
+    if(!b) return;
+    if(!syncConfig.enabled || !syncConfig.token){
+      showModal('Teilen benötigt Cloud-Sync', (body)=>{
+        body.innerHTML = `<p>Zum Teilen wird ein GitHub Token benötigt (öffentliche Gists zum Hosten). Bitte zuerst Cloud-Sync einrichten.</p>`;
+      }, 'Sync einrichten...', ()=>{ closeModal(); openSyncModal(); });
+      return;
+    }
+
+    const shareUrl = b.publicGistId ? buildShareUrl(b.publicGistId) : null;
+
+    showModal('Leseansicht teilen', (body)=>{
+      if(b.publicGistId){
+        body.innerHTML = `
+          <div class="share-box">
+            <b>✓ Freigabe aktiv</b><br>
+            <span class="small">Dieses Board ist öffentlich lesbar. Jede Änderung wird automatisch beim Cloud-Sync auch im öffentlichen Snapshot aktualisiert.</span>
+            <div class="share-link">
+              <input type="text" id="shareLinkInput" value="${escapeAttr(shareUrl)}" readonly />
+              <button type="button" id="copyShareBtn">Kopieren</button>
+            </div>
+          </div>
+          <p class="small">Leser sehen eine schreibgeschützte Ansicht mit automatischer Aktualisierung alle 30 Sekunden.</p>
+          <p class="small"><b>Public Gist-ID:</b> <code>${escapeHtml(b.publicGistId)}</code></p>
+        `;
+        setTimeout(()=>{
+          const btn = body.querySelector('#copyShareBtn');
+          btn.addEventListener('click', ()=>{
+            navigator.clipboard.writeText(shareUrl).then(()=>{
+              btn.textContent = '✓ Kopiert';
+              setTimeout(()=>{ btn.textContent = 'Kopieren'; }, 1500);
+            });
+          });
+          const input = body.querySelector('#shareLinkInput');
+          input.addEventListener('click', ()=> input.select());
+        },50);
+      } else {
+        body.innerHTML = `
+          <p>Board <b>"${escapeHtml(b.name)}"</b> als <b>öffentliche Leseansicht</b> teilen.</p>
+          <p>Dabei wird ein <b>öffentlicher Gist</b> erstellt, der den aktuellen Stand enthält. Jede weitere Änderung wird automatisch synchronisiert (alle ~3 Sekunden bei aktivem Cloud-Sync).</p>
+          <div class="confirm-warn">
+            <b>Hinweis:</b> Der Gist ist <u>öffentlich</u> zugänglich. Der Link ist zwar schwer zu erraten, aber technisch findbar. Keine vertraulichen Daten teilen.
+          </div>
+        `;
+      }
+    }, b.publicGistId ? null : 'Freigabe erstellen', async (box)=>{
+      try{
+        await enableSharing();
+        closeModal();
+        openShareDialog();
+      }catch(err){
+        toast('Fehler: '+err.message, 'error');
+      }
+    }, b.publicGistId ? [
+      { label:'Freigabe widerrufen', danger:true, action:()=>{
+          confirmSimple('Freigabe widerrufen?',
+            'Der öffentliche Gist wird gelöscht. Bestehende Leseansicht-Links werden ungültig.',
+            'Widerrufen',
+            async ()=>{
+              try{
+                await disableSharing();
+                closeModal();
+                toast('Freigabe widerrufen');
+              }catch(err){ toast('Fehler: '+err.message, 'error'); }
+            });
+        }}
+    ] : null);
+  }
+
+  function buildShareUrl(gistId){
+    const base = window.location.origin + window.location.pathname;
+    return base + '?view=' + gistId;
+  }
+
+  async function enableSharing(){
+    const b = getActiveBoard();
+    if(!b) return;
+    const dataJson = JSON.stringify({ boardName: b.name, data: serializeState(), updatedAt: Date.now() }, null, 2);
+    toast('Erstelle öffentlichen Gist...');
+    const gist = await githubRequest('/gists', 'POST', {
+      description: 'Mini Whiteboard Share: ' + b.name,
+      public: true,
+      files: { 'whiteboard-share.json': { content: dataJson } }
+    });
+    b.publicGistId = gist.id;
+    saveBoardsIndex();
+    updateBoardSwitcherUI();
+    toast('Freigabe erstellt', 'success');
+  }
+
+  async function disableSharing(){
+    const b = getActiveBoard();
+    if(!b || !b.publicGistId) return;
+    try{
+      await githubRequest('/gists/'+b.publicGistId, 'DELETE');
+    }catch(err){
+      console.warn('public gist delete failed', err);
+    }
+    b.publicGistId = null;
+    saveBoardsIndex();
+    updateBoardSwitcherUI();
+  }
+
+  async function updatePublicGist(){
+    const b = getActiveBoard();
+    if(!b || !b.publicGistId) return;
+    try{
+      const dataJson = JSON.stringify({ boardName: b.name, data: serializeState(), updatedAt: Date.now() }, null, 2);
+      await githubRequest('/gists/'+b.publicGistId, 'PATCH', {
+        files: { 'whiteboard-share.json': { content: dataJson } }
+      });
+    }catch(err){
+      console.warn('public gist update failed', err);
+      // Fehler bei Public Gist soll Secret Sync nicht blockieren
+    }
+  }
+
+  // ========= SYNC LOGIC =========
+  function setSyncStatus(kind, text){
+    if(IS_VIEWER) return;
+    syncStatusEl.classList.remove('ok','pending','error','syncing','off');
+    if(kind) syncStatusEl.classList.add(kind);
+    syncStatusText.textContent = text;
+  }
+
+  async function hashString(str){
+    const enc = new TextEncoder().encode(str);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  async function githubRequest(path, method, body){
+    const headers = {
+      'Accept':'application/vnd.github+json',
+      'Authorization':'Bearer '+syncConfig.token,
+      'X-GitHub-Api-Version':'2022-11-28',
+    };
+    if(body) headers['Content-Type'] = 'application/json';
+    const res = await fetch('https://api.github.com'+path, {
+      method, headers, body: body ? JSON.stringify(body) : undefined,
+    });
+    if(method === 'DELETE' && res.ok) return null;
+    if(!res.ok){
+      const text = await res.text().catch(()=>'');
+      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
+    }
+    return res.json();
+  }
+
+  async function createGist(dataJson, boardName){
+    const gist = await githubRequest('/gists', 'POST', {
+      description: 'Mini Whiteboard Sync: ' + boardName,
+      public: false,
+      files: { 'whiteboard.json': { content: dataJson } }
+    });
+    return gist.id;
+  }
+  async function readGist(gistId){
+    const gist = await githubRequest('/gists/'+gistId, 'GET');
+    const file = gist.files && gist.files['whiteboard.json'];
+    if(!file) return null;
+    let content = file.content;
+    if(file.truncated && file.raw_url){
+      const res = await fetch(file.raw_url);
+      content = await res.text();
+    }
+    return { content, updatedAt: new Date(gist.updated_at).getTime() };
+  }
+  async function writeGist(gistId, dataJson){
+    await githubRequest('/gists/'+gistId, 'PATCH', {
+      files: { 'whiteboard.json': { content: dataJson } }
+    });
+  }
+
+  async function initialSyncForActive(){
+    if(!syncConfig.enabled) return false;
+    const b = getActiveBoard();
+    if(!b) return false;
+    setSyncStatus('syncing','Verbinde...');
+    try{
+      if(!b.gistId){
+        const dataJson = JSON.stringify(serializeState(), null, 2);
+        const id = await createGist(dataJson, b.name);
+        b.gistId = id;
+        saveBoardsIndex();
+        boardSyncState.lastSyncedAt = Date.now();
+        boardSyncState.lastSyncedHash = await hashString(dataJson);
+        setSyncStatus('ok', 'Synchronisiert');
+        toast('Secret Gist erstellt', 'success');
+        if(b.publicGistId) updatePublicGist();
+        return true;
+      } else {
+        const remote = await readGist(b.gistId);
+        if(!remote){
+          const dataJson = JSON.stringify(serializeState(), null, 2);
+          await writeGist(b.gistId, dataJson);
+          boardSyncState.lastSyncedAt = Date.now();
+          boardSyncState.lastSyncedHash = await hashString(dataJson);
+          setSyncStatus('ok', 'Synchronisiert');
+          return true;
+        }
+        const remoteData = JSON.parse(remote.content);
+        const localModified = state.lastModified || 0;
+        const remoteModified = remoteData.lastModified || remote.updatedAt || 0;
+
+        if(remoteModified > localModified + 1000){
+          const applyRemote = (state.cards.length === 0 && state.links.length === 0) ||
+            confirm(`Cloud-Version ist neuer (${new Date(remoteModified).toLocaleString()}). Lokale Daten überschreiben?`);
+          if(applyRemote){
+            state = Object.assign(defaultState(), remoteData);
+            state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+            bgLayout.style.display = state.showBg ? '' : 'none';
+            minimap.style.display = state.showMm === false ? 'none' : '';
+            updateAutoColorButton();
+            if(!state.view) fitLayoutToView(); else applyView();
+            render();
+            saveImmediate();
+            boardSyncState.lastSyncedAt = Date.now();
+            boardSyncState.lastSyncedHash = await hashString(remote.content);
+            setSyncStatus('ok', 'Von Cloud geladen');
+            return true;
+          }
+        }
+        const dataJson = JSON.stringify(serializeState(), null, 2);
+        await writeGist(b.gistId, dataJson);
+        boardSyncState.lastSyncedAt = Date.now();
+        boardSyncState.lastSyncedHash = await hashString(dataJson);
+        setSyncStatus('ok', 'Synchronisiert');
+        if(b.publicGistId) updatePublicGist();
+        return true;
+      }
+    }catch(err){
+      console.error(err);
+      setSyncStatus('error', 'Fehler: '+(err.message||'').slice(0,40));
+      toast('Sync-Fehler: '+err.message, 'error');
+      return false;
+    }
+  }
+
+  function scheduleSync(){
+    if(syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(doSync, SYNC_DEBOUNCE);
+  }
+  async function doSync(){
+    if(!syncConfig.enabled || syncInFlight) return;
+    const b = getActiveBoard();
+    if(!b) return;
+    if(!b.gistId){
+      // Erster Sync für dieses Board
+      return initialSyncForActive();
+    }
+    syncInFlight = true;
+    try{
+      const dataJson = JSON.stringify(serializeState(), null, 2);
+      const hash = await hashString(dataJson);
+      if(hash === boardSyncState.lastSyncedHash){
+        setSyncStatus('ok', 'Aktuell');
+        syncInFlight = false;
+        return;
+      }
+      setSyncStatus('syncing', 'Sende...');
+      await writeGist(b.gistId, dataJson);
+      boardSyncState.lastSyncedAt = Date.now();
+      boardSyncState.lastSyncedHash = hash;
+      setSyncStatus('ok', 'Synchronisiert');
+      // Public Gist auto-update
+      if(b.publicGistId){
+        setSyncStatus('syncing', 'Teile...');
+        await updatePublicGist();
+        setSyncStatus('ok', 'Synchronisiert · geteilt');
+      }
+    }catch(err){
+      console.error(err);
+      setSyncStatus('error', 'Sync-Fehler');
+      toast('Sync fehlgeschlagen: '+err.message, 'error');
+    }finally{
+      syncInFlight = false;
+    }
+  }
+
+  async function manualSync(){
+    if(!syncConfig.enabled){ openSyncModal(); return; }
+    await doSync();
+  }
+  async function manualPull(){
+    if(!syncConfig.enabled){ openSyncModal(); return; }
+    const b = getActiveBoard();
+    if(!b || !b.gistId){ toast('Kein Cloud-Gist für dieses Board', 'error'); return; }
+    confirmSimple('Cloud-Version laden?',
+      'Wirklich Cloud-Version laden? Lokale nicht-synchronisierte Änderungen gehen verloren.',
+      'Laden',
+      async ()=>{
+        setSyncStatus('syncing', 'Lade...');
+        try{
+          const remote = await readGist(b.gistId);
+          if(!remote){ toast('Cloud leer', 'error'); setSyncStatus('error','Leer'); return; }
+          const remoteData = JSON.parse(remote.content);
+          pushUndo();
+          state = Object.assign(defaultState(), remoteData);
+          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+          bgLayout.style.display = state.showBg ? '' : 'none';
+          minimap.style.display = state.showMm === false ? 'none' : '';
+          updateAutoColorButton();
+          if(!state.view) fitLayoutToView(); else applyView();
+          render();
+          saveImmediate();
+          boardSyncState.lastSyncedAt = Date.now();
+          boardSyncState.lastSyncedHash = await hashString(remote.content);
+          setSyncStatus('ok', 'Von Cloud geladen');
+          toast('Cloud-Version geladen', 'success');
+        }catch(err){
+          setSyncStatus('error','Fehler');
+          toast('Laden fehlgeschlagen: '+err.message, 'error');
+        }
+      });
+  }
+
+  if(!IS_VIEWER){
+    setInterval(()=>{
+      if(syncConfig.enabled && !syncInFlight){
+        const b = getActiveBoard();
+        if(b && b.gistId) doSync();
+      }
+    }, SYNC_INTERVAL);
+  }
+
+  // ========= VIEWER MODE =========
+  let viewerBannerEl = null;
+  let viewerLastHash = null;
+  let viewerPollTimer = null;
+  let viewerErrorState = false;
+
+  function showViewerBanner(text, isError){
+    if(!viewerBannerEl){
+      viewerBannerEl = document.createElement('div');
+      viewerBannerEl.className = 'viewer-banner';
+      document.body.insertBefore(viewerBannerEl, viewport);
+    }
+    viewerBannerEl.classList.toggle('error', !!isError);
+    viewerBannerEl.innerHTML = text;
+    if(!isError){
+      const btn = document.createElement('button');
+      btn.textContent = 'Eigene Kopie erstellen';
+      btn.addEventListener('click', copyViewerToOwnBoard);
+      viewerBannerEl.appendChild(btn);
+    }
+  }
+
+  function copyViewerToOwnBoard(){
+    if(!state.cards.length){ toast('Keine Daten zum Kopieren', 'error'); return; }
+    // Verlasse Viewer-Mode: URL bereinigen, Multi-Board anlegen
+    const newUrl = window.location.origin + window.location.pathname;
+    const tempState = serializeState();
+    try{
+      // Temporär speichern und mit Flag neu laden
+      sessionStorage.setItem('viewer_import', JSON.stringify(tempState));
+      window.location.href = newUrl + '?import=viewer';
+    }catch(err){ toast('Kopieren fehlgeschlagen', 'error'); }
+  }
+
+  async function loadViewerGist(){
+    try{
+      // Direkt via raw URL (kein Token nötig für public gists)
+      const res = await fetch(`https://api.github.com/gists/${VIEWER_GIST}`, {
+        headers: { 'Accept':'application/vnd.github+json' }
+      });
+      if(res.status === 404) throw new Error('NOT_FOUND');
+      if(!res.ok) throw new Error('HTTP_'+res.status);
+      const gist = await res.json();
+      const file = gist.files && gist.files['whiteboard-share.json'];
+      if(!file) throw new Error('NO_FILE');
+      let content = file.content;
+      if(file.truncated && file.raw_url){
+        const rawRes = await fetch(file.raw_url);
+        content = await rawRes.text();
+      }
+      const hash = await hashString(content);
+      return { data: JSON.parse(content), hash };
+    }catch(err){
+      throw err;
+    }
+  }
+
+  async function viewerInitialLoad(){
+    showViewerBanner('📖 Lade Leseansicht...');
+    try{
+      const { data, hash } = await loadViewerGist();
+      viewerLastHash = hash;
+      const boardName = data.boardName || 'Whiteboard';
+      state = Object.assign(defaultState(), data.data || data);
+      state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+      state.links = (state.links || []).map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
+      bgLayout.style.display = state.showBg ? '' : 'none';
+      if(!state.view) fitLayoutToView(); else applyView();
+      render();
+      document.title = boardName + ' · Leseansicht';
+      showViewerBanner(`📖 <b>${escapeHtml(boardName)}</b> · Leseansicht · Auto-Update alle 30s`);
+      startViewerPolling();
+    }catch(err){
+      if(err.message === 'NOT_FOUND'){
+        showViewerBanner('⚠ Freigabe wurde widerrufen oder Link ungültig', true);
+      } else {
+        showViewerBanner('⚠ Laden fehlgeschlagen: '+err.message, true);
+      }
+      viewerErrorState = true;
+    }
+  }
+
+  function startViewerPolling(){
+    if(viewerPollTimer) clearTimeout(viewerPollTimer);
+    viewerPollTimer = setTimeout(pollViewer, VIEWER_POLL_INTERVAL);
+  }
+
+  async function pollViewer(){
+    if(viewerErrorState) return;
+    try{
+      const { data, hash } = await loadViewerGist();
+      if(hash !== viewerLastHash){
+        viewerLastHash = hash;
+        // Sanftes Re-Render: view beibehalten
+        const prevView = state.view;
+        const prevSticky = state.sticky;
+        state = Object.assign(defaultState(), data.data || data);
+        state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+        state.links = (state.links || []).map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
+        state.view = prevView;
+        state.sticky = null; // IDs könnten sich geändert haben
+        render();
+        toast('Board aktualisiert');
+      }
+    }catch(err){
+      if(err.message === 'NOT_FOUND'){
+        showViewerBanner('⚠ Freigabe wurde widerrufen', true);
+        viewerErrorState = true;
+        return;
+      }
+      // Andere Fehler: weiter versuchen
+      console.warn('viewer poll failed', err);
+    }
+    startViewerPolling();
+  }
+
+  // ========= VIEWER-IMPORT HANDLER =========
+  function handleViewerImport(){
+    const importFlag = urlParams.get('import');
+    if(importFlag !== 'viewer') return false;
+    try{
+      const raw = sessionStorage.getItem('viewer_import');
+      if(!raw) return false;
+      sessionStorage.removeItem('viewer_import');
+      const data = JSON.parse(raw);
+      const id = newBoardId();
+      const name = 'Importiert ' + new Date().toLocaleDateString();
+      const b = { id, name, gistId:null, publicGistId:null, createdAt:Date.now() };
+      boardsIndex.boards.push(b);
+      boardsIndex.activeId = id;
+      saveBoardsIndex();
+      localStorage.setItem(BOARD_PREFIX + id, JSON.stringify(data));
+      // URL bereinigen
+      window.history.replaceState(null, '', window.location.pathname);
+      toast('Kopie erstellt als "'+name+'"', 'success');
+      return true;
+    }catch{ return false; }
+  }
+
+  // ========= INIT =========
+  if(IS_VIEWER){
+    // Minimap verstecken initial in Viewer-Mode (kann manuell wieder zeigen)
+    viewerInitialLoad();
+  } else {
+    // Viewer-Import behandeln
+    if(handleViewerImport()){
+      state = loadActiveBoardState();
+      state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+      if(!state.view) fitLayoutToView(); else applyView();
+      render();
+    } else if(state.cards.length === 0){
+      initZoneTemplate();
+      render();
+      saveImmediate();
+    } else {
+      render();
+    }
+    updateUndoButtons();
+
+    if(syncConfig.enabled && syncConfig.token){
+      setSyncStatus('syncing', 'Verbinde...');
+      initialSyncForActive();
+    } else {
+      setSyncStatus('off', 'Offline (Sync aus)');
+    }
+  }
+
+  window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
+
+  console.log('Whiteboard v15 Multi-Board initialisiert', {
+    viewer: IS_VIEWER,
+    boards: boardsIndex ? boardsIndex.boards.length : 0,
+    sync: syncConfig.enabled,
+  });
+
+  } catch (err) {
+    console.error('Whiteboard Init-Fehler:', err);
+    alert('Fehler beim Start: ' + err.message);
+  }
+})();
+</script>
+</body>
+</html>

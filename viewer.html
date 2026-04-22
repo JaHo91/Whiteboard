@@ -16,7 +16,7 @@
     --danger:#e53935;
     --success:#2e7d32;
     --warning:#f57c00;
-    --comment:#ffc107;
+    --comment-bg:#fff59d;
     --dim:.15;
     --radius:10px;
   }
@@ -32,28 +32,28 @@
     font-size:13px;padding:6px 10px;border:1px solid #d0d4da;background:#fff;border-radius:6px;cursor:pointer;
   }
   .toolbar button:hover{background:#f0f2f5}
-  .toolbar button.active{background:var(--comment);color:#222;border-color:#e0a800;font-weight:600}
+  .toolbar button.active{background:#2b7fff;color:#fff;border-color:#2b7fff}
+  .toolbar .title{font-weight:600;font-size:14px;color:#222}
+  .toolbar .badge{font-size:11px;padding:2px 6px;background:#e3f2fd;color:#1565c0;border-radius:4px;margin-left:4px}
   .toolbar .spacer{flex:1}
-  .toolbar .title-label{font-size:14px;font-weight:600;color:#222}
-  .toolbar .badge{
-    background:#e4e6eb;color:#555;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;
-  }
-  .toolbar .badge.ok{background:var(--success);color:#fff}
-  .toolbar .badge.err{background:var(--danger);color:#fff}
 
   .zoom-group{display:flex;align-items:center;gap:4px;border:1px solid #d0d4da;border-radius:6px;padding:2px;background:#fff}
   .zoom-group button{border:none;padding:4px 8px}
   #zoomLevel{font-size:12px;min-width:48px;text-align:center;color:#444}
 
-  .status-pill{
+  .sync-status{
     display:flex;align-items:center;gap:6px;font-size:12px;color:#666;
     padding:4px 10px;border:1px solid #d0d4da;border-radius:6px;background:#fff;
   }
-  .status-pill .dot{width:8px;height:8px;border-radius:50%;background:#bbb}
-  .status-pill.ok .dot{background:var(--success)}
-  .status-pill.syncing .dot{background:var(--anchor);animation:pulse 1s infinite}
-  .status-pill.err .dot{background:var(--danger)}
+  .sync-status .dot{width:8px;height:8px;border-radius:50%;background:#bbb}
+  .sync-status.ok .dot{background:var(--success)}
+  .sync-status.syncing .dot{background:var(--anchor);animation:pulse 1s infinite}
+  .sync-status.error .dot{background:var(--danger)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .config-btn{
+    width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px;
+  }
 
   .viewport{
     position:absolute;inset:48px 0 0 0;overflow:hidden;background:var(--bg);
@@ -63,7 +63,6 @@
   }
   .viewport.panning{cursor:grabbing}
   .viewport.comment-mode{cursor:crosshair}
-  .viewport.comment-mode.panning{cursor:grabbing}
 
   .board{
     position:absolute;left:0;top:0;width:8000px;height:6000px;
@@ -71,42 +70,29 @@
   }
 
   svg.bg-layout{position:absolute;pointer-events:none;opacity:.85}
-  svg.bg-layout .layout-stroke{
-    fill:none;stroke:#222;stroke-width:3;vector-effect:non-scaling-stroke;
-  }
-  svg.bg-layout .layout-label{
-    font-family:system-ui,-apple-system,sans-serif;
-    font-size:28px;fill:#222;font-weight:500;
-  }
+  svg.bg-layout .layout-stroke{fill:none;stroke:#222;stroke-width:3;vector-effect:non-scaling-stroke}
+  svg.bg-layout .layout-label{font-family:system-ui,-apple-system,sans-serif;font-size:28px;fill:#222;font-weight:500}
 
   svg.links{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
-  svg.links path.link{
-    fill:none;stroke:var(--line);stroke-width:2.2;opacity:.85;
-    transition:stroke .15s, stroke-width .15s, opacity .15s;
-  }
+  svg.links path.link{fill:none;stroke:var(--line);stroke-width:2.2;opacity:.85}
+  svg.comments-layer{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+  svg.comments-layer line.comment-link{stroke:#f9a825;stroke-width:2;stroke-dasharray:4 3;opacity:.7}
 
   .card{
     position:absolute;width:170px;min-width:60px;min-height:60px;border-radius:var(--radius);
     background:#fff;box-shadow:var(--card-shadow);display:flex;flex-direction:column;
-    --card-font-scale:1;pointer-events:auto;
   }
   .card .title{
-    padding:10px;font-weight:600;
-    font-size:calc(14px * var(--card-font-scale));
-    line-height:1.25;min-height:calc(40px * var(--card-font-scale));
-    color:#222;user-select:none;
-    border-radius:var(--radius) var(--radius) 0 0;flex:0 0 auto;
-    word-break:break-word;
+    padding:10px;font-weight:600;font-size:14px;line-height:1.25;min-height:40px;
+    color:#222;border-radius:var(--radius) var(--radius) 0 0;flex:0 0 auto;
+    word-break:break-word;user-select:text;
   }
   .card .details{
-    padding:10px;background:#fff;
-    font-size:calc(13px * var(--card-font-scale));
-    line-height:1.35;min-height:calc(40px * var(--card-font-scale));
+    padding:10px;background:#fff;font-size:13px;line-height:1.35;min-height:40px;
     white-space:pre-wrap;word-break:break-word;
-    border-top:1px solid rgba(0,0,0,.06);
-    border-radius:0 0 var(--radius) var(--radius);flex:1 1 auto;overflow:hidden;
+    border-top:1px solid rgba(0,0,0,.06);border-radius:0 0 var(--radius) var(--radius);
+    flex:1 1 auto;user-select:text;
   }
-  .card.autoH .details{overflow:visible}
   .card.image-card{background:#222;overflow:hidden;padding:0}
   .card.image-card .title,.card.image-card .details{display:none}
   .card.image-card .image-wrap{
@@ -115,62 +101,54 @@
   }
   .card.image-card img{
     display:block;width:100%;height:100%;object-fit:contain;
-    user-select:none;-webkit-user-drag:none;
+    user-select:none;-webkit-user-drag:none;pointer-events:none;
   }
   .card.image-card .img-caption{
     position:absolute;left:0;right:0;bottom:0;
     background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
-    color:#fff;font-size:12px;padding:6px 8px;pointer-events:none;opacity:0;transition:opacity .15s;
+    color:#fff;font-size:12px;padding:6px 8px;pointer-events:none;
   }
-  .card.image-card:hover .img-caption{opacity:1}
 
-  /* Kommentar-Haftnotizen */
-  .comment-note{
-    position:absolute;width:180px;min-height:60px;
-    background:#fff8b3;
-    border-radius:2px;
-    box-shadow:2px 3px 8px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.05);
-    padding:10px 10px 8px 10px;
-    font-size:12px;line-height:1.35;color:#333;
-    z-index:10;cursor:pointer;
-    transform:rotate(-1.5deg);
-    transition:transform .15s, box-shadow .15s;
-    word-break:break-word;
+  .comment{
+    position:absolute;width:160px;min-height:80px;
+    background:var(--comment-bg);border-radius:4px;
+    box-shadow:0 3px 8px rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.08);
+    padding:8px 10px;font-size:12px;line-height:1.35;
+    transform:rotate(-1deg);cursor:pointer;
+    pointer-events:auto;z-index:10;
+    display:flex;flex-direction:column;gap:4px;
   }
-  .comment-note:hover{
-    transform:rotate(0deg) scale(1.03);
-    box-shadow:3px 5px 14px rgba(0,0,0,.25), 0 0 0 1px rgba(0,0,0,.08);
-    z-index:11;
+  .comment:hover{box-shadow:0 5px 14px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.12);z-index:11}
+  .comment.own{background:#c5e1a5}
+  .comment .c-meta{font-size:10px;color:#666;display:flex;justify-content:space-between;gap:4px}
+  .comment .c-author{font-weight:600;color:#333;word-break:break-word;flex:1}
+  .comment .c-date{color:#888;flex-shrink:0}
+  .comment .c-text{word-break:break-word;flex:1 1 auto}
+  .comment .c-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:2px}
+  .comment .c-actions button{
+    font-size:10px;padding:2px 6px;border:none;background:rgba(0,0,0,.08);
+    border-radius:3px;cursor:pointer;color:#555;
   }
-  .comment-note:nth-child(even){transform:rotate(1.2deg)}
-  .comment-note:nth-child(even):hover{transform:rotate(0deg) scale(1.03)}
-  .comment-note .comment-text{
-    margin-bottom:6px;white-space:pre-wrap;
-    display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;
-  }
-  .comment-note .comment-meta{
-    font-size:10px;color:#777;
-    border-top:1px dashed rgba(0,0,0,.15);
-    padding-top:4px;display:flex;justify-content:space-between;gap:6px;
-  }
-  .comment-note .comment-author{font-weight:600;color:#555}
-  .comment-note.own{background:#fff3a0;box-shadow:2px 3px 10px rgba(245,124,0,.3), 0 0 0 1px rgba(245,124,0,.3)}
-  .comment-note .comment-del{
-    position:absolute;top:2px;right:2px;width:18px;height:18px;
-    border:none;background:rgba(255,255,255,.6);border-radius:3px;
-    cursor:pointer;font-size:10px;line-height:1;opacity:0;transition:opacity .15s;
-  }
-  .comment-note.own:hover .comment-del{opacity:1}
-  .comment-note .comment-del:hover{background:var(--danger);color:#fff}
+  .comment .c-actions button:hover{background:rgba(0,0,0,.15)}
+  .comment .c-actions button.danger{color:var(--danger)}
 
-  /* Vorschau beim Platzieren */
-  .comment-preview{
-    position:absolute;width:180px;height:80px;
-    background:rgba(255,248,179,.5);
-    border:2px dashed #e0a800;border-radius:2px;
-    pointer-events:none;z-index:100;
-    transform:rotate(-1.5deg);
+  .comment-ghost{
+    position:absolute;width:160px;min-height:80px;
+    background:var(--comment-bg);border-radius:4px;
+    box-shadow:0 3px 8px rgba(0,0,0,.2);
+    padding:8px 10px;font-size:12px;line-height:1.35;
+    transform:rotate(-1deg);opacity:.7;pointer-events:none;z-index:12;
+    border:2px dashed #f9a825;
   }
+
+  .viewer-info{
+    position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+    background:rgba(255,255,255,.95);border:1px solid #d0d4da;border-radius:6px;
+    padding:6px 12px;font-size:12px;color:#666;z-index:15;
+    display:flex;align-items:center;gap:10px;
+  }
+  .viewer-info .info-item{display:flex;align-items:center;gap:4px}
+  .viewer-info strong{color:#333}
 
   .minimap{
     position:fixed;right:16px;bottom:16px;z-index:15;
@@ -181,12 +159,12 @@
   }
   .minimap svg{display:block;width:100%;height:100%}
   .minimap .mm-card{fill-opacity:.85;stroke:rgba(0,0,0,.25);stroke-width:1;vector-effect:non-scaling-stroke}
-  .minimap .mm-comment{fill:var(--comment);fill-opacity:.9;stroke:rgba(0,0,0,.3);stroke-width:1;vector-effect:non-scaling-stroke}
   .minimap .mm-layout{fill:none;stroke:#222;stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:.5}
   .minimap .mm-viewport{fill:rgba(43,127,255,.12);stroke:var(--anchor);stroke-width:1.5;vector-effect:non-scaling-stroke}
+  .minimap .mm-comment{fill:#ffd54f;stroke:#f57c00;stroke-width:1;vector-effect:non-scaling-stroke}
 
   .toast{
-    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+    position:fixed;left:50%;bottom:60px;transform:translateX(-50%);
     background:#222;color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;
     z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;
     box-shadow:0 4px 12px rgba(0,0,0,.25);
@@ -195,145 +173,138 @@
   .toast.error{background:var(--danger)}
   .toast.success{background:var(--success)}
 
+  .loading{
+    position:fixed;inset:48px 0 0 0;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);z-index:30;flex-direction:column;gap:12px;
+  }
+  .loading .spinner{
+    width:40px;height:40px;border:3px solid #e4e6eb;border-top-color:var(--anchor);
+    border-radius:50%;animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Modal */
   .modal-backdrop{
     position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150;
     display:flex;align-items:center;justify-content:center;
   }
   .modal{
-    background:#fff;border-radius:10px;padding:20px;max-width:520px;width:90%;
+    background:#fff;border-radius:10px;padding:24px;max-width:560px;width:92%;
     box-shadow:0 10px 40px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto;
   }
   .modal h2{margin:0 0 12px 0;font-size:18px}
   .modal p{margin:8px 0;font-size:13px;color:#555;line-height:1.5}
-  .modal input[type=text],.modal input[type=password],.modal textarea{
+  .modal .field-group{margin:12px 0}
+  .modal label{display:block;font-size:12px;font-weight:600;color:#333;margin-bottom:4px}
+  .modal label .hint{font-weight:400;color:#888;margin-left:4px}
+  .modal input[type=text],.modal input[type=password]{
     width:100%;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;
-    font-size:13px;font-family:inherit;margin:4px 0 8px;
+    font-size:13px;font-family:ui-monospace,monospace;
   }
-  .modal textarea{resize:vertical;min-height:90px}
-  .modal .char-counter{font-size:11px;color:#888;text-align:right;margin-top:-4px;margin-bottom:8px}
-  .modal .char-counter.warn{color:var(--warning)}
-  .modal .char-counter.err{color:var(--danger);font-weight:600}
-  .modal .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .modal textarea{
+    width:100%;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;
+    font-size:13px;font-family:system-ui,sans-serif;resize:vertical;min-height:80px;
+  }
+  .modal .modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:20px;flex-wrap:wrap}
+  .modal .modal-actions .left{display:flex;gap:8px}
+  .modal .modal-actions .right{display:flex;gap:8px}
   .modal button{padding:8px 14px;border:1px solid #d0d4da;border-radius:6px;cursor:pointer;background:#fff;font-size:13px}
   .modal button:hover{background:#f0f2f5}
-  .modal button.primary{background:var(--comment);color:#222;border-color:#e0a800;font-weight:600}
-  .modal button.primary:hover{background:#e0a800}
+  .modal button.primary{background:#2b7fff;color:#fff;border-color:#2b7fff}
+  .modal button.primary:hover{background:#1f6de0}
   .modal button.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
   .modal button.danger:hover{background:#c62828}
-  .modal a{color:var(--anchor);text-decoration:none}
-  .modal a:hover{text-decoration:underline}
-  .modal code{background:#f0f2f5;padding:2px 5px;border-radius:3px;font-size:12px;font-family:ui-monospace,monospace}
-  .modal .small{font-size:11px;color:#888}
-  .modal .confirm-warn{
-    background:#fff4e5;border:1px solid #ffcc80;color:#6d4200;
-    padding:10px 12px;border-radius:6px;font-size:13px;margin:8px 0;
+  .modal .char-count{font-size:11px;color:#888;text-align:right;margin-top:2px}
+  .modal .error-box{
+    background:#fdecea;border:1px solid #f5b4b0;color:#611a15;
+    padding:10px 12px;border-radius:6px;font-size:12px;margin:8px 0;
   }
-  .modal .comment-detail{
-    background:#fff8b3;border-radius:6px;padding:12px;margin:8px 0;
-    font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;
+  .modal .info-box{
+    background:#e3f2fd;border:1px solid #90caf9;color:#0d47a1;
+    padding:10px 12px;border-radius:6px;font-size:12px;margin:8px 0;line-height:1.5;
   }
-  .modal .comment-detail-meta{font-size:11px;color:#666;margin-top:8px}
-
-  .mode-hint{
-    position:fixed;top:58px;left:50%;transform:translateX(-50%);
-    background:var(--comment);color:#222;padding:6px 14px;
-    border-radius:20px;font-size:12px;font-weight:600;z-index:15;
-    box-shadow:0 4px 12px rgba(0,0,0,.15);
-    display:none;
-  }
-  .mode-hint.show{display:block}
-
-  .loader{
-    position:fixed;inset:0;background:rgba(244,245,247,.95);z-index:300;
-    display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;
-    font-size:14px;color:#555;
-  }
-  .loader .spinner{
-    width:40px;height:40px;border:4px solid #e4e6eb;border-top-color:var(--anchor);
-    border-radius:50%;animation:spin 0.8s linear infinite;
-  }
-  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 
 <div class="toolbar">
-  <span class="title-label" id="boardTitle">Whiteboard Viewer</span>
-  <span class="badge" id="readOnlyBadge">Read-only</span>
+  <span class="title">📋 Whiteboard Viewer</span>
+  <span class="badge" id="viewMode">Viewer</span>
+  <button id="commentModeBtn" title="Kommentar-Modus: Klick auf Board, um Haftnotiz zu platzieren">💬 Kommentar-Modus</button>
   <div class="zoom-group">
     <button id="zoomOutBtn" title="Rauszoomen">−</button>
     <span id="zoomLevel">100%</span>
     <button id="zoomInBtn" title="Reinzoomen">+</button>
     <button id="zoomResetBtn" title="Auf Layout zentrieren">⟲</button>
   </div>
-  <button id="commentModeBtn" title="Kommentar-Modus (C)">💬 Kommentar-Modus</button>
   <div class="spacer"></div>
-  <div class="status-pill" id="boardStatus"><span class="dot"></span><span id="boardStatusText">—</span></div>
-  <div class="status-pill" id="commentStatus"><span class="dot"></span><span id="commentStatusText">—</span></div>
-  <button id="configBtn" title="Konfiguration">⚙</button>
+  <div class="sync-status" id="syncStatus">
+    <span class="dot"></span>
+    <span id="syncStatusText">Offline</span>
+  </div>
+  <button class="config-btn" id="configBtn" title="Konfiguration / Zugangsdaten">⚙</button>
 </div>
-
-<div class="mode-hint" id="modeHint">💬 Klicke aufs Board, um einen Kommentar zu platzieren · [ESC] zum Beenden</div>
 
 <div class="viewport" id="viewport">
   <div class="board" id="board">
     <svg class="bg-layout" id="bgLayout" xmlns="http://www.w3.org/2000/svg"></svg>
     <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg class="comments-layer" id="commentsLayer" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
+</div>
+
+<div class="viewer-info" id="viewerInfo" style="display:none">
+  <div class="info-item">👁 <strong>Read-Only</strong></div>
+  <div class="info-item">💬 <span id="commentCount">0</span> Kommentare</div>
+  <div class="info-item">🔄 <span id="lastUpdate">—</span></div>
 </div>
 
 <div class="minimap" id="minimap">
   <svg id="minimapSvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
 </div>
 
-<div class="toast" id="toast"></div>
-
-<div class="loader" id="loader">
+<div class="loading" id="loading">
   <div class="spinner"></div>
-  <div id="loaderText">Lade Whiteboard...</div>
+  <div>Lade Whiteboard...</div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 (() => {
   'use strict';
   try {
 
-  // ========= KONSTANTEN =========
-  const STORAGE_KEY_CONFIG = 'whiteboard_viewer_v1_config';
-  const STORAGE_KEY_NAME = 'whiteboard_viewer_v1_name';
-  const POLL_INTERVAL = 30000;
-  const COMMENT_MAX_LENGTH = 200;
   const BOARD_W = 8000, BOARD_H = 6000;
   const LAYOUT_W = 2488, LAYOUT_H = 1672;
   const LAYOUT_OFFSET_X = (BOARD_W - LAYOUT_W)/2;
   const LAYOUT_OFFSET_Y = (BOARD_H - LAYOUT_H)/2;
-  const CARD_DEFAULT_W = 170;
-  const CARD_REF_W = 170, CARD_REF_H = 120;
-  const COMMENT_W = 180, COMMENT_H = 80;
+  const POLL_INTERVAL = 30000;
+  const COMMENT_MAX_LENGTH = 1000;
+  const CONFIG_KEY = 'mini_whiteboard_viewer_config';
+  const USER_KEY = 'mini_whiteboard_viewer_user';
 
-  // ========= DOM =========
+  // DOM
   const viewport = document.getElementById('viewport');
   const board = document.getElementById('board');
   const svg = document.getElementById('links');
   const bgLayout = document.getElementById('bgLayout');
-  const boardTitle = document.getElementById('boardTitle');
-  const readOnlyBadge = document.getElementById('readOnlyBadge');
-  const commentModeBtn = document.getElementById('commentModeBtn');
+  const commentsLayer = document.getElementById('commentsLayer');
   const zoomInBtn = document.getElementById('zoomInBtn');
   const zoomOutBtn = document.getElementById('zoomOutBtn');
   const zoomResetBtn = document.getElementById('zoomResetBtn');
   const zoomLevel = document.getElementById('zoomLevel');
-  const boardStatusEl = document.getElementById('boardStatus');
-  const boardStatusText = document.getElementById('boardStatusText');
-  const commentStatusEl = document.getElementById('commentStatus');
-  const commentStatusText = document.getElementById('commentStatusText');
-  const configBtn = document.getElementById('configBtn');
   const minimap = document.getElementById('minimap');
   const minimapSvg = document.getElementById('minimapSvg');
+  const loadingEl = document.getElementById('loading');
   const toastEl = document.getElementById('toast');
-  const modeHint = document.getElementById('modeHint');
-  const loaderEl = document.getElementById('loader');
-  const loaderText = document.getElementById('loaderText');
+  const syncStatusEl = document.getElementById('syncStatus');
+  const syncStatusText = document.getElementById('syncStatusText');
+  const commentModeBtn = document.getElementById('commentModeBtn');
+  const viewerInfoEl = document.getElementById('viewerInfo');
+  const commentCountEl = document.getElementById('commentCount');
+  const lastUpdateEl = document.getElementById('lastUpdate');
+  const configBtn = document.getElementById('configBtn');
 
   bgLayout.setAttribute('width', LAYOUT_W);
   bgLayout.setAttribute('height', LAYOUT_H);
@@ -344,85 +315,210 @@
     <path class="layout-stroke" d="M 830 500 A 414 414 0 0 1 1658 500" />
     <line class="layout-stroke" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
     <polyline class="layout-stroke" points="830,500 1244,1540 1658,500" />
-    <text class="layout-label" x="1244" y="60" text-anchor="middle">value proposition</text>
-    <text class="layout-label" x="820" y="485" text-anchor="end">market risks</text>
-    <text class="layout-label" x="900" y="530" text-anchor="middle">competition</text>
+    <text class="layout-label" x="1244" y="60"  text-anchor="middle">value proposition</text>
+    <text class="layout-label" x="820"  y="485" text-anchor="end">market risks</text>
+    <text class="layout-label" x="900"  y="530" text-anchor="middle">competition</text>
     <text class="layout-label" x="1244" y="530" text-anchor="middle">customers</text>
     <text class="layout-label" x="1664" y="530" text-anchor="middle">influencer</text>
   `;
   svg.setAttribute('width', BOARD_W);
   svg.setAttribute('height', BOARD_H);
+  commentsLayer.setAttribute('width', BOARD_W);
+  commentsLayer.setAttribute('height', BOARD_H);
 
-  // ========= STATE =========
-  let config = loadConfig();
-  let userName = loadUserName();
-  let whiteboardData = { cards:[], links:[], showBg:true, view:null };
-  let comments = [];
-  let commentMode = false;
-  let boardPollTimer = null;
-  let modalEl = null;
-  let toastTimer = null;
-  let previewEl = null;
-  let view = { scale: 1, tx: 0, ty: 0 };
-  let ownCommentIds = new Set(loadOwnCommentIds());
-
+  // ========= CONFIG (LocalStorage) =========
   function loadConfig(){
-    // URL-Parameter haben Vorrang
-    const urlConfig = parseUrlConfig();
-    if(urlConfig) return urlConfig;
     try{
-      const raw = localStorage.getItem(STORAGE_KEY_CONFIG);
-      return raw ? JSON.parse(raw) : null;
+      const raw = localStorage.getItem(CONFIG_KEY);
+      if(!raw) return null;
+      return JSON.parse(raw);
     }catch{ return null; }
   }
-  function saveConfig(){
-    try{ localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config)); }catch{}
+  function saveConfig(cfg){
+    try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }catch{}
   }
-  function parseUrlConfig(){
-    const params = new URLSearchParams(location.search);
-    const boardGist = params.get('board');
-    const cmtGist = params.get('cgist');
-    const cmtToken = params.get('ctoken');
-    const boardToken = params.get('btoken');
-    const title = params.get('title');
-    if(!boardGist && !cmtGist) return null;
-    return {
-      boardGistId: boardGist || null,
-      boardReadToken: boardToken || null,
-      commentGistId: cmtGist || null,
-      commentToken: cmtToken || null,
-      boardTitle: title || 'Whiteboard',
-    };
+  function clearConfig(){
+    try{ localStorage.removeItem(CONFIG_KEY); }catch{}
   }
-  function loadUserName(){
-    try{ return localStorage.getItem(STORAGE_KEY_NAME) || ''; }
-    catch{ return ''; }
+  function loadUser(){
+    try{ return localStorage.getItem(USER_KEY) || ''; }catch{ return ''; }
   }
-  function saveUserName(name){
-    try{ localStorage.setItem(STORAGE_KEY_NAME, name); userName = name; }catch{}
+  function saveUser(name){
+    try{ localStorage.setItem(USER_KEY, name || ''); }catch{}
   }
-  function loadOwnCommentIds(){
-    try{
-      const raw = localStorage.getItem('whiteboard_viewer_v1_own');
-      return raw ? JSON.parse(raw) : [];
-    }catch{ return []; }
+  function clientId(){
+    let id = localStorage.getItem('mini_whiteboard_viewer_clientid');
+    if(!id){
+      id = 'c_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36);
+      try{ localStorage.setItem('mini_whiteboard_viewer_clientid', id); }catch{}
+    }
+    return id;
   }
-  function saveOwnCommentIds(){
-    try{ localStorage.setItem('whiteboard_viewer_v1_own', JSON.stringify([...ownCommentIds])); }catch{}
-  }
+
+  // State
+  let config = loadConfig();
+  let state = null;
+  let comments = { comments: [], lastModified: 0 };
+  let commentsETag = null;
+  let pollTimer = null;
+  let toastTimer = null;
+  let modalEl = null;
+  let commentMode = false;
+  let commentGhost = null;
+  let viewerConfig = {
+    scale: 1, tx: 0, ty: 0,
+  };
+
+  const myClientId = clientId();
+  let myName = loadUser();
 
   // ========= TOAST =========
   function toast(msg, type){
     toastEl.textContent = msg;
     toastEl.className = 'toast show' + (type ? ' '+type : '');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2800);
+    toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 3000);
   }
+
+  // ========= MODAL =========
+  function closeModal(){ if(modalEl){ modalEl.remove(); modalEl = null; } }
+  function showModal(contentFn, options){
+    closeModal();
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    if(!options || options.closeOnBackdrop !== false){
+      backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeModal(); });
+    }
+    const box = document.createElement('div');
+    box.className = 'modal';
+    contentFn(box);
+    backdrop.appendChild(box);
+    document.body.appendChild(backdrop);
+    modalEl = backdrop;
+    return box;
+  }
+
+  // ========= CONFIG DIALOG =========
+  function openConfigDialog(errorMessage, onSuccess){
+    const currentCfg = config || {};
+    showModal((box)=>{
+      box.innerHTML = `
+        <h2>🔑 Whiteboard Zugangsdaten</h2>
+        ${errorMessage ? `<div class="error-box">${errorMessage}</div>` : `
+          <div class="info-box">
+            Gib die 4 Zugangsdaten ein, die du von der Whiteboard-Besitzerin erhalten hast.<br>
+            Die Daten werden nur in <b>deinem Browser</b> gespeichert (LocalStorage).
+          </div>
+        `}
+
+        <div class="field-group">
+          <label>Board-Gist-ID <span class="hint">(Pflicht)</span></label>
+          <input type="text" id="cfgBoardGist" placeholder="abc123def456789..." value="${escapeAttr(currentCfg.boardGistId || '')}" autocomplete="off" />
+        </div>
+
+        <div class="field-group">
+          <label>Board-Token <span class="hint">(Pflicht · Read-only)</span></label>
+          <input type="password" id="cfgBoardToken" placeholder="github_pat_11..." value="${escapeAttr(currentCfg.boardToken || '')}" autocomplete="off" />
+        </div>
+
+        <div class="field-group">
+          <label>Kommentar-Gist-ID <span class="hint">(optional · leer = nur lesen)</span></label>
+          <input type="text" id="cfgCommentGist" placeholder="def789ghi012345..." value="${escapeAttr(currentCfg.commentGistId || '')}" autocomplete="off" />
+        </div>
+
+        <div class="field-group">
+          <label>Kommentar-Token <span class="hint">(optional · für Kommentieren nötig)</span></label>
+          <input type="password" id="cfgCommentToken" placeholder="github_pat_22..." value="${escapeAttr(currentCfg.commentToken || '')}" autocomplete="off" />
+        </div>
+
+        <div class="field-group">
+          <label>Dein Name <span class="hint">(optional · wird bei Kommentaren angezeigt)</span></label>
+          <input type="text" id="cfgUserName" placeholder="z.B. Jonas" value="${escapeAttr(myName || '')}" maxlength="50" />
+        </div>
+
+        <div class="modal-actions">
+          <div class="left">
+            ${config ? '<button id="cfgDeleteBtn" class="danger">🗑 Zugangsdaten löschen</button>' : ''}
+          </div>
+          <div class="right">
+            <button id="cfgCancelBtn">Abbrechen</button>
+            <button id="cfgSaveBtn" class="primary">Verbinden</button>
+          </div>
+        </div>
+      `;
+
+      const boardGistInput = box.querySelector('#cfgBoardGist');
+      const boardTokenInput = box.querySelector('#cfgBoardToken');
+      const commentGistInput = box.querySelector('#cfgCommentGist');
+      const commentTokenInput = box.querySelector('#cfgCommentToken');
+      const userNameInput = box.querySelector('#cfgUserName');
+      const saveBtn = box.querySelector('#cfgSaveBtn');
+      const cancelBtn = box.querySelector('#cfgCancelBtn');
+      const deleteBtn = box.querySelector('#cfgDeleteBtn');
+
+      cancelBtn.addEventListener('click', ()=>{
+        if(!config){
+          toast('Ohne Zugangsdaten kann nichts angezeigt werden', 'error');
+          return;
+        }
+        closeModal();
+      });
+
+      if(deleteBtn){
+        deleteBtn.addEventListener('click', ()=>{
+          if(!confirm('Alle Zugangsdaten und der Name aus diesem Browser löschen?\n\nDu musst die Daten danach neu eingeben.')) return;
+          clearConfig();
+          saveUser('');
+          config = null;
+          myName = '';
+          toast('Zugangsdaten gelöscht', 'success');
+          closeModal();
+          setTimeout(()=> openConfigDialog(), 300);
+        });
+      }
+
+      saveBtn.addEventListener('click', ()=>{
+        const boardGist = boardGistInput.value.trim();
+        const boardToken = boardTokenInput.value.trim();
+        const commentGist = commentGistInput.value.trim();
+        const commentToken = commentTokenInput.value.trim();
+        const userName = userNameInput.value.trim();
+
+        if(!boardGist){ toast('Board-Gist-ID ist Pflicht', 'error'); boardGistInput.focus(); return; }
+        if(!boardToken){ toast('Board-Token ist Pflicht', 'error'); boardTokenInput.focus(); return; }
+        if((commentGist && !commentToken) || (!commentGist && commentToken)){
+          toast('Kommentar-Gist und -Token müssen beide ausgefüllt oder beide leer sein', 'error');
+          return;
+        }
+
+        config = {
+          boardGistId: boardGist,
+          boardToken: boardToken,
+          commentGistId: commentGist || null,
+          commentToken: commentToken || null,
+        };
+        saveConfig(config);
+        myName = userName;
+        saveUser(myName);
+        closeModal();
+        if(onSuccess) onSuccess();
+        else bootstrap();
+      });
+
+      setTimeout(()=>{
+        if(!currentCfg.boardGistId) boardGistInput.focus();
+        else if(!currentCfg.boardToken) boardTokenInput.focus();
+        else saveBtn.focus();
+      }, 50);
+    }, { closeOnBackdrop: !!config });
+  }
+
+  configBtn.addEventListener('click', ()=> openConfigDialog());
 
   // ========= VIEW =========
   function clampScale(s){ return Math.min(3, Math.max(0.15, s)); }
   function applyView(){
-    const {scale,tx,ty} = view;
+    const {scale,tx,ty} = viewerConfig;
     board.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
     viewport.style.backgroundPosition = `${tx}px ${ty}px`;
     viewport.style.backgroundSize = `${24*scale}px ${24*scale}px`;
@@ -436,18 +532,19 @@
     const availH = Math.max(200, r.height - margin*2);
     const scale = clampScale(Math.min(availW/LAYOUT_W, availH/LAYOUT_H));
     const cx = LAYOUT_OFFSET_X + LAYOUT_W/2, cy = LAYOUT_OFFSET_Y + LAYOUT_H/2;
-    view = { scale, tx: r.width/2 - cx*scale, ty: r.height/2 - cy*scale };
+    viewerConfig = { scale, tx: r.width/2 - cx*scale, ty: r.height/2 - cy*scale };
     applyView();
   }
   function zoomAt(factor, cx, cy){
-    const ns = clampScale(view.scale*factor);
-    const k = ns / view.scale;
-    view.tx = cx - (cx - view.tx)*k; view.ty = cy - (cy - view.ty)*k;
-    view.scale = ns; applyView();
+    const v = viewerConfig;
+    const ns = clampScale(v.scale*factor);
+    const k = ns / v.scale;
+    v.tx = cx - (cx - v.tx)*k; v.ty = cy - (cy - v.ty)*k;
+    v.scale = ns; applyView();
   }
   function toBoard(clientX, clientY){
     const r = viewport.getBoundingClientRect();
-    const {scale,tx,ty} = view;
+    const {scale,tx,ty} = viewerConfig;
     return { x:(clientX-r.left-tx)/scale, y:(clientY-r.top-ty)/scale };
   }
 
@@ -461,16 +558,12 @@
   zoomResetBtn.addEventListener('click', fitLayoutToView);
 
   // ========= PAN =========
-  let panPending=null, pan=null;
+  let panPending = null, pan = null;
   viewport.addEventListener('mousedown', (e)=>{
     if(e.button !== 0 && e.button !== 1) return;
-    if(e.target.closest('.comment-note')) return;
-    if(commentMode && e.button === 0){
-      // Im Kommentar-Modus: Linksklick = Kommentar setzen (außer auf Notizen)
-      return;
-    }
-    panPending = { x:e.clientX, y:e.clientY, tx:view.tx, ty:view.ty };
-    e.preventDefault();
+    if(commentMode && e.button === 0) return;
+    if(e.target.closest('.comment')) return;
+    panPending = { x:e.clientX, y:e.clientY, tx:viewerConfig.tx, ty:viewerConfig.ty };
   });
   window.addEventListener('mousemove', (e)=>{
     if(panPending && !pan){
@@ -480,74 +573,356 @@
       }
     }
     if(pan){
-      view.tx = pan.tx + (e.clientX - pan.x);
-      view.ty = pan.ty + (e.clientY - pan.y);
+      viewerConfig.tx = pan.tx + (e.clientX - pan.x);
+      viewerConfig.ty = pan.ty + (e.clientY - pan.y);
       applyView();
     }
-    if(commentMode && !pan) updatePreview(e.clientX, e.clientY);
+    if(commentMode && !pan) updateCommentGhost(e.clientX, e.clientY);
   });
   window.addEventListener('mouseup', (e)=>{
-    const wasPanning = !!pan;
     if(pan){ pan=null; viewport.classList.remove('panning'); }
-    const hadPending = !!panPending;
-    panPending = null;
-    if(!wasPanning && hadPending && commentMode && e.button === 0){
-      if(!e.target.closest('.comment-note') && !e.target.closest('.toolbar') && !e.target.closest('.minimap')){
+    if(!pan && commentMode && panPending){
+      const moved = Math.abs(e.clientX-panPending.x) > 4 || Math.abs(e.clientY-panPending.y) > 4;
+      if(!moved && !e.target.closest('.comment') && !e.target.closest('.toolbar') && !e.target.closest('.modal-backdrop')){
         const p = toBoard(e.clientX, e.clientY);
-        openCommentCreateDialog(p);
+        openCommentEditor(p, null);
       }
     }
+    panPending = null;
   });
-
-  // ========= BG POINTER TRACKING =========
-  let lastMouse = { x: null, y: null };
-  viewport.addEventListener('mousemove', (e)=>{ lastMouse.x=e.clientX; lastMouse.y=e.clientY; });
 
   // ========= COMMENT MODE =========
-  function setCommentMode(on){
-    commentMode = on;
-    viewport.classList.toggle('comment-mode', on);
-    commentModeBtn.classList.toggle('active', on);
-    modeHint.classList.toggle('show', on);
-    if(!on && previewEl){ previewEl.remove(); previewEl = null; }
-  }
   commentModeBtn.addEventListener('click', ()=>{
     if(!config || !config.commentGistId || !config.commentToken){
-      toast('Kommentar-Backend nicht konfiguriert. Klicke auf ⚙', 'error');
+      toast('Kommentar-Modus nicht verfügbar (Zugangsdaten fehlen)', 'error');
+      openConfigDialog('Bitte gib Kommentar-Gist-ID und Kommentar-Token ein, um Kommentare erstellen zu können.');
       return;
     }
-    setCommentMode(!commentMode);
+    commentMode = !commentMode;
+    commentModeBtn.classList.toggle('active', commentMode);
+    viewport.classList.toggle('comment-mode', commentMode);
+    if(commentMode){
+      toast('Klicke auf das Board, um eine Haftnotiz zu platzieren', 'success');
+      createCommentGhost();
+    } else {
+      removeCommentGhost();
+    }
   });
 
-  function updatePreview(clientX, clientY){
-    if(!commentMode) return;
-    if(!previewEl){
-      previewEl = document.createElement('div');
-      previewEl.className = 'comment-preview';
-      board.appendChild(previewEl);
-    }
+  function createCommentGhost(){
+    if(commentGhost) return;
+    commentGhost = document.createElement('div');
+    commentGhost.className = 'comment-ghost';
+    commentGhost.textContent = 'Hier klicken für Kommentar';
+    commentGhost.style.display = 'none';
+    board.appendChild(commentGhost);
+  }
+  function removeCommentGhost(){
+    if(commentGhost){ commentGhost.remove(); commentGhost = null; }
+  }
+  function updateCommentGhost(clientX, clientY){
+    if(!commentGhost) return;
     const p = toBoard(clientX, clientY);
-    previewEl.style.left = (p.x - COMMENT_W/2) + 'px';
-    previewEl.style.top = (p.y - COMMENT_H/2) + 'px';
+    commentGhost.style.left = (p.x - 80) + 'px';
+    commentGhost.style.top = (p.y - 40) + 'px';
+    commentGhost.style.display = '';
   }
 
-  window.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape'){
-      if(commentMode) setCommentMode(false);
-      closeModal();
-    }
-    if(e.key === 'c' || e.key === 'C'){
-      const active = document.activeElement;
-      if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-      if(!config || !config.commentGistId) return;
-      setCommentMode(!commentMode);
-    }
-  });
+  // ========= COMMENT EDITOR =========
+  function openCommentEditor(pos, existingComment){
+    const isEdit = !!existingComment;
+    showModal((box)=>{
+      box.innerHTML = `
+        <h2>${isEdit ? '✎ Kommentar bearbeiten' : '💬 Neuer Kommentar'}</h2>
+        <div class="field-group">
+          <label>Dein Name <span class="hint">(optional · wird für alle sichtbar)</span></label>
+          <input type="text" id="commentAuthor" placeholder="z.B. Jonas" value="${escapeAttr(existingComment ? (existingComment.author || '') : myName)}" maxlength="50" />
+        </div>
+        <div class="field-group">
+          <label>Kommentar</label>
+          <textarea id="commentText" maxlength="${COMMENT_MAX_LENGTH}" placeholder="Dein Kommentar...">${escapeHtml(isEdit ? existingComment.text : '')}</textarea>
+          <div class="char-count"><span id="charCount">0</span>/${COMMENT_MAX_LENGTH}</div>
+        </div>
+        <div class="modal-actions">
+          <div class="left">
+            ${isEdit && existingComment.clientId === myClientId ? '<button id="deleteBtn" class="danger">🗑 Löschen</button>' : ''}
+          </div>
+          <div class="right">
+            <button id="cancelBtn">Abbrechen</button>
+            <button id="saveBtn" class="primary">${isEdit ? 'Speichern' : 'Erstellen'}</button>
+          </div>
+        </div>
+      `;
+      const textArea = box.querySelector('#commentText');
+      const authorInput = box.querySelector('#commentAuthor');
+      const charCount = box.querySelector('#charCount');
+      const saveBtn = box.querySelector('#saveBtn');
+      const cancelBtn = box.querySelector('#cancelBtn');
+      const deleteBtn = box.querySelector('#deleteBtn');
 
-  // ========= CARD/COMMENT RENDER =========
+      charCount.textContent = textArea.value.length;
+      textArea.addEventListener('input', ()=>{ charCount.textContent = textArea.value.length; });
+      textArea.focus();
+
+      cancelBtn.addEventListener('click', closeModal);
+      saveBtn.addEventListener('click', async ()=>{
+        const text = textArea.value.trim();
+        const author = authorInput.value.trim();
+        if(!text){ toast('Kommentar darf nicht leer sein', 'error'); return; }
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Speichern...';
+        try{
+          if(author !== myName){ myName = author; saveUser(myName); }
+          if(isEdit){
+            existingComment.text = text;
+            existingComment.author = author || null;
+            existingComment.modifiedAt = Date.now();
+          } else {
+            comments.comments.push({
+              id: 'cm_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36),
+              x: pos.x, y: pos.y,
+              text: text,
+              author: author || null,
+              clientId: myClientId,
+              createdAt: Date.now(),
+              modifiedAt: Date.now(),
+            });
+          }
+          await saveComments();
+          closeModal();
+          renderComments();
+          toast(isEdit ? 'Kommentar gespeichert' : 'Kommentar erstellt', 'success');
+        } catch(err){
+          toast('Speichern fehlgeschlagen: ' + err.message, 'error');
+          saveBtn.disabled = false;
+          saveBtn.textContent = isEdit ? 'Speichern' : 'Erstellen';
+        }
+      });
+      if(deleteBtn){
+        deleteBtn.addEventListener('click', async ()=>{
+          if(!confirm('Diesen Kommentar wirklich löschen?')) return;
+          deleteBtn.disabled = true;
+          try{
+            comments.comments = comments.comments.filter(c => c.id !== existingComment.id);
+            await saveComments();
+            closeModal();
+            renderComments();
+            toast('Kommentar gelöscht', 'success');
+          } catch(err){
+            toast('Löschen fehlgeschlagen: ' + err.message, 'error');
+            deleteBtn.disabled = false;
+          }
+        });
+      }
+    });
+  }
+
+  // ========= GITHUB API =========
+  async function githubGet(gistId, token, etag){
+    const headers = {
+      'Accept':'application/vnd.github+json',
+      'Authorization':'Bearer '+token,
+      'X-GitHub-Api-Version':'2022-11-28',
+    };
+    if(etag) headers['If-None-Match'] = etag;
+    const res = await fetch('https://api.github.com/gists/'+gistId, { headers });
+    if(res.status === 304) return { notModified: true };
+    if(res.status === 401) throw new Error('AUTH');
+    if(res.status === 404) throw new Error('NOT_FOUND');
+    if(!res.ok){
+      const text = await res.text().catch(()=>'');
+      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
+    }
+    const newEtag = res.headers.get('ETag');
+    const data = await res.json();
+    return { data, etag: newEtag };
+  }
+  async function githubPatch(gistId, token, files){
+    const res = await fetch('https://api.github.com/gists/'+gistId, {
+      method:'PATCH',
+      headers:{
+        'Accept':'application/vnd.github+json',
+        'Authorization':'Bearer '+token,
+        'Content-Type':'application/json',
+        'X-GitHub-Api-Version':'2022-11-28',
+      },
+      body: JSON.stringify({ files }),
+    });
+    if(res.status === 401) throw new Error('AUTH');
+    if(!res.ok){
+      const text = await res.text().catch(()=>'');
+      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
+    }
+    return res.json();
+  }
+
+  async function loadBoard(){
+    if(!config || !config.boardGistId || !config.boardToken) throw new Error('NO_CONFIG');
+    const result = await githubGet(config.boardGistId, config.boardToken);
+    const gist = result.data;
+    const file = gist.files && gist.files['whiteboard.json'];
+    if(!file) throw new Error('Whiteboard-Datei nicht im Gist gefunden');
+    let content = file.content;
+    if(file.truncated && file.raw_url){
+      const res = await fetch(file.raw_url);
+      content = await res.text();
+    }
+    state = JSON.parse(content);
+    state.cards = (state.cards||[]).map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    state.links = (state.links||[]).map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
+  }
+
+  async function loadComments(){
+    if(!config || !config.commentGistId || !config.commentToken){
+      comments = { comments: [], lastModified: 0 };
+      return { changed: false };
+    }
+    try{
+      const result = await githubGet(config.commentGistId, config.commentToken, commentsETag);
+      if(result.notModified) return { changed: false };
+      commentsETag = result.etag;
+      const gist = result.data;
+      const file = gist.files && gist.files['comments.json'];
+      if(!file){
+        comments = { comments: [], lastModified: 0 };
+      } else {
+        let content = file.content;
+        if(file.truncated && file.raw_url){
+          const res = await fetch(file.raw_url);
+          content = await res.text();
+        }
+        try{
+          comments = JSON.parse(content);
+          if(!Array.isArray(comments.comments)) comments.comments = [];
+        }catch{ comments = { comments: [], lastModified: 0 }; }
+      }
+      return { changed: true };
+    } catch(err) {
+      if(err.message === 'AUTH' || err.message === 'NOT_FOUND') throw err;
+      console.warn('Kommentare konnten nicht geladen werden:', err);
+      return { changed: false };
+    }
+  }
+
+  async function saveComments(){
+    if(!config || !config.commentGistId || !config.commentToken) throw new Error('Kein Kommentar-Zugang konfiguriert');
+    comments.lastModified = Date.now();
+    const content = JSON.stringify(comments, null, 2);
+    await githubPatch(config.commentGistId, config.commentToken, {
+      'comments.json': { content }
+    });
+    commentsETag = null;
+  }
+
+  // ========= RENDER =========
+  function renderBoard(){
+    [...board.querySelectorAll('.card')].forEach(n=>n.remove());
+    [...svg.querySelectorAll('*')].forEach(n=>n.remove());
+    state.cards.forEach(renderCard);
+    state.links.forEach(l => {
+      const a = state.cards.find(c=>c.id===l.a);
+      const b = state.cards.find(c=>c.id===l.b);
+      if(!a || !b) return;
+      let pA, pB;
+      if(l.sideA) pA = sideAnchorPoint(a, l.sideA);
+      else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
+      if(l.sideB) pB = sideAnchorPoint(b, l.sideB);
+      else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','link');
+      path.setAttribute('d', bezierPathDirected(pA, l.sideA, pB, l.sideB));
+      svg.appendChild(path);
+    });
+  }
+
+  function renderCard(card){
+    const el = document.createElement('div');
+    el.className = 'card' + (card.image ? ' image-card' : '');
+    el.dataset.id = card.id;
+    el.style.left = card.x+'px';
+    el.style.top = card.y+'px';
+    if(card.w) el.style.width = card.w+'px';
+    if(card.image){
+      el.style.height = (card.h || 200) + 'px';
+      const wrap = document.createElement('div');
+      wrap.className = 'image-wrap';
+      const img = document.createElement('img');
+      img.src = card.image; img.alt = card.caption || '';
+      wrap.appendChild(img);
+      if(card.caption){
+        const cap = document.createElement('div');
+        cap.className = 'img-caption'; cap.textContent = card.caption;
+        wrap.appendChild(cap);
+      }
+      el.appendChild(wrap);
+    } else {
+      if(card.autoH){ el.style.height = 'auto'; }
+      else if(card.h){ el.style.height = card.h+'px'; }
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.style.background = card.color;
+      title.textContent = card.title;
+      const details = document.createElement('div');
+      details.className = 'details';
+      details.textContent = card.details;
+      el.appendChild(title);
+      el.appendChild(details);
+    }
+    board.appendChild(el);
+  }
+
+  function renderComments(){
+    [...board.querySelectorAll('.comment')].forEach(n=>n.remove());
+    [...commentsLayer.querySelectorAll('*')].forEach(n=>n.remove());
+    const list = comments.comments || [];
+    commentCountEl.textContent = list.length;
+    list.forEach(c => {
+      const el = document.createElement('div');
+      el.className = 'comment' + (c.clientId === myClientId ? ' own' : '');
+      el.style.left = c.x + 'px';
+      el.style.top = c.y + 'px';
+      const authorName = (c.author && c.author.trim()) ? c.author : 'Anonym';
+      const author = document.createElement('div');
+      author.className = 'c-meta';
+      const authEl = document.createElement('span');
+      authEl.className = 'c-author';
+      authEl.textContent = authorName;
+      const dateEl = document.createElement('span');
+      dateEl.className = 'c-date';
+      dateEl.textContent = formatRelativeDate(c.createdAt);
+      author.appendChild(authEl);
+      author.appendChild(dateEl);
+      el.appendChild(author);
+      const text = document.createElement('div');
+      text.className = 'c-text';
+      text.textContent = c.text;
+      el.appendChild(text);
+      if(c.clientId === myClientId){
+        const actions = document.createElement('div');
+        actions.className = 'c-actions';
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✎ Bearbeiten';
+        editBtn.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          openCommentEditor(null, c);
+        });
+        actions.appendChild(editBtn);
+        el.appendChild(actions);
+      }
+      el.addEventListener('click', (e)=>{
+        if(e.target.tagName === 'BUTTON') return;
+        if(c.clientId === myClientId) openCommentEditor(null, c);
+      });
+      board.appendChild(el);
+    });
+    renderMinimap();
+  }
+
+  // ========= GEOMETRY =========
   function cardRect(card){
-    const w = card.w || CARD_DEFAULT_W;
-    const h = card.h || 120;
+    const el = board.querySelector(`.card[data-id="${card.id}"]`);
+    const w = el ? el.offsetWidth  : (card.w || 170);
+    const h = el ? el.offsetHeight : (card.h || 120);
     return {x:card.x, y:card.y, w, h, cx:card.x+w/2, cy:card.y+h/2};
   }
   function sideAnchorPoint(card, side){
@@ -582,137 +957,12 @@
     return `M ${pA.x} ${pA.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${pB.x} ${pB.y}`;
   }
 
-  function renderBoard(){
-    [...board.querySelectorAll('.card')].forEach(n=>n.remove());
-    [...svg.querySelectorAll('path.link')].forEach(n=>n.remove());
-    bgLayout.style.display = whiteboardData.showBg !== false ? '' : 'none';
-
-    whiteboardData.cards.forEach(c => renderCard(c));
-    whiteboardData.links.forEach(l => {
-      const a = whiteboardData.cards.find(x=>x.id===l.a);
-      const b = whiteboardData.cards.find(x=>x.id===l.b);
-      if(!a || !b) return;
-      let pA, pB;
-      if(l.sideA) pA = sideAnchorPoint(a, l.sideA);
-      else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
-      if(l.sideB) pB = sideAnchorPoint(b, l.sideB);
-      else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
-      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('class','link');
-      path.setAttribute('d', bezierPathDirected(pA, l.sideA, pB, l.sideB));
-      svg.appendChild(path);
-    });
-    renderMinimap();
-  }
-
-  function renderCard(card){
-    const el = document.createElement('div');
-    el.className = 'card' + (card.image ? ' image-card' : '');
-    el.dataset.id = card.id;
-    el.style.left = card.x+'px';
-    el.style.top = card.y+'px';
-    if(card.w) el.style.width = card.w+'px';
-
-    if(card.image){
-      el.style.height = (card.h || 200) + 'px';
-      const wrap = document.createElement('div');
-      wrap.className = 'image-wrap';
-      const img = document.createElement('img');
-      img.src = card.image; img.alt = card.caption || '';
-      wrap.appendChild(img);
-      if(card.caption){
-        const cap = document.createElement('div');
-        cap.className = 'img-caption';
-        cap.textContent = card.caption;
-        wrap.appendChild(cap);
-      }
-      el.appendChild(wrap);
-    } else {
-      if(card.autoH){ el.classList.add('autoH'); el.style.height='auto'; }
-      else if(card.h){ el.style.height = card.h+'px'; }
-      const title = document.createElement('div');
-      title.className = 'title';
-      title.style.background = card.color || '#FFE066';
-      title.textContent = card.title || '';
-      const details = document.createElement('div');
-      details.className = 'details';
-      details.textContent = card.details || '';
-      el.appendChild(title); el.appendChild(details);
-    }
-
-    board.appendChild(el);
-    // Font-Scale
-    const w = el.offsetWidth, h = el.offsetHeight;
-    const s = Math.max(0.5, Math.min(1.6, Math.min(w/CARD_REF_W, h/CARD_REF_H)));
-    el.style.setProperty('--card-font-scale', s.toFixed(3));
-  }
-
-  function renderComments(){
-    [...board.querySelectorAll('.comment-note')].forEach(n=>n.remove());
-    comments.forEach(c => renderCommentNote(c));
-    renderMinimap();
-  }
-
-  function renderCommentNote(c){
-    const el = document.createElement('div');
-    el.className = 'comment-note';
-    if(ownCommentIds.has(c.id)) el.classList.add('own');
-    el.style.left = c.x + 'px';
-    el.style.top = c.y + 'px';
-    el.dataset.id = c.id;
-
-    const textEl = document.createElement('div');
-    textEl.className = 'comment-text';
-    textEl.textContent = c.text || '';
-    el.appendChild(textEl);
-
-    const meta = document.createElement('div');
-    meta.className = 'comment-meta';
-    const author = document.createElement('span');
-    author.className = 'comment-author';
-    author.textContent = c.author ? '— ' + c.author : '— Anonym';
-    const time = document.createElement('span');
-    time.textContent = c.timestamp ? formatRelativeTime(c.timestamp) : '';
-    meta.appendChild(author); meta.appendChild(time);
-    el.appendChild(meta);
-
-    if(ownCommentIds.has(c.id)){
-      const delBtn = document.createElement('button');
-      delBtn.className = 'comment-del';
-      delBtn.textContent = '✕';
-      delBtn.title = 'Eigenen Kommentar löschen';
-      delBtn.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        confirmDeleteOwnComment(c);
-      });
-      el.appendChild(delBtn);
-    }
-
-    el.addEventListener('click', (e)=>{
-      if(e.target.classList.contains('comment-del')) return;
-      showCommentDetail(c);
-    });
-
-    board.appendChild(el);
-  }
-
-  function formatRelativeTime(ts){
-    const diff = Date.now() - ts;
-    const mins = Math.floor(diff/60000);
-    if(mins < 1) return 'gerade eben';
-    if(mins < 60) return mins+' Min';
-    const hours = Math.floor(mins/60);
-    if(hours < 24) return hours+' Std';
-    const days = Math.floor(hours/24);
-    if(days < 30) return days+' Tag' + (days>1?'e':'');
-    return new Date(ts).toLocaleDateString();
-  }
-
-  // ========= MINI-MAP =========
+  // ========= MINIMAP =========
   function renderMinimap(){
+    if(!state) return;
     let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
     let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
-    whiteboardData.cards.forEach(c=>{
+    (state.cards||[]).forEach(c=>{
       const r = cardRect(c);
       if(r.x < minX) minX = r.x;
       if(r.y < minY) minY = r.y;
@@ -720,8 +970,9 @@
       if(r.y + r.h > maxY) maxY = r.y + r.h;
     });
     const vpRect = viewport.getBoundingClientRect();
-    const vX = -view.tx/view.scale, vY = -view.ty/view.scale;
-    const vW = vpRect.width/view.scale, vH = vpRect.height/view.scale;
+    const {scale,tx,ty} = viewerConfig;
+    const vX = -tx/scale, vY = -ty/scale;
+    const vW = vpRect.width/scale, vH = vpRect.height/scale;
     minX = Math.min(minX, vX); minY = Math.min(minY, vY);
     maxX = Math.max(maxX, vX + vW); maxY = Math.max(maxY, vY + vH);
     const pad = 150;
@@ -729,26 +980,23 @@
     const bw = maxX - minX, bh = maxY - minY;
     minimapSvg.setAttribute('viewBox', `${minX} ${minY} ${bw} ${bh}`);
     let html = '';
-    if(whiteboardData.showBg !== false){
-      html += `<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})">
-        <path class="mm-layout" d="M 830 500 A 414 414 0 0 1 1658 500" />
-        <line class="mm-layout" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
-        <polyline class="mm-layout" points="830,500 1244,1540 1658,500" />
-      </g>`;
-    }
-    whiteboardData.cards.forEach(c=>{
+    html += `<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})">
+      <path class="mm-layout" d="M 830 500 A 414 414 0 0 1 1658 500" />
+      <line class="mm-layout" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
+      <polyline class="mm-layout" points="830,500 1244,1540 1658,500" />
+    </g>`;
+    (state.cards||[]).forEach(c=>{
       const r = cardRect(c);
-      const fill = c.image ? '#222' : (c.color || '#FFE066');
+      const fill = c.image ? '#222' : c.color;
       html += `<rect class="mm-card" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="4" fill="${fill}"/>`;
     });
-    comments.forEach(c=>{
-      html += `<rect class="mm-comment" x="${c.x}" y="${c.y}" width="${COMMENT_W}" height="${COMMENT_H}" rx="2"/>`;
+    (comments.comments||[]).forEach(c=>{
+      html += `<rect class="mm-comment" x="${c.x}" y="${c.y}" width="160" height="80" rx="2"/>`;
     });
     html += `<rect class="mm-viewport" x="${vX}" y="${vY}" width="${vW}" height="${vH}" rx="2"/>`;
     minimapSvg.innerHTML = html;
     minimapSvg.dataset.vb = JSON.stringify({minX,minY,bw,bh});
   }
-
   let mmDrag = false;
   function mmPointToBoard(e){
     const r = minimap.getBoundingClientRect();
@@ -758,8 +1006,8 @@
   }
   function mmCenterOn(p){
     const vpRect = viewport.getBoundingClientRect();
-    view.tx = vpRect.width/2 - p.x*view.scale;
-    view.ty = vpRect.height/2 - p.y*view.scale;
+    viewerConfig.tx = vpRect.width/2 - p.x*viewerConfig.scale;
+    viewerConfig.ty = vpRect.height/2 - p.y*viewerConfig.scale;
     applyView();
   }
   minimap.addEventListener('mousedown', (e)=>{
@@ -770,410 +1018,104 @@
   window.addEventListener('mousemove', (e)=>{ if(mmDrag){ const p = mmPointToBoard(e); if(p) mmCenterOn(p); } });
   window.addEventListener('mouseup', ()=>{ mmDrag = false; });
 
-  // ========= MODAL =========
-  function closeModal(){ if(modalEl){ modalEl.remove(); modalEl = null; } }
-  function showModal(title, bodyFn, primaryLabel, primaryAction, extraButtons){
-    closeModal();
-    const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop';
-    backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeModal(); });
-    const box = document.createElement('div');
-    box.className = 'modal';
-    const h = document.createElement('h2'); h.textContent = title; box.appendChild(h);
-    const body = document.createElement('div'); box.appendChild(body);
-    bodyFn(body);
-    const actions = document.createElement('div');
-    actions.className = 'modal-actions';
-    if(extraButtons){
-      extraButtons.forEach(btnDef => {
-        const b = document.createElement('button');
-        b.textContent = btnDef.label;
-        if(btnDef.danger) b.classList.add('danger');
-        b.addEventListener('click', ()=> btnDef.action(box));
-        actions.appendChild(b);
-      });
-    }
-    const cancel = document.createElement('button'); cancel.textContent = 'Schließen'; cancel.addEventListener('click', closeModal); actions.appendChild(cancel);
-    if(primaryLabel){
-      const ok = document.createElement('button'); ok.textContent = primaryLabel;
-      ok.classList.add(primaryLabel.toLowerCase().includes('löschen') ? 'danger' : 'primary');
-      ok.addEventListener('click', ()=> primaryAction(box));
-      actions.appendChild(ok);
-    }
-    box.appendChild(actions);
-    backdrop.appendChild(box);
-    document.body.appendChild(backdrop);
-    modalEl = backdrop;
-    return box;
+  // ========= HELPERS =========
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function escapeAttr(s){ return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function formatRelativeDate(ts){
+    if(!ts) return '';
+    const diff = Date.now() - ts;
+    if(diff < 60000) return 'gerade eben';
+    if(diff < 3600000) return Math.floor(diff/60000) + ' Min';
+    if(diff < 86400000) return Math.floor(diff/3600000) + ' Std';
+    return new Date(ts).toLocaleDateString();
+  }
+  function setSyncStatus(kind, text){
+    syncStatusEl.classList.remove('ok','error','syncing');
+    if(kind) syncStatusEl.classList.add(kind);
+    syncStatusText.textContent = text;
   }
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  }
-
-  // ========= COMMENT CREATE =========
-  function openCommentCreateDialog(boardPoint){
-    const x = Math.max(0, boardPoint.x - COMMENT_W/2);
-    const y = Math.max(0, boardPoint.y - COMMENT_H/2);
-    showModal('Neuer Kommentar', (body)=>{
-      body.innerHTML = `
-        <p>Dein Name (optional):</p>
-        <input type="text" id="authorInput" placeholder="z.B. Max" value="${escapeHtml(userName)}" maxlength="40" />
-        <p>Kommentar (max. ${COMMENT_MAX_LENGTH} Zeichen):</p>
-        <textarea id="textInput" placeholder="Dein Kommentar..." maxlength="${COMMENT_MAX_LENGTH}"></textarea>
-        <div class="char-counter" id="counter">0 / ${COMMENT_MAX_LENGTH}</div>
-      `;
-      const textEl = body.querySelector('#textInput');
-      const counter = body.querySelector('#counter');
-      const update = ()=>{
-        const len = textEl.value.length;
-        counter.textContent = len+' / '+COMMENT_MAX_LENGTH;
-        counter.classList.toggle('warn', len > COMMENT_MAX_LENGTH*0.8 && len <= COMMENT_MAX_LENGTH);
-        counter.classList.toggle('err', len > COMMENT_MAX_LENGTH);
-      };
-      textEl.addEventListener('input', update);
-      setTimeout(()=>textEl.focus(), 50);
-    }, 'Kommentar posten', async (box)=>{
-      const author = box.querySelector('#authorInput').value.trim();
-      const text = box.querySelector('#textInput').value.trim();
-      if(!text){ alert('Bitte Kommentartext eingeben'); return; }
-      if(text.length > COMMENT_MAX_LENGTH){ alert('Kommentar zu lang (max. '+COMMENT_MAX_LENGTH+' Zeichen)'); return; }
-      if(author) saveUserName(author);
-      closeModal();
-      await postComment({ x, y, text, author });
-    });
-  }
-
-  async function postComment({x, y, text, author}){
-    const id = 'c_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-    const newComment = {
-      id, x: Math.round(x), y: Math.round(y),
-      text, author: author || '',
-      timestamp: Date.now(),
-    };
-    setCommentStatus('syncing','Sende...');
-    // Zuerst lokal anzeigen (optimistisch)
-    comments.push(newComment);
-    ownCommentIds.add(id);
-    saveOwnCommentIds();
-    renderComments();
-
-    try{
-      // Neu laden, um Konflikte zu minimieren (andere könnten gleichzeitig posten)
-      await loadComments(true);
-      if(!comments.find(c=>c.id===id)){
-        comments.push(newComment);
-      }
-      await writeComments();
-      setCommentStatus('ok', comments.length + ' Kommentar(e)');
-      toast('Kommentar gespeichert', 'success');
-    }catch(err){
-      // Rollback
-      comments = comments.filter(c=>c.id!==id);
-      ownCommentIds.delete(id);
-      saveOwnCommentIds();
-      renderComments();
-      setCommentStatus('err','Fehler');
-      toast('Senden fehlgeschlagen: '+err.message, 'error');
-    }
-  }
-
-  function confirmDeleteOwnComment(c){
-    showModal('Eigenen Kommentar löschen?', (body)=>{
-      body.innerHTML = `<div class="confirm-warn">Dein Kommentar wird endgültig aus dem Kommentar-Gist entfernt.</div>`;
-    }, 'Löschen', async ()=>{
-      closeModal();
-      setCommentStatus('syncing','Lösche...');
-      const before = [...comments];
-      comments = comments.filter(x=>x.id!==c.id);
-      ownCommentIds.delete(c.id);
-      saveOwnCommentIds();
-      renderComments();
-      try{
-        await writeComments();
-        setCommentStatus('ok', comments.length + ' Kommentar(e)');
-        toast('Kommentar gelöscht');
-      }catch(err){
-        comments = before;
-        ownCommentIds.add(c.id);
-        saveOwnCommentIds();
-        renderComments();
-        setCommentStatus('err','Fehler');
-        toast('Löschen fehlgeschlagen', 'error');
-      }
-    });
-  }
-
-  function showCommentDetail(c){
-    const when = c.timestamp ? new Date(c.timestamp).toLocaleString() : 'Unbekannt';
-    const extra = ownCommentIds.has(c.id) ? [
-      { label:'Löschen', danger:true, action:()=>{ closeModal(); confirmDeleteOwnComment(c); } }
-    ] : null;
-    showModal(c.author ? 'Kommentar von '+c.author : 'Anonymer Kommentar', (body)=>{
-      body.innerHTML = `
-        <div class="comment-detail">${escapeHtml(c.text || '')}</div>
-        <div class="comment-detail-meta">
-          ${c.author ? '<b>Autor:</b> '+escapeHtml(c.author)+' · ' : ''}
-          <b>Erstellt:</b> ${when}
-          ${ownCommentIds.has(c.id) ? ' · <i>dein Kommentar</i>' : ''}
-        </div>
-      `;
-    }, null, null, extra);
-  }
-
-  // ========= GITHUB API =========
-  async function fetchGistPublic(gistId){
-    // Public Read ohne Token (funktioniert bei public Gists; für secret Gists braucht es Token)
-    const res = await fetch('https://api.github.com/gists/'+gistId, {
-      headers: {'Accept':'application/vnd.github+json'}
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    return res.json();
-  }
-  async function fetchGistWithToken(gistId, token){
-    const res = await fetch('https://api.github.com/gists/'+gistId, {
-      headers: {
-        'Accept':'application/vnd.github+json',
-        'Authorization':'Bearer '+token,
-        'X-GitHub-Api-Version':'2022-11-28',
-      }
-    });
-    if(!res.ok){
-      const text = await res.text().catch(()=>'');
-      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
-    }
-    return res.json();
-  }
-  async function patchGist(gistId, token, fileName, content){
-    const res = await fetch('https://api.github.com/gists/'+gistId, {
-      method:'PATCH',
-      headers:{
-        'Accept':'application/vnd.github+json',
-        'Authorization':'Bearer '+token,
-        'Content-Type':'application/json',
-        'X-GitHub-Api-Version':'2022-11-28',
-      },
-      body: JSON.stringify({ files: { [fileName]: { content } } })
-    });
-    if(!res.ok){
-      const text = await res.text().catch(()=>'');
-      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
-    }
-    return res.json();
-  }
-
-  async function readFileFromGist(gist, fileName){
-    const file = gist.files && gist.files[fileName];
-    if(!file) return null;
-    let content = file.content;
-    if(file.truncated && file.raw_url){
-      const res = await fetch(file.raw_url);
-      content = await res.text();
-    }
-    return content;
-  }
-
-  // ========= LOAD WHITEBOARD =========
-  async function loadWhiteboard(silent){
-    if(!config || !config.boardGistId){
-      setBoardStatus('err','Kein Board konfiguriert');
+  // ========= BOOTSTRAP & POLLING =========
+  async function bootstrap(){
+    if(!config){
+      loadingEl.style.display = 'none';
+      openConfigDialog();
       return;
     }
-    if(!silent) setBoardStatus('syncing','Lade Board...');
+    loadingEl.style.display = '';
+    setSyncStatus('syncing', 'Lade...');
     try{
-      let gist;
-      if(config.boardReadToken){
-        gist = await fetchGistWithToken(config.boardGistId, config.boardReadToken);
-      } else {
-        gist = await fetchGistPublic(config.boardGistId);
-      }
-      const content = await readFileFromGist(gist, 'whiteboard.json');
-      if(!content){ setBoardStatus('err','whiteboard.json nicht gefunden'); return; }
-      const data = JSON.parse(content);
-      whiteboardData = {
-        cards: Array.isArray(data.cards) ? data.cards : [],
-        links: Array.isArray(data.links) ? data.links : [],
-        showBg: data.showBg !== false,
-        view: data.view || null,
-        lastModified: data.lastModified || 0,
-      };
-      if(!silent && whiteboardData.view){
-        view = { scale: whiteboardData.view.scale, tx: whiteboardData.view.tx, ty: whiteboardData.view.ty };
-        applyView();
-      }
+      await loadBoard();
       renderBoard();
-      setBoardStatus('ok', whiteboardData.cards.length+' Karten');
-    }catch(err){
-      console.error(err);
-      setBoardStatus('err', 'Fehler: '+(err.message||'').slice(0,30));
-      if(!silent) toast('Board laden fehlgeschlagen: '+err.message, 'error');
-    }
-  }
-
-  async function loadComments(silent){
-    if(!config || !config.commentGistId || !config.commentToken){
-      setCommentStatus('err','Nicht konfiguriert');
-      return;
-    }
-    if(!silent) setCommentStatus('syncing','Lade...');
-    try{
-      const gist = await fetchGistWithToken(config.commentGistId, config.commentToken);
-      const content = await readFileFromGist(gist, 'comments.json');
-      if(!content){ comments = []; }
-      else {
-        try{
-          const data = JSON.parse(content);
-          comments = Array.isArray(data.comments) ? data.comments : [];
-        }catch{ comments = []; }
+      fitLayoutToView();
+      try{ await loadComments(); renderComments(); }catch(err){
+        if(err.message === 'AUTH'){
+          toast('Kommentar-Zugang ungültig', 'error');
+        } else if(err.message !== 'NOT_FOUND'){
+          toast('Kommentare konnten nicht geladen werden', 'error');
+        }
       }
-      renderComments();
-      setCommentStatus('ok', comments.length+' Kommentar(e)');
-    }catch(err){
-      console.error(err);
-      setCommentStatus('err','Fehler');
-      if(!silent) toast('Kommentare laden fehlgeschlagen: '+err.message, 'error');
+      loadingEl.style.display = 'none';
+      viewerInfoEl.style.display = '';
+      lastUpdateEl.textContent = new Date().toLocaleTimeString();
+      setSyncStatus('ok', 'Live');
+      startPolling();
+    } catch(err) {
+      loadingEl.style.display = 'none';
+      setSyncStatus('error', 'Fehler');
+      if(err.message === 'AUTH'){
+        openConfigDialog('❌ Board-Token ist ungültig oder abgelaufen. Bitte Zugangsdaten prüfen.');
+      } else if(err.message === 'NOT_FOUND'){
+        openConfigDialog('❌ Board-Gist nicht gefunden. Bitte Gist-ID prüfen.');
+      } else if(err.message === 'NO_CONFIG'){
+        openConfigDialog();
+      } else {
+        openConfigDialog('❌ Verbindung fehlgeschlagen: ' + err.message);
+      }
     }
   }
 
-  async function writeComments(){
-    if(!config || !config.commentGistId || !config.commentToken) throw new Error('Nicht konfiguriert');
-    const json = JSON.stringify({ comments }, null, 2);
-    await patchGist(config.commentGistId, config.commentToken, 'comments.json', json);
-  }
-
-  function setBoardStatus(kind, text){
-    boardStatusEl.classList.remove('ok','err','syncing');
-    if(kind) boardStatusEl.classList.add(kind);
-    boardStatusText.textContent = 'Board: '+text;
-  }
-  function setCommentStatus(kind, text){
-    commentStatusEl.classList.remove('ok','err','syncing');
-    if(kind) commentStatusEl.classList.add(kind);
-    commentStatusText.textContent = 'Kommentare: '+text;
-  }
-
-  // ========= POLLING =========
   function startPolling(){
-    stopPolling();
-    if(!config) return;
-    boardPollTimer = setInterval(async ()=>{
-      await loadWhiteboard(true);
-      if(config.commentGistId && config.commentToken){
-        await loadComments(true);
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(async ()=>{
+      try{
+        setSyncStatus('syncing', 'Aktualisiere...');
+        await loadBoard();
+        renderBoard();
+        const result = await loadComments();
+        if(result.changed) renderComments();
+        lastUpdateEl.textContent = new Date().toLocaleTimeString();
+        setSyncStatus('ok', 'Live');
+      } catch(err){
+        console.warn('Polling-Fehler:', err);
+        setSyncStatus('error', 'Offline');
+        if(err.message === 'AUTH'){
+          clearInterval(pollTimer);
+          openConfigDialog('❌ Token ist nicht mehr gültig. Bitte Zugangsdaten prüfen.');
+        }
       }
     }, POLL_INTERVAL);
   }
-  function stopPolling(){
-    if(boardPollTimer){ clearInterval(boardPollTimer); boardPollTimer = null; }
-  }
 
-  // ========= CONFIG MODAL =========
-  configBtn.addEventListener('click', openConfigModal);
-
-  function openConfigModal(){
-    const c = config || {};
-    showModal('Viewer-Konfiguration', (body)=>{
-      body.innerHTML = `
-        <p><b>Whiteboard-Quelle</b> (Read-Only)</p>
-        <p class="small">Gist-ID des Whiteboard-Gists. Bei Secret Gist: Read-Token erforderlich.</p>
-        <input type="text" id="boardGistInput" placeholder="Whiteboard-Gist-ID" value="${escapeHtml(c.boardGistId || '')}" />
-        <input type="password" id="boardTokenInput" placeholder="Read-Token (nur bei Secret Gist)" value="${escapeHtml(c.boardReadToken || '')}" autocomplete="off" />
-
-        <p style="margin-top:16px"><b>Kommentar-Backend</b></p>
-        <p class="small">Separater GitHub-Account empfohlen! Token wird für Kommentare verwendet.</p>
-        <input type="text" id="cmtGistInput" placeholder="Kommentar-Gist-ID" value="${escapeHtml(c.commentGistId || '')}" />
-        <input type="password" id="cmtTokenInput" placeholder="Kommentar-Token" value="${escapeHtml(c.commentToken || '')}" autocomplete="off" />
-
-        <p style="margin-top:16px"><b>Titel</b> (optional)</p>
-        <input type="text" id="titleInput" placeholder="Board-Titel" value="${escapeHtml(c.boardTitle || '')}" maxlength="60" />
-
-        <p style="margin-top:16px" class="small">
-          <b>Teilen via URL:</b> Du kannst Parameter auch per URL übergeben:<br>
-          <code>?board=GIST_ID&cgist=CMT_GIST&ctoken=CMT_TOKEN&title=Mein+Board</code>
-        </p>
-        <p class="small">⚠ Token in URL ist <b>nicht sicher</b>. Besser: Nutzer geben Konfiguration selbst ein.</p>
-      `;
-    }, 'Speichern', async (box)=>{
-      const newConfig = {
-        boardGistId: box.querySelector('#boardGistInput').value.trim() || null,
-        boardReadToken: box.querySelector('#boardTokenInput').value.trim() || null,
-        commentGistId: box.querySelector('#cmtGistInput').value.trim() || null,
-        commentToken: box.querySelector('#cmtTokenInput').value.trim() || null,
-        boardTitle: box.querySelector('#titleInput').value.trim() || 'Whiteboard',
-      };
-      if(!newConfig.boardGistId){ alert('Mindestens Whiteboard-Gist-ID erforderlich'); return; }
-      config = newConfig;
-      saveConfig();
+  window.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape'){
+      if(commentMode){
+        commentMode = false;
+        commentModeBtn.classList.remove('active');
+        viewport.classList.remove('comment-mode');
+        removeCommentGhost();
+      }
       closeModal();
-      applyConfigTitle();
-      await loadWhiteboard();
-      if(config.commentGistId && config.commentToken) await loadComments();
-      startPolling();
-      toast('Konfiguration gespeichert', 'success');
-    }, (c.boardGistId || c.commentGistId) ? [
-      { label:'Konfiguration löschen', danger:true, action:()=>{
-          showModal('Konfiguration löschen?', (body)=>{
-            body.innerHTML = `<div class="confirm-warn">Alle Einstellungen werden entfernt. Eigene Kommentare bleiben im Gist.</div>`;
-          }, 'Löschen', ()=>{
-            try{ localStorage.removeItem(STORAGE_KEY_CONFIG); }catch{}
-            config = null;
-            closeModal();
-            location.reload();
-          });
-        }}
-    ] : null);
-  }
-
-  function applyConfigTitle(){
-    if(config && config.boardTitle){
-      boardTitle.textContent = config.boardTitle;
-      document.title = config.boardTitle + ' · Viewer';
-    } else {
-      boardTitle.textContent = 'Whiteboard Viewer';
     }
-  }
-
-  // ========= INIT =========
-  async function init(){
-    fitLayoutToView();
-    loaderEl.style.display = 'none';
-
-    if(!config || !config.boardGistId){
-      setBoardStatus('err','Nicht konfiguriert');
-      setCommentStatus('err','Nicht konfiguriert');
-      toast('Bitte Konfiguration eingeben (⚙)', 'error');
-      setTimeout(openConfigModal, 600);
-      return;
-    }
-
-    applyConfigTitle();
-    loaderEl.style.display = 'flex';
-    loaderText.textContent = 'Lade Whiteboard...';
-    await loadWhiteboard();
-    if(config.commentGistId && config.commentToken){
-      loaderText.textContent = 'Lade Kommentare...';
-      await loadComments();
-    } else {
-      setCommentStatus('err','Nicht konfiguriert');
-    }
-    loaderEl.style.display = 'none';
-    startPolling();
-  }
-
+  });
   window.addEventListener('resize', ()=>{ renderMinimap(); });
 
-  init();
-
-  console.log('Viewer v1 initialisiert', {
-    config: !!config,
-    boardGist: config?.boardGistId,
-    commentsConfigured: !!(config?.commentGistId && config?.commentToken),
-  });
+  // Start
+  bootstrap();
 
   } catch (err) {
     console.error('Viewer Init-Fehler:', err);
-    document.getElementById('loader').innerHTML =
-      '<div style="color:#e53935;text-align:center"><h3>Fehler beim Start</h3><p>'+err.message+'</p></div>';
+    alert('Fehler beim Start: ' + err.message);
   }
 })();
 </script>

@@ -9,16 +9,11 @@
     --bg:#f4f5f7;
     --toolbar:#ffffff;
     --card-shadow:0 2px 6px rgba(0,0,0,.12);
-    --card-shadow-hi:0 6px 18px rgba(0,0,0,.25);
-    --line:#9aa0a6;
-    --line-hi:#ff6b00;
     --anchor:#2b7fff;
     --danger:#e53935;
     --success:#2e7d32;
     --warning:#f57c00;
-    --comment-bg:#fff59d;
-    --dim:.15;
-    --radius:10px;
+    --comment:#ffd54f;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#222;background:var(--bg);overflow:hidden}
@@ -32,15 +27,15 @@
     font-size:13px;padding:6px 10px;border:1px solid #d0d4da;background:#fff;border-radius:6px;cursor:pointer;
   }
   .toolbar button:hover{background:#f0f2f5}
-  .toolbar button.active{background:#2b7fff;color:#fff;border-color:#2b7fff}
-  .toolbar .title{font-weight:600;font-size:14px;color:#222}
-  .toolbar .badge{font-size:11px;padding:2px 6px;background:#e3f2fd;color:#1565c0;border-radius:4px;margin-left:4px}
+  .toolbar button.active{background:#ffd54f;color:#222;border-color:#f9a825}
+  .toolbar .title{font-weight:600;font-size:14px;margin-right:8px}
+  .toolbar .badge{
+    font-size:11px;padding:2px 8px;border-radius:10px;background:#e3f2fd;color:#1565c0;
+  }
   .toolbar .spacer{flex:1}
-
   .zoom-group{display:flex;align-items:center;gap:4px;border:1px solid #d0d4da;border-radius:6px;padding:2px;background:#fff}
   .zoom-group button{border:none;padding:4px 8px}
   #zoomLevel{font-size:12px;min-width:48px;text-align:center;color:#444}
-
   .sync-status{
     display:flex;align-items:center;gap:6px;font-size:12px;color:#666;
     padding:4px 10px;border:1px solid #d0d4da;border-radius:6px;background:#fff;
@@ -51,10 +46,6 @@
   .sync-status.error .dot{background:var(--danger)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-  .config-btn{
-    width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;font-size:16px;
-  }
-
   .viewport{
     position:absolute;inset:48px 0 0 0;overflow:hidden;background:var(--bg);
     background-image:radial-gradient(circle, #dfe1e5 1px, transparent 1px);
@@ -62,7 +53,7 @@
     cursor:grab;
   }
   .viewport.panning{cursor:grabbing}
-  .viewport.comment-mode{cursor:crosshair}
+  body.comment-mode .viewport{cursor:crosshair}
 
   .board{
     position:absolute;left:0;top:0;width:8000px;height:6000px;
@@ -74,97 +65,99 @@
   svg.bg-layout .layout-label{font-family:system-ui,-apple-system,sans-serif;font-size:28px;fill:#222;font-weight:500}
 
   svg.links{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
-  svg.links path.link{fill:none;stroke:var(--line);stroke-width:2.2;opacity:.85}
-  svg.comments-layer{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
-  svg.comments-layer line.comment-link{stroke:#f9a825;stroke-width:2;stroke-dasharray:4 3;opacity:.7}
+  svg.links path.link{fill:none;stroke:#9aa0a6;stroke-width:2.2;opacity:.85}
 
   .card{
-    position:absolute;width:170px;min-width:60px;min-height:60px;border-radius:var(--radius);
+    position:absolute;width:170px;min-width:60px;min-height:60px;border-radius:10px;
     background:#fff;box-shadow:var(--card-shadow);display:flex;flex-direction:column;
+    --card-font-scale:1;
+    transition:outline-color .15s, box-shadow .15s;
+    outline:2px solid transparent;
   }
+  body.comment-mode .card{cursor:crosshair}
+  body.comment-mode .card:hover{outline-color:var(--comment);box-shadow:0 4px 14px rgba(249,168,37,.4)}
+
   .card .title{
-    padding:10px;font-weight:600;font-size:14px;line-height:1.25;min-height:40px;
-    color:#222;border-radius:var(--radius) var(--radius) 0 0;flex:0 0 auto;
-    word-break:break-word;user-select:text;
+    padding:10px;font-weight:600;
+    font-size:calc(14px * var(--card-font-scale));
+    line-height:1.25;min-height:calc(40px * var(--card-font-scale));
+    color:#222;border-radius:10px 10px 0 0;flex:0 0 auto;
+    word-break:break-word;
   }
   .card .details{
-    padding:10px;background:#fff;font-size:13px;line-height:1.35;min-height:40px;
+    padding:10px;background:#fff;
+    font-size:calc(13px * var(--card-font-scale));
+    line-height:1.35;min-height:calc(40px * var(--card-font-scale));
     white-space:pre-wrap;word-break:break-word;
-    border-top:1px solid rgba(0,0,0,.06);border-radius:0 0 var(--radius) var(--radius);
-    flex:1 1 auto;user-select:text;
+    border-top:1px solid rgba(0,0,0,.06);border-radius:0 0 10px 10px;
+    flex:1 1 auto;overflow:hidden;
   }
   .card.image-card{background:#222;overflow:hidden;padding:0}
   .card.image-card .title,.card.image-card .details{display:none}
   .card.image-card .image-wrap{
     position:relative;flex:1 1 auto;display:flex;align-items:center;justify-content:center;
-    border-radius:var(--radius);overflow:hidden;background:#222;
+    border-radius:10px;overflow:hidden;background:#222;
   }
-  .card.image-card img{
-    display:block;width:100%;height:100%;object-fit:contain;
-    user-select:none;-webkit-user-drag:none;pointer-events:none;
+  .card.image-card img{display:block;width:100%;height:100%;object-fit:contain}
+
+  /* Kommentar-Marker */
+  .comment-marker{
+    position:absolute;width:28px;height:28px;border-radius:50%;
+    background:var(--comment);border:2px solid #f9a825;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;cursor:pointer;z-index:10;
+    box-shadow:0 2px 6px rgba(0,0,0,.2);
+    transition:transform .15s;
   }
-  .card.image-card .img-caption{
-    position:absolute;left:0;right:0;bottom:0;
-    background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
-    color:#fff;font-size:12px;padding:6px 8px;pointer-events:none;
+  .comment-marker:hover{transform:scale(1.15)}
+  .comment-marker .count{
+    position:absolute;top:-4px;right:-4px;
+    background:#e53935;color:#fff;font-size:10px;
+    width:16px;height:16px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:600;border:1.5px solid #fff;
   }
 
-  .comment{
-    position:absolute;width:160px;min-height:80px;
-    background:var(--comment-bg);border-radius:4px;
-    box-shadow:0 3px 8px rgba(0,0,0,.2),0 0 0 1px rgba(0,0,0,.08);
-    padding:8px 10px;font-size:12px;line-height:1.35;
-    transform:rotate(-1deg);cursor:pointer;
-    pointer-events:auto;z-index:10;
-    display:flex;flex-direction:column;gap:4px;
+  /* Kommentar-Dialog */
+  .modal-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150;
+    display:flex;align-items:center;justify-content:center;padding:16px;
   }
-  .comment:hover{box-shadow:0 5px 14px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.12);z-index:11}
-  .comment.own{background:#c5e1a5}
-  .comment .c-meta{font-size:10px;color:#666;display:flex;justify-content:space-between;gap:4px}
-  .comment .c-author{font-weight:600;color:#333;word-break:break-word;flex:1}
-  .comment .c-date{color:#888;flex-shrink:0}
-  .comment .c-text{word-break:break-word;flex:1 1 auto}
-  .comment .c-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:2px}
-  .comment .c-actions button{
-    font-size:10px;padding:2px 6px;border:none;background:rgba(0,0,0,.08);
-    border-radius:3px;cursor:pointer;color:#555;
+  .modal{
+    background:#fff;border-radius:10px;padding:20px;max-width:500px;width:100%;
+    max-height:90vh;overflow-y:auto;
+    box-shadow:0 10px 40px rgba(0,0,0,.3);
   }
-  .comment .c-actions button:hover{background:rgba(0,0,0,.15)}
-  .comment .c-actions button.danger{color:var(--danger)}
-
-  .comment-ghost{
-    position:absolute;width:160px;min-height:80px;
-    background:var(--comment-bg);border-radius:4px;
-    box-shadow:0 3px 8px rgba(0,0,0,.2);
-    padding:8px 10px;font-size:12px;line-height:1.35;
-    transform:rotate(-1deg);opacity:.7;pointer-events:none;z-index:12;
-    border:2px dashed #f9a825;
+  .modal h2{margin:0 0 12px 0;font-size:18px}
+  .modal p{margin:8px 0;font-size:13px;color:#555;line-height:1.5}
+  .modal label{display:block;font-size:12px;color:#666;margin:10px 0 4px;font-weight:500}
+  .modal input[type=text],.modal input[type=password],.modal textarea{
+    width:100%;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;
+    font-size:13px;font-family:inherit;
   }
-
-  .viewer-info{
-    position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
-    background:rgba(255,255,255,.95);border:1px solid #d0d4da;border-radius:6px;
-    padding:6px 12px;font-size:12px;color:#666;z-index:15;
-    display:flex;align-items:center;gap:10px;
+  .modal textarea{min-height:90px;resize:vertical;font-family:inherit}
+  .modal .char-count{font-size:11px;color:#999;text-align:right;margin-top:2px}
+  .modal .char-count.warn{color:var(--warning)}
+  .modal .char-count.over{color:var(--danger)}
+  .modal .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .modal button{padding:8px 14px;border:1px solid #d0d4da;border-radius:6px;cursor:pointer;background:#fff;font-size:13px}
+  .modal button:hover{background:#f0f2f5}
+  .modal button.primary{background:#2b7fff;color:#fff;border-color:#2b7fff}
+  .modal button.primary:hover{background:#1f6de0}
+  .modal button.primary:disabled{opacity:.5;cursor:not-allowed}
+  .modal button.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+  .modal .small{font-size:11px;color:#888}
+  .modal .comments-list{margin-top:12px;max-height:300px;overflow-y:auto;border-top:1px solid #eee;padding-top:10px}
+  .modal .comment-item{
+    background:#fffde7;border:1px solid #ffe082;border-radius:6px;
+    padding:8px 10px;margin-bottom:8px;
   }
-  .viewer-info .info-item{display:flex;align-items:center;gap:4px}
-  .viewer-info strong{color:#333}
-
-  .minimap{
-    position:fixed;right:16px;bottom:16px;z-index:15;
-    width:220px;height:165px;background:rgba(255,255,255,.92);
-    border:1px solid #d0d4da;border-radius:8px;
-    box-shadow:0 4px 14px rgba(0,0,0,.12);
-    overflow:hidden;cursor:crosshair;
-  }
-  .minimap svg{display:block;width:100%;height:100%}
-  .minimap .mm-card{fill-opacity:.85;stroke:rgba(0,0,0,.25);stroke-width:1;vector-effect:non-scaling-stroke}
-  .minimap .mm-layout{fill:none;stroke:#222;stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:.5}
-  .minimap .mm-viewport{fill:rgba(43,127,255,.12);stroke:var(--anchor);stroke-width:1.5;vector-effect:non-scaling-stroke}
-  .minimap .mm-comment{fill:#ffd54f;stroke:#f57c00;stroke-width:1;vector-effect:non-scaling-stroke}
+  .modal .comment-item .meta{font-size:11px;color:#888;margin-bottom:4px}
+  .modal .comment-item .text{font-size:13px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+  .modal .comment-item .author{font-weight:600;color:#666}
 
   .toast{
-    position:fixed;left:50%;bottom:60px;transform:translateX(-50%);
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
     background:#222;color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;
     z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;
     box-shadow:0 4px 12px rgba(0,0,0,.25);
@@ -173,64 +166,34 @@
   .toast.error{background:var(--danger)}
   .toast.success{background:var(--success)}
 
-  .loading{
-    position:fixed;inset:48px 0 0 0;display:flex;align-items:center;justify-content:center;
-    background:var(--bg);z-index:30;flex-direction:column;gap:12px;
+  .config-overlay{
+    position:fixed;inset:0;background:#f4f5f7;z-index:300;
+    display:flex;align-items:center;justify-content:center;padding:16px;
   }
-  .loading .spinner{
-    width:40px;height:40px;border:3px solid #e4e6eb;border-top-color:var(--anchor);
-    border-radius:50%;animation:spin 1s linear infinite;
+  .config-box{
+    background:#fff;border-radius:10px;padding:24px;max-width:500px;width:100%;
+    box-shadow:0 10px 40px rgba(0,0,0,.15);
   }
-  @keyframes spin{to{transform:rotate(360deg)}}
-
-  /* Modal */
-  .modal-backdrop{
-    position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:150;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .modal{
-    background:#fff;border-radius:10px;padding:24px;max-width:560px;width:92%;
-    box-shadow:0 10px 40px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto;
-  }
-  .modal h2{margin:0 0 12px 0;font-size:18px}
-  .modal p{margin:8px 0;font-size:13px;color:#555;line-height:1.5}
-  .modal .field-group{margin:12px 0}
-  .modal label{display:block;font-size:12px;font-weight:600;color:#333;margin-bottom:4px}
-  .modal label .hint{font-weight:400;color:#888;margin-left:4px}
-  .modal input[type=text],.modal input[type=password]{
-    width:100%;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;
+  .config-box h1{margin:0 0 8px 0;font-size:22px}
+  .config-box .intro{color:#666;margin:0 0 16px 0;font-size:13px;line-height:1.5}
+  .config-box label{display:block;font-size:12px;color:#666;margin:12px 0 4px;font-weight:500}
+  .config-box input{
+    width:100%;padding:9px 10px;border:1px solid #d0d4da;border-radius:6px;
     font-size:13px;font-family:ui-monospace,monospace;
   }
-  .modal textarea{
-    width:100%;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;
-    font-size:13px;font-family:system-ui,sans-serif;resize:vertical;min-height:80px;
-  }
-  .modal .modal-actions{display:flex;justify-content:space-between;gap:8px;margin-top:20px;flex-wrap:wrap}
-  .modal .modal-actions .left{display:flex;gap:8px}
-  .modal .modal-actions .right{display:flex;gap:8px}
-  .modal button{padding:8px 14px;border:1px solid #d0d4da;border-radius:6px;cursor:pointer;background:#fff;font-size:13px}
-  .modal button:hover{background:#f0f2f5}
-  .modal button.primary{background:#2b7fff;color:#fff;border-color:#2b7fff}
-  .modal button.primary:hover{background:#1f6de0}
-  .modal button.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
-  .modal button.danger:hover{background:#c62828}
-  .modal .char-count{font-size:11px;color:#888;text-align:right;margin-top:2px}
-  .modal .error-box{
-    background:#fdecea;border:1px solid #f5b4b0;color:#611a15;
-    padding:10px 12px;border-radius:6px;font-size:12px;margin:8px 0;
-  }
-  .modal .info-box{
-    background:#e3f2fd;border:1px solid #90caf9;color:#0d47a1;
-    padding:10px 12px;border-radius:6px;font-size:12px;margin:8px 0;line-height:1.5;
-  }
+  .config-box .actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+  .config-box button{padding:10px 18px;border:1px solid #d0d4da;border-radius:6px;cursor:pointer;background:#fff;font-size:13px}
+  .config-box button.primary{background:#2b7fff;color:#fff;border-color:#2b7fff}
+  .config-box button.primary:hover{background:#1f6de0}
+  .config-box .hint{font-size:11px;color:#888;margin-top:3px}
 </style>
 </head>
 <body>
 
-<div class="toolbar">
-  <span class="title">📋 Whiteboard Viewer</span>
-  <span class="badge" id="viewMode">Viewer</span>
-  <button id="commentModeBtn" title="Kommentar-Modus: Klick auf Board, um Haftnotiz zu platzieren">💬 Kommentar-Modus</button>
+<div class="toolbar" id="toolbar" style="display:none">
+  <span class="title" id="boardTitle">📖 Viewer</span>
+  <span class="badge">Nur Lesen</span>
+  <button id="commentModeBtn" title="Kommentar-Modus (Klick auf Karte um Kommentar hinzuzufügen)">💬 Kommentieren</button>
   <div class="zoom-group">
     <button id="zoomOutBtn" title="Rauszoomen">−</button>
     <span id="zoomLevel">100%</span>
@@ -240,32 +203,16 @@
   <div class="spacer"></div>
   <div class="sync-status" id="syncStatus">
     <span class="dot"></span>
-    <span id="syncStatusText">Offline</span>
+    <span id="syncStatusText">Lade...</span>
   </div>
-  <button class="config-btn" id="configBtn" title="Konfiguration / Zugangsdaten">⚙</button>
+  <button id="settingsBtn" title="Einstellungen">⚙</button>
 </div>
 
-<div class="viewport" id="viewport">
+<div class="viewport" id="viewport" style="display:none">
   <div class="board" id="board">
     <svg class="bg-layout" id="bgLayout" xmlns="http://www.w3.org/2000/svg"></svg>
     <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
-    <svg class="comments-layer" id="commentsLayer" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
-</div>
-
-<div class="viewer-info" id="viewerInfo" style="display:none">
-  <div class="info-item">👁 <strong>Read-Only</strong></div>
-  <div class="info-item">💬 <span id="commentCount">0</span> Kommentare</div>
-  <div class="info-item">🔄 <span id="lastUpdate">—</span></div>
-</div>
-
-<div class="minimap" id="minimap">
-  <svg id="minimapSvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
-</div>
-
-<div class="loading" id="loading">
-  <div class="spinner"></div>
-  <div>Lade Whiteboard...</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -273,44 +220,43 @@
 <script>
 (() => {
   'use strict';
-  try {
 
+  const CONFIG_KEY = 'whiteboard_viewer_config_v1';
   const BOARD_W = 8000, BOARD_H = 6000;
   const LAYOUT_W = 2488, LAYOUT_H = 1672;
   const LAYOUT_OFFSET_X = (BOARD_W - LAYOUT_W)/2;
   const LAYOUT_OFFSET_Y = (BOARD_H - LAYOUT_H)/2;
   const POLL_INTERVAL = 30000;
-  const COMMENT_MAX_LENGTH = 1000;
-  const CONFIG_KEY = 'mini_whiteboard_viewer_config';
-  const USER_KEY = 'mini_whiteboard_viewer_user';
+  const MAX_COMMENT_LEN = 500;
 
-  // DOM
+  let config = loadConfig();
+  let boardState = null;
+  let comments = [];
+  let pollTimer = null;
+  let commentMode = false;
+  let toastTimer = null;
+
+  const toolbar = document.getElementById('toolbar');
   const viewport = document.getElementById('viewport');
   const board = document.getElementById('board');
-  const svg = document.getElementById('links');
   const bgLayout = document.getElementById('bgLayout');
-  const commentsLayer = document.getElementById('commentsLayer');
+  const svg = document.getElementById('links');
   const zoomInBtn = document.getElementById('zoomInBtn');
   const zoomOutBtn = document.getElementById('zoomOutBtn');
   const zoomResetBtn = document.getElementById('zoomResetBtn');
   const zoomLevel = document.getElementById('zoomLevel');
-  const minimap = document.getElementById('minimap');
-  const minimapSvg = document.getElementById('minimapSvg');
-  const loadingEl = document.getElementById('loading');
-  const toastEl = document.getElementById('toast');
+  const commentModeBtn = document.getElementById('commentModeBtn');
+  const settingsBtn = document.getElementById('settingsBtn');
   const syncStatusEl = document.getElementById('syncStatus');
   const syncStatusText = document.getElementById('syncStatusText');
-  const commentModeBtn = document.getElementById('commentModeBtn');
-  const viewerInfoEl = document.getElementById('viewerInfo');
-  const commentCountEl = document.getElementById('commentCount');
-  const lastUpdateEl = document.getElementById('lastUpdate');
-  const configBtn = document.getElementById('configBtn');
+  const toastEl = document.getElementById('toast');
+  const boardTitle = document.getElementById('boardTitle');
 
   bgLayout.setAttribute('width', LAYOUT_W);
   bgLayout.setAttribute('height', LAYOUT_H);
   bgLayout.setAttribute('viewBox', `0 0 ${LAYOUT_W} ${LAYOUT_H}`);
   bgLayout.style.left = LAYOUT_OFFSET_X + 'px';
-  bgLayout.style.top = LAYOUT_OFFSET_Y + 'px';
+  bgLayout.style.top  = LAYOUT_OFFSET_Y + 'px';
   bgLayout.innerHTML = `
     <path class="layout-stroke" d="M 830 500 A 414 414 0 0 1 1658 500" />
     <line class="layout-stroke" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
@@ -323,432 +269,101 @@
   `;
   svg.setAttribute('width', BOARD_W);
   svg.setAttribute('height', BOARD_H);
-  commentsLayer.setAttribute('width', BOARD_W);
-  commentsLayer.setAttribute('height', BOARD_H);
 
-  // ========= CONFIG (LocalStorage) =========
+  let view = { scale: 0.3, tx: 0, ty: 0 };
+
   function loadConfig(){
     try{
       const raw = localStorage.getItem(CONFIG_KEY);
-      if(!raw) return null;
-      return JSON.parse(raw);
+      return raw ? JSON.parse(raw) : null;
     }catch{ return null; }
   }
-  function saveConfig(cfg){
-    try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); }catch{}
-  }
-  function clearConfig(){
-    try{ localStorage.removeItem(CONFIG_KEY); }catch{}
-  }
-  function loadUser(){
-    try{ return localStorage.getItem(USER_KEY) || ''; }catch{ return ''; }
-  }
-  function saveUser(name){
-    try{ localStorage.setItem(USER_KEY, name || ''); }catch{}
-  }
-  function clientId(){
-    let id = localStorage.getItem('mini_whiteboard_viewer_clientid');
-    if(!id){
-      id = 'c_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36);
-      try{ localStorage.setItem('mini_whiteboard_viewer_clientid', id); }catch{}
-    }
-    return id;
+  function saveConfig(){
+    try{ localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }catch{}
   }
 
-  // State
-  let config = loadConfig();
-  let state = null;
-  let comments = { comments: [], lastModified: 0 };
-  let commentsETag = null;
-  let pollTimer = null;
-  let toastTimer = null;
-  let modalEl = null;
-  let commentMode = false;
-  let commentGhost = null;
-  let viewerConfig = {
-    scale: 1, tx: 0, ty: 0,
-  };
-
-  const myClientId = clientId();
-  let myName = loadUser();
-
-  // ========= TOAST =========
   function toast(msg, type){
     toastEl.textContent = msg;
     toastEl.className = 'toast show' + (type ? ' '+type : '');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 3000);
+    toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2500);
   }
 
-  // ========= MODAL =========
-  function closeModal(){ if(modalEl){ modalEl.remove(); modalEl = null; } }
-  function showModal(contentFn, options){
-    closeModal();
-    const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop';
-    if(!options || options.closeOnBackdrop !== false){
-      backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeModal(); });
+  function setSyncStatus(kind, text){
+    syncStatusEl.classList.remove('ok','syncing','error');
+    if(kind) syncStatusEl.classList.add(kind);
+    syncStatusText.textContent = text;
+  }
+
+  function showConfigDialog(){
+    const existing = document.querySelector('.config-overlay');
+    if(existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.className = 'config-overlay';
+    overlay.innerHTML = `
+      <div class="config-box">
+        <h1>📖 Whiteboard Viewer</h1>
+        <p class="intro">Bitte gib die Zugangsdaten ein, die du erhalten hast. Diese werden sicher lokal in deinem Browser gespeichert und nicht geteilt.</p>
+
+        <label>Board-Gist-ID</label>
+        <input type="text" id="cfgBoardGist" placeholder="a1b2c3d4e5f6..." value="${config?.boardGistId || ''}" />
+        <div class="hint">32-stellige ID des Whiteboard-Gists</div>
+
+        <label>Board-Token (Read-only)</label>
+        <input type="password" id="cfgBoardToken" placeholder="github_pat_..." value="${config?.boardToken || ''}" />
+        <div class="hint">Fine-grained Token mit "Gists: Read-only"</div>
+
+        <label>Kommentar-Gist-ID</label>
+        <input type="text" id="cfgCommentGist" placeholder="f7e6d5c4b3a2..." value="${config?.commentGistId || ''}" />
+        <div class="hint">Gist-ID für Kommentare (getrennt vom Board)</div>
+
+        <label>Kommentar-Token (Read-write)</label>
+        <input type="password" id="cfgCommentToken" placeholder="github_pat_..." value="${config?.commentToken || ''}" />
+        <div class="hint">Token des Kommentar-Accounts mit "Gists: Read and write"</div>
+
+        <label>Dein Name (optional)</label>
+        <input type="text" id="cfgName" placeholder="z.B. Anna" value="${config?.commenterName || ''}" />
+        <div class="hint">Wird bei deinen Kommentaren angezeigt</div>
+
+        <div class="actions">
+          ${config ? '<button id="cfgCancel">Abbrechen</button>' : ''}
+          <button class="primary" id="cfgSave">Speichern & Laden</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    if(config){
+      document.getElementById('cfgCancel').onclick = ()=>overlay.remove();
     }
-    const box = document.createElement('div');
-    box.className = 'modal';
-    contentFn(box);
-    backdrop.appendChild(box);
-    document.body.appendChild(backdrop);
-    modalEl = backdrop;
-    return box;
-  }
+    document.getElementById('cfgSave').onclick = ()=>{
+      const boardGistId = document.getElementById('cfgBoardGist').value.trim();
+      const boardToken = document.getElementById('cfgBoardToken').value.trim();
+      const commentGistId = document.getElementById('cfgCommentGist').value.trim();
+      const commentToken = document.getElementById('cfgCommentToken').value.trim();
+      const commenterName = document.getElementById('cfgName').value.trim();
 
-  // ========= CONFIG DIALOG =========
-  function openConfigDialog(errorMessage, onSuccess){
-    const currentCfg = config || {};
-    showModal((box)=>{
-      box.innerHTML = `
-        <h2>🔑 Whiteboard Zugangsdaten</h2>
-        ${errorMessage ? `<div class="error-box">${errorMessage}</div>` : `
-          <div class="info-box">
-            Gib die 4 Zugangsdaten ein, die du von der Whiteboard-Besitzerin erhalten hast.<br>
-            Die Daten werden nur in <b>deinem Browser</b> gespeichert (LocalStorage).
-          </div>
-        `}
-
-        <div class="field-group">
-          <label>Board-Gist-ID <span class="hint">(Pflicht)</span></label>
-          <input type="text" id="cfgBoardGist" placeholder="abc123def456789..." value="${escapeAttr(currentCfg.boardGistId || '')}" autocomplete="off" />
-        </div>
-
-        <div class="field-group">
-          <label>Board-Token <span class="hint">(Pflicht · Read-only)</span></label>
-          <input type="password" id="cfgBoardToken" placeholder="github_pat_11..." value="${escapeAttr(currentCfg.boardToken || '')}" autocomplete="off" />
-        </div>
-
-        <div class="field-group">
-          <label>Kommentar-Gist-ID <span class="hint">(optional · leer = nur lesen)</span></label>
-          <input type="text" id="cfgCommentGist" placeholder="def789ghi012345..." value="${escapeAttr(currentCfg.commentGistId || '')}" autocomplete="off" />
-        </div>
-
-        <div class="field-group">
-          <label>Kommentar-Token <span class="hint">(optional · für Kommentieren nötig)</span></label>
-          <input type="password" id="cfgCommentToken" placeholder="github_pat_22..." value="${escapeAttr(currentCfg.commentToken || '')}" autocomplete="off" />
-        </div>
-
-        <div class="field-group">
-          <label>Dein Name <span class="hint">(optional · wird bei Kommentaren angezeigt)</span></label>
-          <input type="text" id="cfgUserName" placeholder="z.B. Jonas" value="${escapeAttr(myName || '')}" maxlength="50" />
-        </div>
-
-        <div class="modal-actions">
-          <div class="left">
-            ${config ? '<button id="cfgDeleteBtn" class="danger">🗑 Zugangsdaten löschen</button>' : ''}
-          </div>
-          <div class="right">
-            <button id="cfgCancelBtn">Abbrechen</button>
-            <button id="cfgSaveBtn" class="primary">Verbinden</button>
-          </div>
-        </div>
-      `;
-
-      const boardGistInput = box.querySelector('#cfgBoardGist');
-      const boardTokenInput = box.querySelector('#cfgBoardToken');
-      const commentGistInput = box.querySelector('#cfgCommentGist');
-      const commentTokenInput = box.querySelector('#cfgCommentToken');
-      const userNameInput = box.querySelector('#cfgUserName');
-      const saveBtn = box.querySelector('#cfgSaveBtn');
-      const cancelBtn = box.querySelector('#cfgCancelBtn');
-      const deleteBtn = box.querySelector('#cfgDeleteBtn');
-
-      cancelBtn.addEventListener('click', ()=>{
-        if(!config){
-          toast('Ohne Zugangsdaten kann nichts angezeigt werden', 'error');
-          return;
-        }
-        closeModal();
-      });
-
-      if(deleteBtn){
-        deleteBtn.addEventListener('click', ()=>{
-          if(!confirm('Alle Zugangsdaten und der Name aus diesem Browser löschen?\n\nDu musst die Daten danach neu eingeben.')) return;
-          clearConfig();
-          saveUser('');
-          config = null;
-          myName = '';
-          toast('Zugangsdaten gelöscht', 'success');
-          closeModal();
-          setTimeout(()=> openConfigDialog(), 300);
-        });
+      if(!boardGistId || !boardToken || !commentGistId || !commentToken){
+        toast('Bitte alle Pflichtfelder ausfüllen', 'error');
+        return;
       }
-
-      saveBtn.addEventListener('click', ()=>{
-        const boardGist = boardGistInput.value.trim();
-        const boardToken = boardTokenInput.value.trim();
-        const commentGist = commentGistInput.value.trim();
-        const commentToken = commentTokenInput.value.trim();
-        const userName = userNameInput.value.trim();
-
-        if(!boardGist){ toast('Board-Gist-ID ist Pflicht', 'error'); boardGistInput.focus(); return; }
-        if(!boardToken){ toast('Board-Token ist Pflicht', 'error'); boardTokenInput.focus(); return; }
-        if((commentGist && !commentToken) || (!commentGist && commentToken)){
-          toast('Kommentar-Gist und -Token müssen beide ausgefüllt oder beide leer sein', 'error');
-          return;
-        }
-
-        config = {
-          boardGistId: boardGist,
-          boardToken: boardToken,
-          commentGistId: commentGist || null,
-          commentToken: commentToken || null,
-        };
-        saveConfig(config);
-        myName = userName;
-        saveUser(myName);
-        closeModal();
-        if(onSuccess) onSuccess();
-        else bootstrap();
-      });
-
-      setTimeout(()=>{
-        if(!currentCfg.boardGistId) boardGistInput.focus();
-        else if(!currentCfg.boardToken) boardTokenInput.focus();
-        else saveBtn.focus();
-      }, 50);
-    }, { closeOnBackdrop: !!config });
+      config = { boardGistId, boardToken, commentGistId, commentToken, commenterName };
+      saveConfig();
+      overlay.remove();
+      init();
+    };
   }
 
-  configBtn.addEventListener('click', ()=> openConfigDialog());
-
-  // ========= VIEW =========
-  function clampScale(s){ return Math.min(3, Math.max(0.15, s)); }
-  function applyView(){
-    const {scale,tx,ty} = viewerConfig;
-    board.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
-    viewport.style.backgroundPosition = `${tx}px ${ty}px`;
-    viewport.style.backgroundSize = `${24*scale}px ${24*scale}px`;
-    zoomLevel.textContent = Math.round(scale*100)+'%';
-    renderMinimap();
-  }
-  function fitLayoutToView(){
-    const r = viewport.getBoundingClientRect();
-    const margin = 80;
-    const availW = Math.max(200, r.width - margin*2);
-    const availH = Math.max(200, r.height - margin*2);
-    const scale = clampScale(Math.min(availW/LAYOUT_W, availH/LAYOUT_H));
-    const cx = LAYOUT_OFFSET_X + LAYOUT_W/2, cy = LAYOUT_OFFSET_Y + LAYOUT_H/2;
-    viewerConfig = { scale, tx: r.width/2 - cx*scale, ty: r.height/2 - cy*scale };
-    applyView();
-  }
-  function zoomAt(factor, cx, cy){
-    const v = viewerConfig;
-    const ns = clampScale(v.scale*factor);
-    const k = ns / v.scale;
-    v.tx = cx - (cx - v.tx)*k; v.ty = cy - (cy - v.ty)*k;
-    v.scale = ns; applyView();
-  }
-  function toBoard(clientX, clientY){
-    const r = viewport.getBoundingClientRect();
-    const {scale,tx,ty} = viewerConfig;
-    return { x:(clientX-r.left-tx)/scale, y:(clientY-r.top-ty)/scale };
-  }
-
-  viewport.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const rect = viewport.getBoundingClientRect();
-    zoomAt(Math.pow(1.0015, -e.deltaY), e.clientX-rect.left, e.clientY-rect.top);
-  }, {passive:false});
-  zoomInBtn.addEventListener('click', ()=>{const r=viewport.getBoundingClientRect(); zoomAt(1.2, r.width/2, r.height/2);});
-  zoomOutBtn.addEventListener('click', ()=>{const r=viewport.getBoundingClientRect(); zoomAt(1/1.2, r.width/2, r.height/2);});
-  zoomResetBtn.addEventListener('click', fitLayoutToView);
-
-  // ========= PAN =========
-  let panPending = null, pan = null;
-  viewport.addEventListener('mousedown', (e)=>{
-    if(e.button !== 0 && e.button !== 1) return;
-    if(commentMode && e.button === 0) return;
-    if(e.target.closest('.comment')) return;
-    panPending = { x:e.clientX, y:e.clientY, tx:viewerConfig.tx, ty:viewerConfig.ty };
-  });
-  window.addEventListener('mousemove', (e)=>{
-    if(panPending && !pan){
-      if(Math.abs(e.clientX-panPending.x) > 4 || Math.abs(e.clientY-panPending.y) > 4){
-        pan = panPending;
-        viewport.classList.add('panning');
-      }
-    }
-    if(pan){
-      viewerConfig.tx = pan.tx + (e.clientX - pan.x);
-      viewerConfig.ty = pan.ty + (e.clientY - pan.y);
-      applyView();
-    }
-    if(commentMode && !pan) updateCommentGhost(e.clientX, e.clientY);
-  });
-  window.addEventListener('mouseup', (e)=>{
-    if(pan){ pan=null; viewport.classList.remove('panning'); }
-    if(!pan && commentMode && panPending){
-      const moved = Math.abs(e.clientX-panPending.x) > 4 || Math.abs(e.clientY-panPending.y) > 4;
-      if(!moved && !e.target.closest('.comment') && !e.target.closest('.toolbar') && !e.target.closest('.modal-backdrop')){
-        const p = toBoard(e.clientX, e.clientY);
-        openCommentEditor(p, null);
-      }
-    }
-    panPending = null;
-  });
-
-  // ========= COMMENT MODE =========
-  commentModeBtn.addEventListener('click', ()=>{
-    if(!config || !config.commentGistId || !config.commentToken){
-      toast('Kommentar-Modus nicht verfügbar (Zugangsdaten fehlen)', 'error');
-      openConfigDialog('Bitte gib Kommentar-Gist-ID und Kommentar-Token ein, um Kommentare erstellen zu können.');
-      return;
-    }
-    commentMode = !commentMode;
-    commentModeBtn.classList.toggle('active', commentMode);
-    viewport.classList.toggle('comment-mode', commentMode);
-    if(commentMode){
-      toast('Klicke auf das Board, um eine Haftnotiz zu platzieren', 'success');
-      createCommentGhost();
-    } else {
-      removeCommentGhost();
-    }
-  });
-
-  function createCommentGhost(){
-    if(commentGhost) return;
-    commentGhost = document.createElement('div');
-    commentGhost.className = 'comment-ghost';
-    commentGhost.textContent = 'Hier klicken für Kommentar';
-    commentGhost.style.display = 'none';
-    board.appendChild(commentGhost);
-  }
-  function removeCommentGhost(){
-    if(commentGhost){ commentGhost.remove(); commentGhost = null; }
-  }
-  function updateCommentGhost(clientX, clientY){
-    if(!commentGhost) return;
-    const p = toBoard(clientX, clientY);
-    commentGhost.style.left = (p.x - 80) + 'px';
-    commentGhost.style.top = (p.y - 40) + 'px';
-    commentGhost.style.display = '';
-  }
-
-  // ========= COMMENT EDITOR =========
-  function openCommentEditor(pos, existingComment){
-    const isEdit = !!existingComment;
-    showModal((box)=>{
-      box.innerHTML = `
-        <h2>${isEdit ? '✎ Kommentar bearbeiten' : '💬 Neuer Kommentar'}</h2>
-        <div class="field-group">
-          <label>Dein Name <span class="hint">(optional · wird für alle sichtbar)</span></label>
-          <input type="text" id="commentAuthor" placeholder="z.B. Jonas" value="${escapeAttr(existingComment ? (existingComment.author || '') : myName)}" maxlength="50" />
-        </div>
-        <div class="field-group">
-          <label>Kommentar</label>
-          <textarea id="commentText" maxlength="${COMMENT_MAX_LENGTH}" placeholder="Dein Kommentar...">${escapeHtml(isEdit ? existingComment.text : '')}</textarea>
-          <div class="char-count"><span id="charCount">0</span>/${COMMENT_MAX_LENGTH}</div>
-        </div>
-        <div class="modal-actions">
-          <div class="left">
-            ${isEdit && existingComment.clientId === myClientId ? '<button id="deleteBtn" class="danger">🗑 Löschen</button>' : ''}
-          </div>
-          <div class="right">
-            <button id="cancelBtn">Abbrechen</button>
-            <button id="saveBtn" class="primary">${isEdit ? 'Speichern' : 'Erstellen'}</button>
-          </div>
-        </div>
-      `;
-      const textArea = box.querySelector('#commentText');
-      const authorInput = box.querySelector('#commentAuthor');
-      const charCount = box.querySelector('#charCount');
-      const saveBtn = box.querySelector('#saveBtn');
-      const cancelBtn = box.querySelector('#cancelBtn');
-      const deleteBtn = box.querySelector('#deleteBtn');
-
-      charCount.textContent = textArea.value.length;
-      textArea.addEventListener('input', ()=>{ charCount.textContent = textArea.value.length; });
-      textArea.focus();
-
-      cancelBtn.addEventListener('click', closeModal);
-      saveBtn.addEventListener('click', async ()=>{
-        const text = textArea.value.trim();
-        const author = authorInput.value.trim();
-        if(!text){ toast('Kommentar darf nicht leer sein', 'error'); return; }
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Speichern...';
-        try{
-          if(author !== myName){ myName = author; saveUser(myName); }
-          if(isEdit){
-            existingComment.text = text;
-            existingComment.author = author || null;
-            existingComment.modifiedAt = Date.now();
-          } else {
-            comments.comments.push({
-              id: 'cm_' + Math.random().toString(36).slice(2, 10) + '_' + Date.now().toString(36),
-              x: pos.x, y: pos.y,
-              text: text,
-              author: author || null,
-              clientId: myClientId,
-              createdAt: Date.now(),
-              modifiedAt: Date.now(),
-            });
-          }
-          await saveComments();
-          closeModal();
-          renderComments();
-          toast(isEdit ? 'Kommentar gespeichert' : 'Kommentar erstellt', 'success');
-        } catch(err){
-          toast('Speichern fehlgeschlagen: ' + err.message, 'error');
-          saveBtn.disabled = false;
-          saveBtn.textContent = isEdit ? 'Speichern' : 'Erstellen';
-        }
-      });
-      if(deleteBtn){
-        deleteBtn.addEventListener('click', async ()=>{
-          if(!confirm('Diesen Kommentar wirklich löschen?')) return;
-          deleteBtn.disabled = true;
-          try{
-            comments.comments = comments.comments.filter(c => c.id !== existingComment.id);
-            await saveComments();
-            closeModal();
-            renderComments();
-            toast('Kommentar gelöscht', 'success');
-          } catch(err){
-            toast('Löschen fehlgeschlagen: ' + err.message, 'error');
-            deleteBtn.disabled = false;
-          }
-        });
-      }
-    });
-  }
-
-  // ========= GITHUB API =========
-  async function githubGet(gistId, token, etag){
+  async function githubRequest(token, path, method, body){
     const headers = {
       'Accept':'application/vnd.github+json',
       'Authorization':'Bearer '+token,
       'X-GitHub-Api-Version':'2022-11-28',
     };
-    if(etag) headers['If-None-Match'] = etag;
-    const res = await fetch('https://api.github.com/gists/'+gistId, { headers });
-    if(res.status === 304) return { notModified: true };
-    if(res.status === 401) throw new Error('AUTH');
-    if(res.status === 404) throw new Error('NOT_FOUND');
-    if(!res.ok){
-      const text = await res.text().catch(()=>'');
-      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
-    }
-    const newEtag = res.headers.get('ETag');
-    const data = await res.json();
-    return { data, etag: newEtag };
-  }
-  async function githubPatch(gistId, token, files){
-    const res = await fetch('https://api.github.com/gists/'+gistId, {
-      method:'PATCH',
-      headers:{
-        'Accept':'application/vnd.github+json',
-        'Authorization':'Bearer '+token,
-        'Content-Type':'application/json',
-        'X-GitHub-Api-Version':'2022-11-28',
-      },
-      body: JSON.stringify({ files }),
+    if(body) headers['Content-Type'] = 'application/json';
+    const res = await fetch('https://api.github.com'+path, {
+      method, headers, body: body ? JSON.stringify(body) : undefined,
     });
-    if(res.status === 401) throw new Error('AUTH');
     if(!res.ok){
       const text = await res.text().catch(()=>'');
       throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
@@ -757,82 +372,102 @@
   }
 
   async function loadBoard(){
-    if(!config || !config.boardGistId || !config.boardToken) throw new Error('NO_CONFIG');
-    const result = await githubGet(config.boardGistId, config.boardToken);
-    const gist = result.data;
-    const file = gist.files && gist.files['whiteboard.json'];
-    if(!file) throw new Error('Whiteboard-Datei nicht im Gist gefunden');
-    let content = file.content;
-    if(file.truncated && file.raw_url){
-      const res = await fetch(file.raw_url);
-      content = await res.text();
+    setSyncStatus('syncing', 'Lade Board...');
+    try{
+      const gist = await githubRequest(config.boardToken, '/gists/'+config.boardGistId, 'GET');
+      const file = gist.files && gist.files['whiteboard.json'];
+      if(!file) throw new Error('whiteboard.json nicht im Gist gefunden');
+      let content = file.content;
+      if(file.truncated && file.raw_url){
+        const res = await fetch(file.raw_url);
+        content = await res.text();
+      }
+      boardState = JSON.parse(content);
+      renderBoard();
+      setSyncStatus('ok', 'Aktuell');
+      return true;
+    }catch(err){
+      console.error(err);
+      setSyncStatus('error', 'Fehler beim Laden');
+      toast('Board-Fehler: '+err.message, 'error');
+      return false;
     }
-    state = JSON.parse(content);
-    state.cards = (state.cards||[]).map(c => Object.assign({autoH:true, image:null, caption:''}, c));
-    state.links = (state.links||[]).map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
   }
 
   async function loadComments(){
-    if(!config || !config.commentGistId || !config.commentToken){
-      comments = { comments: [], lastModified: 0 };
-      return { changed: false };
-    }
     try{
-      const result = await githubGet(config.commentGistId, config.commentToken, commentsETag);
-      if(result.notModified) return { changed: false };
-      commentsETag = result.etag;
-      const gist = result.data;
+      const gist = await githubRequest(config.commentToken, '/gists/'+config.commentGistId, 'GET');
       const file = gist.files && gist.files['comments.json'];
       if(!file){
-        comments = { comments: [], lastModified: 0 };
-      } else {
-        let content = file.content;
-        if(file.truncated && file.raw_url){
-          const res = await fetch(file.raw_url);
-          content = await res.text();
-        }
-        try{
-          comments = JSON.parse(content);
-          if(!Array.isArray(comments.comments)) comments.comments = [];
-        }catch{ comments = { comments: [], lastModified: 0 }; }
+        comments = [];
+        return true;
       }
-      return { changed: true };
-    } catch(err) {
-      if(err.message === 'AUTH' || err.message === 'NOT_FOUND') throw err;
-      console.warn('Kommentare konnten nicht geladen werden:', err);
-      return { changed: false };
+      let content = file.content;
+      if(file.truncated && file.raw_url){
+        const res = await fetch(file.raw_url);
+        content = await res.text();
+      }
+      try{
+        const parsed = JSON.parse(content);
+        comments = Array.isArray(parsed) ? parsed : (parsed.comments || []);
+      }catch{ comments = []; }
+      renderCommentMarkers();
+      return true;
+    }catch(err){
+      console.error('Comments load error', err);
+      toast('Kommentare konnten nicht geladen werden: '+err.message, 'error');
+      return false;
     }
   }
 
   async function saveComments(){
-    if(!config || !config.commentGistId || !config.commentToken) throw new Error('Kein Kommentar-Zugang konfiguriert');
-    comments.lastModified = Date.now();
-    const content = JSON.stringify(comments, null, 2);
-    await githubPatch(config.commentGistId, config.commentToken, {
-      'comments.json': { content }
-    });
-    commentsETag = null;
+    try{
+      await githubRequest(config.commentToken, '/gists/'+config.commentGistId, 'PATCH', {
+        files: { 'comments.json': { content: JSON.stringify(comments, null, 2) } }
+      });
+      return true;
+    }catch(err){
+      console.error(err);
+      toast('Kommentar speichern fehlgeschlagen: '+err.message, 'error');
+      return false;
+    }
   }
 
-  // ========= RENDER =========
+  function fitLayoutToView(){
+    const r = viewport.getBoundingClientRect();
+    const margin = 80;
+    const availW = Math.max(200, r.width - margin*2);
+    const availH = Math.max(200, r.height - margin*2);
+    const scale = Math.min(3, Math.max(0.15, Math.min(availW/LAYOUT_W, availH/LAYOUT_H)));
+    const cx = LAYOUT_OFFSET_X + LAYOUT_W/2, cy = LAYOUT_OFFSET_Y + LAYOUT_H/2;
+    view = { scale, tx: r.width/2 - cx*scale, ty: r.height/2 - cy*scale };
+    applyView();
+  }
+  function applyView(){
+    board.style.transform = `translate(${view.tx}px,${view.ty}px) scale(${view.scale})`;
+    viewport.style.backgroundPosition = `${view.tx}px ${view.ty}px`;
+    viewport.style.backgroundSize = `${24*view.scale}px ${24*view.scale}px`;
+    zoomLevel.textContent = Math.round(view.scale*100)+'%';
+  }
+  function zoomAt(factor, cx, cy){
+    const ns = Math.min(3, Math.max(0.15, view.scale*factor));
+    const k = ns / view.scale;
+    view.tx = cx - (cx - view.tx)*k;
+    view.ty = cy - (cy - view.ty)*k;
+    view.scale = ns;
+    applyView();
+  }
+  function toBoard(clientX, clientY){
+    const r = viewport.getBoundingClientRect();
+    return { x:(clientX-r.left-view.tx)/view.scale, y:(clientY-r.top-view.ty)/view.scale };
+  }
+
   function renderBoard(){
+    if(!boardState) return;
     [...board.querySelectorAll('.card')].forEach(n=>n.remove());
-    [...svg.querySelectorAll('*')].forEach(n=>n.remove());
-    state.cards.forEach(renderCard);
-    state.links.forEach(l => {
-      const a = state.cards.find(c=>c.id===l.a);
-      const b = state.cards.find(c=>c.id===l.b);
-      if(!a || !b) return;
-      let pA, pB;
-      if(l.sideA) pA = sideAnchorPoint(a, l.sideA);
-      else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
-      if(l.sideB) pB = sideAnchorPoint(b, l.sideB);
-      else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
-      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('class','link');
-      path.setAttribute('d', bezierPathDirected(pA, l.sideA, pB, l.sideB));
-      svg.appendChild(path);
-    });
+    bgLayout.style.display = boardState.showBg === false ? 'none' : '';
+    (boardState.cards || []).forEach(renderCard);
+    renderLinks();
   }
 
   function renderCard(card){
@@ -842,111 +477,73 @@
     el.style.left = card.x+'px';
     el.style.top = card.y+'px';
     if(card.w) el.style.width = card.w+'px';
+    if(card.h && !card.autoH) el.style.height = card.h+'px';
+
     if(card.image){
-      el.style.height = (card.h || 200) + 'px';
+      el.style.height = (card.h || 200)+'px';
       const wrap = document.createElement('div');
       wrap.className = 'image-wrap';
       const img = document.createElement('img');
-      img.src = card.image; img.alt = card.caption || '';
+      img.src = card.image;
+      img.alt = card.caption || '';
       wrap.appendChild(img);
-      if(card.caption){
-        const cap = document.createElement('div');
-        cap.className = 'img-caption'; cap.textContent = card.caption;
-        wrap.appendChild(cap);
-      }
       el.appendChild(wrap);
     } else {
-      if(card.autoH){ el.style.height = 'auto'; }
-      else if(card.h){ el.style.height = card.h+'px'; }
       const title = document.createElement('div');
       title.className = 'title';
       title.style.background = card.color;
-      title.textContent = card.title;
+      title.textContent = card.title || '';
+      el.appendChild(title);
       const details = document.createElement('div');
       details.className = 'details';
-      details.textContent = card.details;
-      el.appendChild(title);
+      details.textContent = card.details || '';
       el.appendChild(details);
     }
+
+    const w = card.w || 170;
+    const h = card.h || 120;
+    const scale = Math.max(0.5, Math.min(1.6, Math.min(w/170, h/120)));
+    el.style.setProperty('--card-font-scale', scale.toFixed(3));
+
     board.appendChild(el);
   }
 
-  function renderComments(){
-    [...board.querySelectorAll('.comment')].forEach(n=>n.remove());
-    [...commentsLayer.querySelectorAll('*')].forEach(n=>n.remove());
-    const list = comments.comments || [];
-    commentCountEl.textContent = list.length;
-    list.forEach(c => {
-      const el = document.createElement('div');
-      el.className = 'comment' + (c.clientId === myClientId ? ' own' : '');
-      el.style.left = c.x + 'px';
-      el.style.top = c.y + 'px';
-      const authorName = (c.author && c.author.trim()) ? c.author : 'Anonym';
-      const author = document.createElement('div');
-      author.className = 'c-meta';
-      const authEl = document.createElement('span');
-      authEl.className = 'c-author';
-      authEl.textContent = authorName;
-      const dateEl = document.createElement('span');
-      dateEl.className = 'c-date';
-      dateEl.textContent = formatRelativeDate(c.createdAt);
-      author.appendChild(authEl);
-      author.appendChild(dateEl);
-      el.appendChild(author);
-      const text = document.createElement('div');
-      text.className = 'c-text';
-      text.textContent = c.text;
-      el.appendChild(text);
-      if(c.clientId === myClientId){
-        const actions = document.createElement('div');
-        actions.className = 'c-actions';
-        const editBtn = document.createElement('button');
-        editBtn.textContent = '✎ Bearbeiten';
-        editBtn.addEventListener('click', (e)=>{
-          e.stopPropagation();
-          openCommentEditor(null, c);
-        });
-        actions.appendChild(editBtn);
-        el.appendChild(actions);
-      }
-      el.addEventListener('click', (e)=>{
-        if(e.target.tagName === 'BUTTON') return;
-        if(c.clientId === myClientId) openCommentEditor(null, c);
-      });
-      board.appendChild(el);
+  function renderLinks(){
+    [...svg.querySelectorAll('path')].forEach(n=>n.remove());
+    (boardState.links || []).forEach(l => {
+      const a = boardState.cards.find(c=>c.id===l.a);
+      const b = boardState.cards.find(c=>c.id===l.b);
+      if(!a || !b) return;
+      const pA = sideAnchorPoint(a, l.sideA);
+      const pB = sideAnchorPoint(b, l.sideB);
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','link');
+      path.setAttribute('d', bezierPath(pA, l.sideA, pB, l.sideB));
+      svg.appendChild(path);
     });
-    renderMinimap();
   }
 
-  // ========= GEOMETRY =========
   function cardRect(card){
     const el = board.querySelector(`.card[data-id="${card.id}"]`);
-    const w = el ? el.offsetWidth  : (card.w || 170);
+    const w = el ? el.offsetWidth : (card.w || 170);
     const h = el ? el.offsetHeight : (card.h || 120);
     return {x:card.x, y:card.y, w, h, cx:card.x+w/2, cy:card.y+h/2};
   }
   function sideAnchorPoint(card, side){
     const r = cardRect(card);
     switch(side){
-      case 'top':    return {x:r.cx, y:r.y};
-      case 'right':  return {x:r.x+r.w, y:r.cy};
+      case 'top': return {x:r.cx, y:r.y};
+      case 'right': return {x:r.x+r.w, y:r.cy};
       case 'bottom': return {x:r.cx, y:r.y+r.h};
-      case 'left':   return {x:r.x, y:r.cy};
+      case 'left': return {x:r.x, y:r.cy};
     }
     return {x:r.cx, y:r.cy};
-  }
-  function cardEdgeAnchor(card, toward){
-    const r = cardRect(card);
-    const dx = toward.x - r.cx, dy = toward.y - r.cy;
-    if(dx===0 && dy===0) return {x:r.cx, y:r.cy};
-    const scale = 1 / Math.max(Math.abs(dx)/(r.w/2), Math.abs(dy)/(r.h/2));
-    return { x:r.cx + dx*scale, y:r.cy + dy*scale };
   }
   function dirForSide(side){
     switch(side){ case 'top':return {x:0,y:-1}; case 'right':return {x:1,y:0}; case 'bottom':return {x:0,y:1}; case 'left':return {x:-1,y:0}; }
     return null;
   }
-  function bezierPathDirected(pA, sideA, pB, sideB){
+  function bezierPath(pA, sideA, pB, sideB){
     const dist = Math.hypot(pB.x-pA.x, pB.y-pA.y);
     const curve = Math.min(260, Math.max(60, dist*0.45));
     let dA = dirForSide(sideA), dB = sideB ? dirForSide(sideB) : null;
@@ -957,166 +554,250 @@
     return `M ${pA.x} ${pA.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${pB.x} ${pB.y}`;
   }
 
-  // ========= MINIMAP =========
-  function renderMinimap(){
-    if(!state) return;
-    let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
-    let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
-    (state.cards||[]).forEach(c=>{
-      const r = cardRect(c);
-      if(r.x < minX) minX = r.x;
-      if(r.y < minY) minY = r.y;
-      if(r.x + r.w > maxX) maxX = r.x + r.w;
-      if(r.y + r.h > maxY) maxY = r.y + r.h;
+  function renderCommentMarkers(){
+    [...board.querySelectorAll('.comment-marker')].forEach(n=>n.remove());
+    const byCard = {};
+    comments.forEach(c => {
+      if(!byCard[c.cardId]) byCard[c.cardId] = [];
+      byCard[c.cardId].push(c);
     });
-    const vpRect = viewport.getBoundingClientRect();
-    const {scale,tx,ty} = viewerConfig;
-    const vX = -tx/scale, vY = -ty/scale;
-    const vW = vpRect.width/scale, vH = vpRect.height/scale;
-    minX = Math.min(minX, vX); minY = Math.min(minY, vY);
-    maxX = Math.max(maxX, vX + vW); maxY = Math.max(maxY, vY + vH);
-    const pad = 150;
-    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-    const bw = maxX - minX, bh = maxY - minY;
-    minimapSvg.setAttribute('viewBox', `${minX} ${minY} ${bw} ${bh}`);
-    let html = '';
-    html += `<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})">
-      <path class="mm-layout" d="M 830 500 A 414 414 0 0 1 1658 500" />
-      <line class="mm-layout" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
-      <polyline class="mm-layout" points="830,500 1244,1540 1658,500" />
-    </g>`;
-    (state.cards||[]).forEach(c=>{
-      const r = cardRect(c);
-      const fill = c.image ? '#222' : c.color;
-      html += `<rect class="mm-card" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="4" fill="${fill}"/>`;
+    Object.entries(byCard).forEach(([cardId, list]) => {
+      const card = boardState.cards.find(c => c.id === +cardId);
+      if(!card) return;
+      const r = cardRect(card);
+      const marker = document.createElement('div');
+      marker.className = 'comment-marker';
+      marker.textContent = '💬';
+      marker.style.left = (r.x + r.w - 14) + 'px';
+      marker.style.top = (r.y - 14) + 'px';
+      marker.dataset.cardId = cardId;
+      if(list.length > 1){
+        const count = document.createElement('span');
+        count.className = 'count';
+        count.textContent = list.length;
+        marker.appendChild(count);
+      }
+      marker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showCommentsDialog(+cardId);
+      });
+      board.appendChild(marker);
     });
-    (comments.comments||[]).forEach(c=>{
-      html += `<rect class="mm-comment" x="${c.x}" y="${c.y}" width="160" height="80" rx="2"/>`;
-    });
-    html += `<rect class="mm-viewport" x="${vX}" y="${vY}" width="${vW}" height="${vH}" rx="2"/>`;
-    minimapSvg.innerHTML = html;
-    minimapSvg.dataset.vb = JSON.stringify({minX,minY,bw,bh});
-  }
-  let mmDrag = false;
-  function mmPointToBoard(e){
-    const r = minimap.getBoundingClientRect();
-    const vb = JSON.parse(minimapSvg.dataset.vb||'null'); if(!vb) return null;
-    const fx = (e.clientX - r.left)/r.width, fy = (e.clientY - r.top)/r.height;
-    return { x: vb.minX + fx*vb.bw, y: vb.minY + fy*vb.bh };
-  }
-  function mmCenterOn(p){
-    const vpRect = viewport.getBoundingClientRect();
-    viewerConfig.tx = vpRect.width/2 - p.x*viewerConfig.scale;
-    viewerConfig.ty = vpRect.height/2 - p.y*viewerConfig.scale;
-    applyView();
-  }
-  minimap.addEventListener('mousedown', (e)=>{
-    e.preventDefault(); e.stopPropagation();
-    mmDrag = true;
-    const p = mmPointToBoard(e); if(p) mmCenterOn(p);
-  });
-  window.addEventListener('mousemove', (e)=>{ if(mmDrag){ const p = mmPointToBoard(e); if(p) mmCenterOn(p); } });
-  window.addEventListener('mouseup', ()=>{ mmDrag = false; });
-
-  // ========= HELPERS =========
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
-  function escapeAttr(s){ return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
-  function formatRelativeDate(ts){
-    if(!ts) return '';
-    const diff = Date.now() - ts;
-    if(diff < 60000) return 'gerade eben';
-    if(diff < 3600000) return Math.floor(diff/60000) + ' Min';
-    if(diff < 86400000) return Math.floor(diff/3600000) + ' Std';
-    return new Date(ts).toLocaleDateString();
-  }
-  function setSyncStatus(kind, text){
-    syncStatusEl.classList.remove('ok','error','syncing');
-    if(kind) syncStatusEl.classList.add(kind);
-    syncStatusText.textContent = text;
   }
 
-  // ========= BOOTSTRAP & POLLING =========
-  async function bootstrap(){
-    if(!config){
-      loadingEl.style.display = 'none';
-      openConfigDialog();
+  function showCommentsDialog(cardId){
+    const card = boardState.cards.find(c => c.id === cardId);
+    if(!card) return;
+    const cardComments = comments.filter(c => c.cardId === cardId).sort((a,b)=>a.timestamp-b.timestamp);
+    const title = card.image ? 'Bildkarte' : (card.title || 'Unbenannt');
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="modal">
+        <h2>💬 Kommentare zu "${escapeHtml(title)}"</h2>
+        <div class="comments-list">
+          ${cardComments.length ? cardComments.map(c => `
+            <div class="comment-item">
+              <div class="meta">
+                <span class="author">${escapeHtml(c.author || 'Anonym')}</span>
+                · ${new Date(c.timestamp).toLocaleString()}
+              </div>
+              <div class="text">${escapeHtml(c.text)}</div>
+            </div>
+          `).join('') : '<p class="small">Noch keine Kommentare</p>'}
+        </div>
+        <div class="modal-actions">
+          <button id="addCommentBtn" class="primary">+ Kommentar hinzufügen</button>
+          <button id="closeBtn">Schließen</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) backdrop.remove(); });
+    document.getElementById('closeBtn').onclick = ()=>backdrop.remove();
+    document.getElementById('addCommentBtn').onclick = ()=>{
+      backdrop.remove();
+      openCommentDialog(cardId);
+    };
+  }
+
+  function openCommentDialog(cardId){
+    const card = boardState && boardState.cards.find(c => c.id === cardId);
+    if(!card){
+      toast('Karte nicht gefunden', 'error');
       return;
     }
-    loadingEl.style.display = '';
-    setSyncStatus('syncing', 'Lade...');
-    try{
-      await loadBoard();
-      renderBoard();
-      fitLayoutToView();
-      try{ await loadComments(); renderComments(); }catch(err){
-        if(err.message === 'AUTH'){
-          toast('Kommentar-Zugang ungültig', 'error');
-        } else if(err.message !== 'NOT_FOUND'){
-          toast('Kommentare konnten nicht geladen werden', 'error');
-        }
-      }
-      loadingEl.style.display = 'none';
-      viewerInfoEl.style.display = '';
-      lastUpdateEl.textContent = new Date().toLocaleTimeString();
-      setSyncStatus('ok', 'Live');
-      startPolling();
-    } catch(err) {
-      loadingEl.style.display = 'none';
-      setSyncStatus('error', 'Fehler');
-      if(err.message === 'AUTH'){
-        openConfigDialog('❌ Board-Token ist ungültig oder abgelaufen. Bitte Zugangsdaten prüfen.');
-      } else if(err.message === 'NOT_FOUND'){
-        openConfigDialog('❌ Board-Gist nicht gefunden. Bitte Gist-ID prüfen.');
-      } else if(err.message === 'NO_CONFIG'){
-        openConfigDialog();
+    const title = card.image ? 'Bildkarte' : (card.title || 'Unbenannt');
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="modal">
+        <h2>💬 Kommentar zu "${escapeHtml(title)}"</h2>
+        <label>Name (optional)</label>
+        <input type="text" id="commentAuthor" placeholder="z.B. Anna" value="${escapeHtml(config.commenterName || '')}" />
+        <label>Kommentar</label>
+        <textarea id="commentText" placeholder="Dein Kommentar..." maxlength="${MAX_COMMENT_LEN}"></textarea>
+        <div class="char-count" id="charCount">0 / ${MAX_COMMENT_LEN}</div>
+        <div class="modal-actions">
+          <button id="cancelBtn">Abbrechen</button>
+          <button class="primary" id="saveBtn" disabled>Speichern</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+
+    const textarea = document.getElementById('commentText');
+    const charCount = document.getElementById('charCount');
+    const saveBtn = document.getElementById('saveBtn');
+    const authorInput = document.getElementById('commentAuthor');
+
+    textarea.focus();
+    textarea.addEventListener('input', ()=>{
+      const len = textarea.value.length;
+      charCount.textContent = `${len} / ${MAX_COMMENT_LEN}`;
+      charCount.className = 'char-count' + (len > MAX_COMMENT_LEN*0.9 ? ' warn' : '') + (len >= MAX_COMMENT_LEN ? ' over' : '');
+      saveBtn.disabled = !textarea.value.trim();
+    });
+
+    backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) backdrop.remove(); });
+    document.getElementById('cancelBtn').onclick = ()=>backdrop.remove();
+    saveBtn.onclick = async ()=>{
+      const text = textarea.value.trim();
+      if(!text) return;
+      const author = authorInput.value.trim();
+      if(author){ config.commenterName = author; saveConfig(); }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Speichere...';
+
+      const newComment = {
+        id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
+        cardId,
+        author: author || 'Anonym',
+        text: text.slice(0, MAX_COMMENT_LEN),
+        timestamp: Date.now(),
+      };
+      comments.push(newComment);
+      const ok = await saveComments();
+      if(ok){
+        renderCommentMarkers();
+        backdrop.remove();
+        toast('Kommentar gespeichert', 'success');
       } else {
-        openConfigDialog('❌ Verbindung fehlgeschlagen: ' + err.message);
+        comments = comments.filter(c => c.id !== newComment.id);
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Speichern';
       }
-    }
+    };
   }
 
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  // === KOMMENTAR-MODUS CLICK-HANDLER (Capture-Phase!) ===
+  // Fängt Klicks auf Karten ab, bevor andere Handler greifen
+  document.addEventListener('click', (e) => {
+    if(!commentMode) return;
+    if(e.target.closest('.modal-backdrop')) return;
+    if(e.target.closest('.toolbar')) return;
+    if(e.target.closest('.comment-marker')) return;
+
+    const card = e.target.closest('.card');
+    if(!card) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cardId = +card.dataset.id;
+    if(!cardId){
+      console.warn('Keine Karten-ID gefunden');
+      toast('Fehler: Karten-ID nicht gefunden', 'error');
+      return;
+    }
+    console.log('Kommentar-Dialog öffnen für Karte:', cardId);
+    openCommentDialog(cardId);
+  }, true); // <- Capture-Phase
+
+  // === TOOLBAR-EVENTS ===
+  commentModeBtn.addEventListener('click', () => {
+    commentMode = !commentMode;
+    document.body.classList.toggle('comment-mode', commentMode);
+    commentModeBtn.classList.toggle('active', commentMode);
+    commentModeBtn.textContent = commentMode ? '✓ Kommentar-Modus aktiv' : '💬 Kommentieren';
+    if(commentMode){
+      toast('Klick auf eine Karte, um zu kommentieren', 'success');
+    }
+  });
+
+  settingsBtn.addEventListener('click', showConfigDialog);
+
+  zoomInBtn.addEventListener('click', ()=>{
+    const r = viewport.getBoundingClientRect();
+    zoomAt(1.2, r.width/2, r.height/2);
+  });
+  zoomOutBtn.addEventListener('click', ()=>{
+    const r = viewport.getBoundingClientRect();
+    zoomAt(1/1.2, r.width/2, r.height/2);
+  });
+  zoomResetBtn.addEventListener('click', fitLayoutToView);
+
+  // === PAN/ZOOM ===
+  viewport.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const rect = viewport.getBoundingClientRect();
+    zoomAt(Math.pow(1.0015, -e.deltaY), e.clientX-rect.left, e.clientY-rect.top);
+  }, {passive:false});
+
+  let pan = null;
+  viewport.addEventListener('mousedown', (e)=>{
+    if(e.button !== 0 && e.button !== 1) return;
+    if(e.target.closest('.card') || e.target.closest('.comment-marker')) return;
+    pan = { x:e.clientX, y:e.clientY, tx:view.tx, ty:view.ty };
+    viewport.classList.add('panning');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e)=>{
+    if(!pan) return;
+    view.tx = pan.tx + (e.clientX - pan.x);
+    view.ty = pan.ty + (e.clientY - pan.y);
+    applyView();
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(pan){ pan = null; viewport.classList.remove('panning'); }
+  });
+
+  window.addEventListener('resize', applyView);
+
+  // === POLLING ===
   function startPolling(){
     if(pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(async ()=>{
-      try{
-        setSyncStatus('syncing', 'Aktualisiere...');
-        await loadBoard();
-        renderBoard();
-        const result = await loadComments();
-        if(result.changed) renderComments();
-        lastUpdateEl.textContent = new Date().toLocaleTimeString();
-        setSyncStatus('ok', 'Live');
-      } catch(err){
-        console.warn('Polling-Fehler:', err);
-        setSyncStatus('error', 'Offline');
-        if(err.message === 'AUTH'){
-          clearInterval(pollTimer);
-          openConfigDialog('❌ Token ist nicht mehr gültig. Bitte Zugangsdaten prüfen.');
-        }
-      }
+      await loadBoard();
+      await loadComments();
     }, POLL_INTERVAL);
   }
 
-  window.addEventListener('keydown', (e)=>{
-    if(e.key==='Escape'){
-      if(commentMode){
-        commentMode = false;
-        commentModeBtn.classList.remove('active');
-        viewport.classList.remove('comment-mode');
-        removeCommentGhost();
-      }
-      closeModal();
+  // === INIT ===
+  async function init(){
+    if(!config){
+      showConfigDialog();
+      return;
     }
-  });
-  window.addEventListener('resize', ()=>{ renderMinimap(); });
+    toolbar.style.display = '';
+    viewport.style.display = '';
+    fitLayoutToView();
 
-  // Start
-  bootstrap();
-
-  } catch (err) {
-    console.error('Viewer Init-Fehler:', err);
-    alert('Fehler beim Start: ' + err.message);
+    const boardOk = await loadBoard();
+    if(!boardOk) return;
+    await loadComments();
+    startPolling();
   }
+
+  init();
+
 })();
 </script>
 </body>

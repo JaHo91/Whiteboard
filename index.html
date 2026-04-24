@@ -1829,6 +1829,8 @@
       { head: b.name },
       { icon:'✎', label:'Umbenennen...', action: ()=> renameBoardDialog(b.id) },
       { icon:'⧉', label:'Duplizieren', action: ()=> duplicateBoard(b.id) },
+                { sep:true },
+       { icon: '✉', label: 'Teilen & Einladen...', action: ()=> openInviteDialog() },
       { sep:true },
       { icon:'+', label:'Neues Board...', action: ()=> createNewBoardDialog() },
     ];
@@ -2053,6 +2055,8 @@
     }
     items.push(
       { sep:true },
+        { head:'Teilen' },
+        { icon: '✉', label: 'Teilen & Einladen...', action: ()=> openInviteDialog() },
       { head:'Versionen' },
       { icon:'🕒', label:'Versionshistorie...', action:()=> showHistoryMenu() },
       { sep:true },
@@ -2444,6 +2448,82 @@
             });
         }}
     ] : null);
+  }
+
+  // ========= SHARE & INVITE DIALOG =========
+  function openInviteDialog(){
+    const b = getActiveBoard();
+    if(!b) return;
+    
+    if(!syncConfig.enabled || !syncConfig.token || !b.gistId){
+      showModal('Teilen benötigt Cloud-Sync', (body)=>{
+        body.innerHTML = `<p>Damit das Board geteilt werden kann, muss es zuerst mit der Cloud synchronisiert werden.</p>`;
+      }, 'Sync einrichten...', ()=>{ closeModal(); openSyncModal(); });
+      return;
+    }
+
+    const baseUrl = window.location.href.split('?')[0].replace(/[^/]*$/, '');
+    const viewerUrl = baseUrl + 'viewer.html?token=' + b.gistId;
+
+    showModal('Board teilen & einladen', (body)=>{
+      body.innerHTML = `
+        <div class="share-box" style="background:#e3f2fd; border-color:#90caf9;">
+          <b>🔗 Privater Lese-Link</b><br>
+          <span class="small">Jeder mit diesem Link kann das Board lesen. Es ist keine Anmeldung nötig.</span>
+          <div class="share-link">
+            <input type="text" id="shareLinkInput" value="${escapeAttr(viewerUrl)}" readonly />
+            <button type="button" id="copyShareBtn">Kopieren</button>
+          </div>
+        </div>
+        
+        <div style="margin-top: 16px; padding: 12px; border: 1px solid #d0d4da; border-radius: 6px; background: #fff;">
+          <b>✉️ Per Outlook / E-Mail einladen</b>
+          <p class="small" style="margin-bottom: 8px;">Öffnet dein E-Mail-Programm mit einem fertigen Entwurf inklusive Zugriffslink.</p>
+          <input type="email" id="inviteEmail" placeholder="E-Mail-Adresse des Empfängers (optional)" style="width:100%; margin-bottom: 8px;" />
+          <button type="button" id="sendMailBtn" style="width:100%; justify-content:center;" class="primary">E-Mail-Entwurf öffnen</button>
+        </div>
+      `;
+      setTimeout(()=>{
+        const copyBtn = body.querySelector('#copyShareBtn');
+        const input = body.querySelector('#shareLinkInput');
+        copyBtn.addEventListener('click', ()=>{
+          navigator.clipboard.writeText(viewerUrl).then(()=>{
+            copyBtn.textContent = '✓ Kopiert';
+            setTimeout(()=>{ copyBtn.textContent = 'Kopieren'; }, 1500);
+          });
+        });
+        input.addEventListener('click', ()=> input.select());
+
+        const mailBtn = body.querySelector('#sendMailBtn');
+        mailBtn.addEventListener('click', ()=>{
+          const email = body.querySelector('#inviteEmail').value.trim();
+          const subject = encodeURIComponent(`Einladung zum Whiteboard: ${b.name}`);
+          const bodyText = encodeURIComponent(`Hallo,\n\nich möchte das Whiteboard "${b.name}" mit dir teilen.\n\nDu kannst es dir hier schreibgeschützt ansehen:\n${viewerUrl}\n\nViele Grüße`);
+          window.location.href = `mailto:${email}?subject=${subject}&body=${bodyText}`;
+        });
+      }, 50);
+    }, 'Schließen', ()=>{ closeModal(); }, [
+      { label: 'Token erneuern (Zugriff entziehen)', danger: true, action: ()=>{
+          confirmSimple('Zugriffs-Token erneuern?',
+            'Dadurch wird der aktuelle geheime Link <b>sofort ungültig</b>. Personen mit dem alten Link verlieren den Zugriff. Es wird ein neues Token generiert.',
+            'Erneuern & Entziehen',
+            async ()=>{
+              try {
+                closeModal();
+                toast('Lösche alte Freigabe...');
+                await githubRequest('/gists/' + b.gistId, 'DELETE');
+                b.gistId = null;
+                saveBoardsIndex();
+                toast('Erstelle neues Token...');
+                await initialSyncForActive();
+                toast('Token erfolgreich erneuert', 'success');
+                setTimeout(openInviteDialog, 500);
+              } catch(err) {
+                toast('Fehler beim Erneuern: ' + err.message, 'error');
+              }
+            });
+      }}
+    ]);
   }
 
   // ========= SYNC LOGIC =========

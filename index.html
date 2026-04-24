@@ -121,10 +121,10 @@
   svg.links path.ghost.delete{stroke:var(--danger);stroke-dasharray:4 4}
   svg.links circle.endpoint{
     fill:#fff;stroke:var(--anchor);stroke-width:2;cursor:grab;
-    pointer-events:all;r:8;
+    pointer-events:all;r:12;
     transition:r .15s, stroke-width .15s;
   }
-  svg.links circle.endpoint:hover{r:10;stroke-width:3}
+  svg.links circle.endpoint:hover{r:14;stroke-width:3}
   svg.links circle.endpoint.dragging{r:12;stroke-width:3;fill:var(--anchor)}
 
   .card{
@@ -211,6 +211,17 @@
   .anchor.bottom{left:50%;top:100%}
   .anchor.left{left:0;top:50%}
   .anchor.active{background:#fff;border-color:var(--anchor);transform:translate(-50%,-50%) scale(1.4)}
+
+  /* Unsichtbarer, vergrößerter Klick-Bereich für die blauen Ankerpunkte */
+  .anchor::after {
+    content: '';
+    position: absolute;
+    top: -16px;
+    left: -16px;
+    right: -16px;
+    bottom: -16px;
+    border-radius: 50%;
+  }
 
   .resize-h{position:absolute;z-index:3;opacity:0;transition:opacity .12s}
   .card:hover .resize-h{opacity:1}

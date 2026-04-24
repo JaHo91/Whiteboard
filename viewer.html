@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Whiteboard - Leseansicht</title>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --card-shadow:0 2px 6px rgba(0,0,0,.12);
+    --line:#9aa0a6;
+    --line-hi:#ff6b00;
+    --anchor:#2b7fff;
+    --danger:#e53935;
+    --dim:.15;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,sans-serif;color:#222;background:var(--bg);overflow:hidden}
+
+  .viewer-banner{
+    position:fixed;top:0;left:0;right:0;height:48px;z-index:20;
+    background:#2b7fff;color:#fff;padding:0 16px;font-size:14px;
+    display:flex;align-items:center;justify-content:space-between;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+  }
+  .viewer-banner.error{background:var(--danger)}
+  .viewer-banner button{
+    background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);
+    padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;
+  }
+  .viewer-banner button:hover{background:rgba(255,255,255,.3)}
+  .banner-status { display:flex; align-items:center; gap:8px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:#fff; animation:pulse 1.5s infinite; }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  .viewport{
+    position:absolute;inset:48px 0 0 0;overflow:hidden;background:var(--bg);
+    background-image:radial-gradient(circle, #dfe1e5 1px, transparent 1px);
+    background-size:24px 24px;background-position:0 0;cursor:grab;
+  }
+  .viewport.panning{cursor:grabbing}
+
+  .board{
+    position:absolute;left:0;top:0;width:8000px;height:6000px;
+    transform-origin:0 0;will-change:transform;
+  }
+
+  svg.bg-layout{position:absolute;pointer-events:none;opacity:.85}
+  svg.bg-layout .layout-stroke{fill:none;stroke:#222;stroke-width:3;vector-effect:non-scaling-stroke}
+  svg.bg-layout .layout-label{font-size:28px;fill:#222;font-weight:500}
+
+  svg.links{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+  svg.links path.link-hit{fill:none;stroke:transparent;stroke-width:24;pointer-events:stroke;cursor:pointer}
+  svg.links path.link{fill:none;stroke:var(--line);stroke-width:2.2;opacity:.85;transition:stroke .15s, stroke-width .15s, opacity .15s}
+  svg.links path.link.hi{stroke:var(--line-hi);stroke-width:4;opacity:1}
+  svg.links path.link.dim{opacity:var(--dim)}
+
+  .card{
+    position:absolute;min-width:60px;min-height:60px;border-radius:var(--radius);
+    background:#fff;box-shadow:var(--card-shadow);display:flex;flex-direction:column;
+    transition:box-shadow .15s, opacity .15s;outline:2px solid transparent;
+    --card-font-scale:1;
+  }
+  .card.hi{box-shadow:0 6px 18px rgba(0,0,0,.25);outline-color:var(--line-hi)}
+  .card.dim{opacity:var(--dim)}
+
+  .card .title{
+    padding:10px;font-weight:600;font-size:calc(14px * var(--card-font-scale));
+    line-height:1.25;min-height:calc(40px * var(--card-font-scale));
+    color:#222;border-radius:var(--radius) var(--radius) 0 0;
+  }
+  .card .details{
+    padding:10px;font-size:calc(13px * var(--card-font-scale));line-height:1.35;
+    white-space:pre-wrap;word-break:break-word;
+    border-top:1px solid rgba(0,0,0,.06);flex:1 1 auto;
+  }
+  
+  .card.image-card{background:#222;overflow:hidden;padding:0}
+  .card.image-card .title, .card.image-card .details{display:none}
+  .card.image-card .image-wrap{position:relative;flex:1 1 auto;display:flex;align-items:center;justify-content:center}
+  .card.image-card img{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
+  .card.image-card .img-caption{
+    position:absolute;left:0;right:0;bottom:0;background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
+    color:#fff;font-size:12px;padding:6px 8px;opacity:0;transition:opacity .15s;
+  }
+  .card.image-card:hover .img-caption, .card.image-card.hi .img-caption{opacity:1}
+
+  .minimap{
+    position:fixed;right:16px;bottom:16px;z-index:15;width:220px;height:165px;
+    background:rgba(255,255,255,.92);border:1px solid #d0d4da;border-radius:8px;
+    box-shadow:0 4px 14px rgba(0,0,0,.12);overflow:hidden;cursor:crosshair;
+  }
+  .minimap svg{display:block;width:100%;height:100%}
+  .minimap .mm-card{fill-opacity:.85;stroke:rgba(0,0,0,.25);stroke-width:1;vector-effect:non-scaling-stroke}
+  .minimap .mm-layout{fill:none;stroke:#222;stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:.5}
+  .minimap .mm-viewport{fill:rgba(43,127,255,.12);stroke:var(--anchor);stroke-width:1.5;vector-effect:non-scaling-stroke}
+</style>
+</head>
+<body>
+
+<div class="viewer-banner" id="banner">
+  <div class="banner-status">
+    <span class="dot" id="statusDot"></span>
+    <span id="bannerText">Verbinde...</span>
+  </div>
+  <button id="refreshBtn">Aktualisieren</button>
+</div>
+
+<div class="viewport" id="viewport">
+  <div class="board" id="board">
+    <svg class="bg-layout" id="bgLayout" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+</div>
+
+<div class="minimap" id="minimap">
+  <svg id="minimapSvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
+</div>
+
+<script>
+(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const GIST_TOKEN = urlParams.get('token');
+  
+  const banner = document.getElementById('banner');
+  const bannerText = document.getElementById('bannerText');
+  const statusDot = document.getElementById('statusDot');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const viewport = document.getElementById('viewport');
+  const board = document.getElementById('board');
+  const svg = document.getElementById('links');
+  const bgLayout = document.getElementById('bgLayout');
+  const minimap = document.getElementById('minimap');
+  const minimapSvg = document.getElementById('minimapSvg');
+
+  if (!GIST_TOKEN) {
+    showError('Kein Zugriffs-Token in der URL gefunden.');
+    return;
+  }
+
+  const BOARD_W = 8000, BOARD_H = 6000;
+  const LAYOUT_W = 2488, LAYOUT_H = 1672;
+  const LAYOUT_OFFSET_X = (BOARD_W - LAYOUT_W)/2;
+  const LAYOUT_OFFSET_Y = (BOARD_H - LAYOUT_H)/2;
+  const CARD_REF_W = 170, CARD_REF_H = 120;
+  let state = { cards: [], links: [], view: { scale: 1, tx: 0, ty: 0 }, showBg: true };
+  let lastHash = null;
+
+  // Layout Setup
+  bgLayout.setAttribute('width', LAYOUT_W);
+  bgLayout.setAttribute('height', LAYOUT_H);
+  bgLayout.setAttribute('viewBox', `0 0 ${LAYOUT_W} ${LAYOUT_H}`);
+  bgLayout.style.left = LAYOUT_OFFSET_X + 'px';
+  bgLayout.style.top  = LAYOUT_OFFSET_Y + 'px';
+  bgLayout.innerHTML = `
+    <path class="layout-stroke" d="M 830 500 A 414 414 0 0 1 1658 500" />
+    <line class="layout-stroke" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
+    <polyline class="layout-stroke" points="830,500 1244,1540 1658,500" />
+    <text class="layout-label" x="1244" y="60" text-anchor="middle">value proposition</text>
+    <text class="layout-label" x="820" y="485" text-anchor="end">market risks</text>
+    <text class="layout-label" x="900" y="530" text-anchor="middle">competition</text>
+    <text class="layout-label" x="1244" y="530" text-anchor="middle">customers</text>
+    <text class="layout-label" x="1664" y="530" text-anchor="middle">influencer</text>
+  `;
+  svg.setAttribute('width', BOARD_W);
+  svg.setAttribute('height', BOARD_H);
+
+  function showError(msg) {
+    banner.classList.add('error');
+    bannerText.innerHTML = `<b>Fehler:</b> ${msg}`;
+    statusDot.style.display = 'none';
+  }
+
+  async function hashString(str) {
+    const enc = new TextEncoder().encode(str);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  async function loadData() {
+    try {
+      bannerText.textContent = 'Lade Daten...';
+      statusDot.style.animation = 'pulse 1.5s infinite';
+      
+      const res = await fetch(`https://api.github.com/gists/${GIST_TOKEN}`, {
+        headers: { 'Accept': 'application/vnd.github+json' }
+      });
+      
+      if (res.status === 404) throw new Error('Board nicht gefunden oder Link ungültig.');
+      if (!res.ok) throw new Error(`HTTP Fehler ${res.status}`);
+      
+      const gist = await res.json();
+      const file = gist.files['whiteboard.json'] || gist.files['whiteboard-share.json'];
+      if (!file) throw new Error('Kein Whiteboard in diesem Gist.');
+      
+      let content = file.content;
+      if (file.truncated && file.raw_url) {
+        const rawRes = await fetch(file.raw_url);
+        content = await rawRes.text();
+      }
+      
+      const hash = await hashString(content);
+      if (hash === lastHash) {
+        bannerText.textContent = 'Aktuell';
+        statusDot.style.animation = 'none';
+        return;
+      }
+      
+      const data = JSON.parse(content);
+      // Fallback falls es ein Share-Wrapper ist:
+      const boardState = data.data ? data.data : data; 
+      
+      const prevView = state.view;
+      state = Object.assign({ cards: [], links: [], showBg: true }, boardState);
+      if(lastHash) state.view = prevView; // View beibehalten beim Reload
+      
+      lastHash = hash;
+      bgLayout.style.display = state.showBg ? '' : 'none';
+      
+      if (!lastHash && (!state.view || typeof state.view.scale !== 'number')) {
+        fitLayoutToView();
+      } else {
+        applyView();
+      }
+      
+      render();
+      banner.classList.remove('error');
+      bannerText.innerHTML = `<b>${data.boardName || 'Whiteboard'}</b> (Leseansicht)`;
+      statusDot.style.animation = 'none';
+    } catch(err) {
+      showError(err.message);
+    }
+  }
+
+  // Polling alle 60 Sekunden (Github API Rate Limit = 60/Stunde für nicht-authentifizierte User)
+  setInterval(loadData, 60000);
+  refreshBtn.addEventListener('click', loadData);
+
+  // Viewport Handling
+  function clampScale(s){ return Math.min(3, Math.max(0.15, s)); }
+  function applyView(){
+    const {scale,tx,ty} = state.view;
+    board.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    viewport.style.backgroundPosition = `${tx}px ${ty}px`;
+    viewport.style.backgroundSize = `${24*scale}px ${24*scale}px`;
+    renderMinimap();
+  }
+  function fitLayoutToView(){
+    const r = viewport.getBoundingClientRect();
+    const availW = Math.max(200, r.width - 160);
+    const availH = Math.max(200, r.height - 160);
+    const scale = clampScale(Math.min(availW/LAYOUT_W, availH/LAYOUT_H));
+    const cx = LAYOUT_OFFSET_X + LAYOUT_W/2, cy = LAYOUT_OFFSET_Y + LAYOUT_H/2;
+    state.view = { scale, tx: r.width/2 - cx*scale, ty: r.height/2 - cy*scale };
+    applyView();
+  }
+
+  // Panning & Zooming
+  let pan = null;
+  viewport.addEventListener('mousedown', (e)=>{
+    if(e.button !== 0 && e.button !== 1) return;
+    pan = { x:e.clientX, y:e.clientY, tx:state.view.tx, ty:state.view.ty };
+    viewport.classList.add('panning');
+  });
+  window.addEventListener('mousemove', (e)=>{
+    if(!pan) return;
+    state.view.tx = pan.tx + (e.clientX - pan.x);
+    state.view.ty = pan.ty + (e.clientY - pan.y);
+    applyView();
+  });
+  window.addEventListener('mouseup', ()=>{ pan=null; viewport.classList.remove('panning'); });
+  
+  viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = viewport.getBoundingClientRect();
+    const factor = Math.pow(1.0015, -e.deltaY);
+    const cx = e.clientX - r.left, cy = e.clientY - r.top;
+    const v = state.view;
+    const ns = clampScale(v.scale * factor);
+    const k = ns / v.scale;
+    v.tx = cx - (cx - v.tx)*k; v.ty = cy - (cy - v.ty)*k;
+    v.scale = ns;
+    applyView();
+  }, {passive:false});
+
+  // Geometry
+  function cardRect(card){
+    const el = board.querySelector(`.card[data-id="${card.id}"]`);
+    const w = el ? el.offsetWidth : (card.w || 170);
+    const h = el ? el.offsetHeight : (card.h || 120);
+    return {x:card.x, y:card.y, w, h, cx:card.x+w/2, cy:card.y+h/2};
+  }
+  function sideAnchorPoint(card, side){
+    const r = cardRect(card);
+    switch(side){
+      case 'top': return {x:r.cx, y:r.y}; case 'right': return {x:r.x+r.w, y:r.cy};
+      case 'bottom': return {x:r.cx, y:r.y+r.h}; case 'left': return {x:r.x, y:r.cy};
+    }
+    return {x:r.cx, y:r.cy};
+  }
+  function cardEdgeAnchor(card, toward){
+    const r = cardRect(card);
+    const dx = toward.x - r.cx, dy = toward.y - r.cy;
+    if(dx===0 && dy===0) return {x:r.cx, y:r.cy};
+    const scale = 1 / Math.max(Math.abs(dx)/(r.w/2), Math.abs(dy)/(r.h/2));
+    return { x:r.cx + dx*scale, y:r.cy + dy*scale };
+  }
+  function dirForSide(side){
+    switch(side){ case 'top':return{x:0,y:-1}; case 'right':return{x:1,y:0}; case 'bottom':return{x:0,y:1}; case 'left':return{x:-1,y:0}; }
+    return null;
+  }
+  function bezierPathDirected(pA, sideA, pB, sideB){
+    const dist = Math.hypot(pB.x-pA.x, pB.y-pA.y);
+    const curve = Math.min(260, Math.max(60, dist*0.45));
+    let dA = dirForSide(sideA), dB = sideB ? dirForSide(sideB) : null;
+    if(!dA){ const dx=pB.x-pA.x, dy=pB.y-pA.y; dA = Math.abs(dx)>=Math.abs(dy) ? {x:Math.sign(dx)||1,y:0} : {x:0,y:Math.sign(dy)||1}; }
+    if(!dB){ const dx=pA.x-pB.x, dy=pA.y-pB.y; dB = Math.abs(dx)>=Math.abs(dy) ? {x:Math.sign(dx)||1,y:0} : {x:0,y:Math.sign(dy)||1}; }
+    const c1 = { x: pA.x + dA.x*curve, y: pA.y + dA.y*curve };
+    const c2 = { x: pB.x + dB.x*curve, y: pB.y + dB.y*curve };
+    return `M ${pA.x} ${pA.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${pB.x} ${pB.y}`;
+  }
+
+  // Render
+  function renderCard(card){
+    const el = document.createElement('div');
+    el.className = 'card' + (card.image ? ' image-card' : '');
+    el.dataset.id = card.id;
+    el.style.left = card.x+'px'; el.style.top = card.y+'px';
+    if(card.w) el.style.width = card.w+'px';
+
+    if(card.image){
+      el.style.height = (card.h || 200) + 'px';
+      const wrap = document.createElement('div');
+      wrap.className = 'image-wrap';
+      const img = document.createElement('img');
+      img.src = card.image;
+      wrap.appendChild(img);
+      if(card.caption){
+        const cap = document.createElement('div');
+        cap.className = 'img-caption'; cap.textContent = card.caption;
+        wrap.appendChild(cap);
+      }
+      el.appendChild(wrap);
+    } else {
+      if(card.autoH){ el.style.height = 'auto'; } else if(card.h){ el.style.height = card.h+'px'; }
+      const title = document.createElement('div');
+      title.className = 'title'; title.style.background = card.color; title.textContent = card.title;
+      const details = document.createElement('div');
+      details.className = 'details'; details.textContent = card.details;
+      el.appendChild(title); el.appendChild(details);
+    }
+
+    el.addEventListener('mouseenter', ()=> highlightCard(card.id));
+    el.addEventListener('mouseleave', clearHighlight);
+    board.appendChild(el);
+    
+    // Auto Font Scale
+    setTimeout(() => {
+      const w = el.offsetWidth, h = el.offsetHeight;
+      const s = Math.max(0.5, Math.min(1.6, Math.min(w/CARD_REF_W, h/CARD_REF_H)));
+      el.style.setProperty('--card-font-scale', s.toFixed(3));
+    }, 0);
+  }
+
+  function renderLinks(){
+    [...svg.querySelectorAll('g.link-group')].forEach(n=>n.remove());
+    if(!state.links) return;
+    state.links.forEach(l => {
+      const a = state.cards.find(c=>c.id===l.a);
+      const b = state.cards.find(c=>c.id===l.b);
+      if(!a || !b) return;
+      let pA = l.sideA ? sideAnchorPoint(a, l.sideA) : cardEdgeAnchor(a, cardRect(b));
+      let pB = l.sideB ? sideAnchorPoint(b, l.sideB) : cardEdgeAnchor(b, cardRect(a));
+      const d = bezierPathDirected(pA, l.sideA, pB, l.sideB);
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('class','link-group');
+      const hit = document.createElementNS('http://www.w3.org/2000/svg','path');
+      hit.setAttribute('class','link-hit'); hit.setAttribute('d', d);
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','link'); path.setAttribute('d', d);
+      path.dataset.a = l.a; path.dataset.b = l.b;
+
+      hit.addEventListener('mouseenter', ()=> highlightLink(l));
+      hit.addEventListener('mouseleave', clearHighlight);
+
+      g.appendChild(hit); g.appendChild(path);
+      svg.appendChild(g);
+    });
+  }
+
+  function renderMinimap(){
+    if(!state.cards || state.cards.length === 0) return;
+    let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
+    let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      if(r.x < minX) minX = r.x; if(r.y < minY) minY = r.y;
+      if(r.x + r.w > maxX) maxX = r.x + r.w; if(r.y + r.h > maxY) maxY = r.y + r.h;
+    });
+    const vpRect = viewport.getBoundingClientRect();
+    const {scale,tx,ty} = state.view;
+    const vX = -tx/scale, vY = -ty/scale, vW = vpRect.width/scale, vH = vpRect.height/scale;
+    minX = Math.min(minX, vX); minY = Math.min(minY, vY);
+    maxX = Math.max(maxX, vX + vW); maxY = Math.max(maxY, vY + vH);
+    const pad = 150; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+    const bw = maxX - minX, bh = maxY - minY;
+    minimapSvg.setAttribute('viewBox', `${minX} ${minY} ${bw} ${bh}`);
+    
+    let html = state.showBg ? `<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})"><path class="mm-layout" d="M 830 500 A 414 414 0 0 1 1658 500" /><line class="mm-layout" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" /><polyline class="mm-layout" points="830,500 1244,1540 1658,500" /></g>` : '';
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      html += `<rect class="mm-card" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="4" fill="${c.image ? '#222' : c.color}"/>`;
+    });
+    html += `<rect class="mm-viewport" x="${vX}" y="${vY}" width="${vW}" height="${vH}" rx="2"/>`;
+    minimapSvg.innerHTML = html;
+  }
+
+  function render(){
+    [...board.querySelectorAll('.card')].forEach(n=>n.remove());
+    if(state.cards) state.cards.forEach(renderCard);
+    renderLinks();
+    setTimeout(renderMinimap, 50); // warten bis DOM gerendert ist
+  }
+
+  // Hover Highlights
+  function highlightCard(id){
+    const connected = new Set([id]);
+    state.links.forEach(l=>{ if(l.a===id) connected.add(l.b); if(l.b===id) connected.add(l.a); });
+    document.querySelectorAll('.card').forEach(el=>{
+      const cid = +el.dataset.id;
+      el.classList.toggle('hi', connected.has(cid));
+      el.classList.toggle('dim', !connected.has(cid));
+    });
+    svg.querySelectorAll('path.link').forEach(p=>{
+      const touches = +p.dataset.a===id || +p.dataset.b===id;
+      p.classList.toggle('hi', touches); p.classList.toggle('dim', !touches);
+    });
+  }
+  function highlightLink(l){
+    document.querySelectorAll('.card').forEach(el=>{
+      const cid = +el.dataset.id;
+      const on = cid===l.a || cid===l.b;
+      el.classList.toggle('hi', on); el.classList.toggle('dim', !on);
+    });
+    svg.querySelectorAll('path.link').forEach(p=>{
+      const on = (+p.dataset.a===l.a && +p.dataset.b===l.b);
+      p.classList.toggle('hi', on); p.classList.toggle('dim', !on);
+    });
+  }
+  function clearHighlight(){
+    document.querySelectorAll('.card').forEach(el=>el.classList.remove('hi','dim'));
+    svg.querySelectorAll('path.link').forEach(p=>p.classList.remove('hi','dim'));
+  }
+
+  // Start
+  loadData();
+})();
+</script>
+</body>
+</html>

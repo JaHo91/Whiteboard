@@ -317,6 +317,12 @@
     background:#fff4e5;border:1px solid #ffcc80;color:#6d4200;
     padding:10px 12px;border-radius:6px;font-size:13px;margin:8px 0;
   }
+
+body.link-selected .card .anchor{
+  opacity:0 !important;
+  pointer-events:none !important;
+}
+
 </style>
 </head>
 <body>
@@ -1389,7 +1395,7 @@
     
     if(e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
-    clearHighlight();
+    setStickyLink(link);
     endpointDrag = { link, which, ghost:null, circleEl, willDelete:false, snapshotTaken:false };
     if(circleEl) circleEl.classList.add('dragging');
     const ghost = document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -1626,15 +1632,21 @@
       else { g._epA.style.display='none'; g._epB.style.display='none'; }
     });
   }
+  
   function clearHighlight(){
+    document.body.classList.remove('link-selected');
     document.querySelectorAll('.card').forEach(el=>el.classList.remove('hi','dim','sticky'));
     svg.querySelectorAll('path.link').forEach(p=>p.classList.remove('hi','dim'));
     svg.querySelectorAll('circle.endpoint').forEach(c=>c.style.display='none');
   }
+
   function setStickyCard(id){ state.sticky = { type:'card', id }; applyStickyVisual(); save(); }
   function setStickyLink(l){ state.sticky = { type:'link', link:l }; applyStickyVisual(); save(); }
   function clearSticky(){ state.sticky = null; deactivateAllCards(); save(); }
-  function applyStickyVisual(){
+   function applyStickyVisual(){
+    const isLinkSticky = !!(state.sticky && state.sticky.type === 'link');
+    document.body.classList.toggle('link-selected', isLinkSticky);
+
     if(!state.sticky){ clearHighlight(); return; }
     if(state.sticky.type==='card'){
       if(!state.cards.some(c=>c.id===state.sticky.id)){ state.sticky=null; clearHighlight(); return; }

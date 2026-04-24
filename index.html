@@ -18,8 +18,6 @@
     --warning:#f57c00;
     --dim:.15;
     --radius:10px;
-    --comment-bg:#fff3a0;
-    --comment-owner:#a0c4ff;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#222;background:var(--bg);overflow:hidden}
@@ -48,6 +46,21 @@
   .undo-group{display:flex;align-items:center;gap:4px;border:1px solid #d0d4da;border-radius:6px;padding:2px;background:#fff}
   .undo-group button{border:none;padding:4px 8px;font-size:14px}
 
+  .board-switcher{
+    display:flex;align-items:center;gap:4px;border:1px solid #d0d4da;border-radius:6px;background:#fff;
+    max-width:260px;
+  }
+  .board-switcher .board-name{
+    padding:6px 10px;font-size:13px;font-weight:500;cursor:pointer;
+    max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    display:flex;align-items:center;gap:6px;
+  }
+  .board-switcher .board-name:hover{background:#f0f2f5;border-radius:6px 0 0 6px}
+  .board-switcher .board-menu-btn{
+    padding:6px 8px;border-left:1px solid #d0d4da;cursor:pointer;font-size:12px;
+  }
+  .board-switcher .board-menu-btn:hover{background:#f0f2f5;border-radius:0 6px 6px 0}
+
   .sync-status{
     display:flex;align-items:center;gap:6px;font-size:12px;color:#666;
     padding:4px 10px;border:1px solid #d0d4da;border-radius:6px;background:#fff;cursor:pointer;
@@ -59,20 +72,6 @@
   .sync-status.error .dot{background:var(--danger)}
   .sync-status.syncing .dot{background:var(--anchor);animation:pulse 1s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-  .comment-btn{
-    position:relative;
-    display:flex;align-items:center;gap:4px;
-    padding:4px 10px;border:1px solid #d0d4da;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;
-  }
-  .comment-btn:hover{background:#f0f2f5}
-  .comment-btn .badge{
-    position:absolute;top:-6px;right:-6px;
-    background:var(--danger);color:#fff;border-radius:10px;
-    padding:1px 5px;font-size:10px;font-weight:bold;min-width:16px;text-align:center;
-    display:none;
-  }
-  .comment-btn.has-new .badge{display:inline-block}
 
   .burger-btn{
     width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;
@@ -86,25 +85,45 @@
     cursor:grab;
   }
   .viewport.panning{cursor:grabbing}
-  .viewport.placing-comment{cursor:crosshair !important}
 
   .board{
     position:absolute;left:0;top:0;width:8000px;height:6000px;
     transform-origin:0 0;will-change:transform;
   }
 
-  svg.bg-layout{position:absolute;pointer-events:none;opacity:.85;}
-  svg.bg-layout .layout-stroke{fill:none;stroke:#222;stroke-width:3;vector-effect:non-scaling-stroke;}
-  svg.bg-layout .layout-label{font-family:system-ui,-apple-system,sans-serif;font-size:28px;fill:#222;font-weight:500;}
+  svg.bg-layout{
+    position:absolute;pointer-events:none;opacity:.85;
+  }
+  svg.bg-layout .layout-stroke{
+    fill:none;stroke:#222;stroke-width:3;vector-effect:non-scaling-stroke;
+  }
+  svg.bg-layout .layout-label{
+    font-family:system-ui,-apple-system,sans-serif;
+    font-size:28px;fill:#222;font-weight:500;
+  }
 
-  svg.links{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;}
-  svg.links path.link-hit{fill:none;stroke:transparent;stroke-width:24;pointer-events:stroke;cursor:pointer;}
-  svg.links path.link{fill:none;stroke:var(--line);stroke-width:2.2;opacity:.85;transition:stroke .15s, stroke-width .15s, opacity .15s;pointer-events:none;}
+  svg.links{
+    position:absolute;left:0;top:0;pointer-events:none;overflow:visible;
+  }
+  svg.links path.link-hit{
+    fill:none;stroke:transparent;stroke-width:24;pointer-events:stroke;cursor:pointer;
+  }
+  svg.links path.link{
+    fill:none;stroke:var(--line);stroke-width:2.2;opacity:.85;
+    transition:stroke .15s, stroke-width .15s, opacity .15s;
+    pointer-events:none;
+  }
   svg.links path.link.hi{stroke:var(--line-hi);stroke-width:4;opacity:1}
   svg.links path.link.dim{opacity:var(--dim)}
-  svg.links path.ghost{fill:none;stroke:var(--anchor);stroke-width:2.5;stroke-dasharray:6 5;pointer-events:none;}
+  svg.links path.ghost{
+    fill:none;stroke:var(--anchor);stroke-width:2.5;stroke-dasharray:6 5;pointer-events:none;
+  }
   svg.links path.ghost.delete{stroke:var(--danger);stroke-dasharray:4 4}
-  svg.links circle.endpoint{fill:#fff;stroke:var(--anchor);stroke-width:2;cursor:grab;pointer-events:all;r:8;transition:r .15s, stroke-width .15s;}
+  svg.links circle.endpoint{
+    fill:#fff;stroke:var(--anchor);stroke-width:2;cursor:grab;
+    pointer-events:all;r:8;
+    transition:r .15s, stroke-width .15s;
+  }
   svg.links circle.endpoint:hover{r:10;stroke-width:3}
   svg.links circle.endpoint.dragging{r:12;stroke-width:3;fill:var(--anchor)}
 
@@ -122,19 +141,27 @@
 
   .card .title{
     position:relative;padding:10px 32px 10px 10px;font-weight:600;
-    font-size:calc(14px * var(--card-font-scale));line-height:1.25;
+    font-size:calc(14px * var(--card-font-scale));
+    line-height:1.25;
     min-height:calc(40px * var(--card-font-scale));
     cursor:grab;user-select:none;color:#222;outline:none;
     border-radius:var(--radius) var(--radius) 0 0;flex:0 0 auto;
   }
   .card.dragging .title{cursor:grabbing}
-  .card .title .title-text{display:inline-block;cursor:text;padding:1px 3px;border-radius:3px;word-break:break-word;}
+  .card .title .title-text{
+    display:inline-block;cursor:text;
+    padding:1px 3px;border-radius:3px;
+    word-break:break-word;
+  }
   .card .title.editing{cursor:text;user-select:text}
-  .card .title.editing .title-text{background:rgba(255,255,255,.35);outline:none;}
+  .card .title.editing .title-text{
+    background:rgba(255,255,255,.35);outline:none;
+  }
 
   .card .details{
     padding:10px;background:#fff;
-    font-size:calc(13px * var(--card-font-scale));line-height:1.35;
+    font-size:calc(13px * var(--card-font-scale));
+    line-height:1.35;
     min-height:calc(40px * var(--card-font-scale));
     outline:none;white-space:pre-wrap;word-break:break-word;
     border-top:1px solid rgba(0,0,0,.06);border-radius:0 0 var(--radius) var(--radius);
@@ -144,12 +171,27 @@
   .card .details:empty::before{content:attr(data-placeholder);color:#aaa;pointer-events:none}
 
   .card.image-card{background:#222;overflow:hidden;padding:0}
-  .card.image-card .title,.card.image-card .details{display:none}
-  .card.image-card .image-wrap{position:relative;flex:1 1 auto;cursor:grab;display:flex;align-items:center;justify-content:center;border-radius:var(--radius);overflow:hidden;background:#222;}
+  .card.image-card .title,
+  .card.image-card .details{display:none}
+  .card.image-card .image-wrap{
+    position:relative;flex:1 1 auto;cursor:grab;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:var(--radius);overflow:hidden;background:#222;
+  }
   .card.image-card.dragging .image-wrap{cursor:grabbing}
-  .card.image-card img{display:block;width:100%;height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;pointer-events:none;}
-  .card.image-card .img-caption{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(to top, rgba(0,0,0,.65), transparent);color:#fff;font-size:12px;padding:6px 8px;pointer-events:none;opacity:0;transition:opacity .15s;}
-  .card.image-card:hover .img-caption,.card.image-card.hi .img-caption,.card.image-card.sticky .img-caption{opacity:1}
+  .card.image-card img{
+    display:block;width:100%;height:100%;object-fit:contain;
+    user-select:none;-webkit-user-drag:none;pointer-events:none;
+  }
+  .card.image-card .img-caption{
+    position:absolute;left:0;right:0;bottom:0;
+    background:linear-gradient(to top, rgba(0,0,0,.65), transparent);
+    color:#fff;font-size:12px;padding:6px 8px;pointer-events:none;
+    opacity:0;transition:opacity .15s;
+  }
+  .card.image-card:hover .img-caption,
+  .card.image-card.hi .img-caption,
+  .card.image-card.sticky .img-caption{opacity:1}
 
   .card .actions{position:absolute;top:4px;right:4px;display:flex;gap:2px;opacity:0;transition:opacity .15s;z-index:4}
   .card:hover .actions{opacity:1}
@@ -176,7 +218,9 @@
   .resize-h.n{top:-3px}.resize-h.s{bottom:-3px}
   .resize-h.e,.resize-h.w{top:12px;bottom:12px;width:6px;cursor:ew-resize}
   .resize-h.e{right:-3px}.resize-h.w{left:-3px}
-  .resize-h.ne,.resize-h.nw,.resize-h.se,.resize-h.sw{width:12px;height:12px;background:#fff;border:2px solid var(--anchor);border-radius:3px;}
+  .resize-h.ne,.resize-h.nw,.resize-h.se,.resize-h.sw{
+    width:12px;height:12px;background:#fff;border:2px solid var(--anchor);border-radius:3px;
+  }
   .resize-h.nw{left:-6px;top:-6px;cursor:nwse-resize}
   .resize-h.ne{right:-6px;top:-6px;cursor:nesw-resize}
   .resize-h.sw{left:-6px;bottom:-6px;cursor:nesw-resize}
@@ -191,11 +235,17 @@
     position:fixed;z-index:100;min-width:220px;
     background:#fff;border:1px solid #d0d4da;border-radius:8px;
     box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;font-size:13px;
+    max-height:80vh;overflow-y:auto;
   }
-  .ctx-menu button{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:8px 10px;border-radius:5px;text-align:left;cursor:pointer;color:#222;}
+  .ctx-menu button{
+    display:flex;align-items:center;gap:8px;width:100%;
+    background:none;border:none;padding:8px 10px;border-radius:5px;
+    text-align:left;cursor:pointer;color:#222;
+  }
   .ctx-menu button:hover{background:#f0f2f5}
   .ctx-menu button.danger{color:var(--danger)}
   .ctx-menu button.danger:hover{background:#fdecea}
+  .ctx-menu button.current{background:#e3f0ff;font-weight:500}
   .ctx-menu .sep{height:1px;background:#e4e6eb;margin:4px 2px}
   .ctx-menu .head{padding:6px 10px;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
   .ctx-menu .info{padding:6px 10px;color:#666;font-size:11px;line-height:1.4}
@@ -203,15 +253,18 @@
   .minimap{
     position:fixed;right:16px;bottom:16px;z-index:15;
     width:220px;height:165px;background:rgba(255,255,255,.92);
-    border:1px solid #d0d4da;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);
+    border:1px solid #d0d4da;border-radius:8px;
+    box-shadow:0 4px 14px rgba(0,0,0,.12);
     overflow:hidden;cursor:crosshair;
   }
   .minimap svg{display:block;width:100%;height:100%}
   .minimap .mm-card{fill-opacity:.85;stroke:rgba(0,0,0,.25);stroke-width:1;vector-effect:non-scaling-stroke}
   .minimap .mm-layout{fill:none;stroke:#222;stroke-width:1.5;vector-effect:non-scaling-stroke;opacity:.5}
   .minimap .mm-viewport{fill:rgba(43,127,255,.12);stroke:var(--anchor);stroke-width:1.5;vector-effect:non-scaling-stroke}
-  .minimap .mm-comment{fill:#fddc4a;stroke:#b48700;stroke-width:1;vector-effect:non-scaling-stroke}
-  .minimap-toggle{position:absolute;top:4px;right:4px;width:22px;height:22px;border:none;background:rgba(255,255,255,.85);border-radius:4px;cursor:pointer;font-size:12px;line-height:1;}
+  .minimap-toggle{
+    position:absolute;top:4px;right:4px;width:22px;height:22px;border:none;
+    background:rgba(255,255,255,.85);border-radius:4px;cursor:pointer;font-size:12px;line-height:1;
+  }
 
   .toast{
     position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
@@ -228,7 +281,7 @@
     display:flex;align-items:center;justify-content:center;
   }
   .modal{
-    background:#fff;border-radius:10px;padding:20px;max-width:500px;width:90%;
+    background:#fff;border-radius:10px;padding:20px;max-width:520px;width:90%;
     box-shadow:0 10px 40px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto;
   }
   .modal h2{margin:0 0 12px 0;font-size:18px}
@@ -237,7 +290,7 @@
     width:100%;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;
     font-size:13px;font-family:ui-monospace,monospace;margin:4px 0 8px;
   }
-  .modal .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .modal .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
   .modal button{padding:8px 14px;border:1px solid #d0d4da;border-radius:6px;cursor:pointer;background:#fff;font-size:13px}
   .modal button:hover{background:#f0f2f5}
   .modal button.primary{background:#2b7fff;color:#fff;border-color:#2b7fff}
@@ -253,91 +306,18 @@
     background:#fff4e5;border:1px solid #ffcc80;color:#6d4200;
     padding:10px 12px;border-radius:6px;font-size:13px;margin:8px 0;
   }
-
-  /* ===== KOMMENTAR HAFTNOTIZEN ===== */
-  .comment-note{
-    position:absolute;width:36px;height:36px;
-    background:var(--comment-bg);border-radius:6px 6px 6px 2px;
-    box-shadow:2px 2px 6px rgba(0,0,0,.25);
-    display:flex;align-items:center;justify-content:center;
-    cursor:pointer;z-index:6;
-    transition:transform .15s, box-shadow .15s;
-    font-size:18px;
-    border:1px solid rgba(0,0,0,.1);
-  }
-  .comment-note.owner{background:var(--comment-owner)}
-  .comment-note.new{
-    animation:newPulse 2s ease-in-out 3;
-  }
-  @keyframes newPulse{
-    0%,100%{box-shadow:2px 2px 6px rgba(0,0,0,.25)}
-    50%{box-shadow:0 0 0 6px rgba(229,57,53,.3), 2px 2px 6px rgba(0,0,0,.25)}
-  }
-  .comment-note:hover{transform:scale(1.15);box-shadow:3px 3px 10px rgba(0,0,0,.35);z-index:7}
-
-  /* ===== KOMMENTAR PANEL ===== */
-  .comment-panel{
-    position:fixed;top:48px;right:-400px;width:380px;bottom:0;
-    background:#fff;border-left:1px solid #e4e6eb;
-    box-shadow:-4px 0 14px rgba(0,0,0,.08);
-    z-index:50;transition:right .25s ease-out;
-    display:flex;flex-direction:column;
-  }
-  .comment-panel.open{right:0}
-  .comment-panel-header{
-    padding:12px 16px;border-bottom:1px solid #e4e6eb;
-    display:flex;align-items:center;gap:8px;
-  }
-  .comment-panel-header h3{margin:0;font-size:15px;flex:1}
-  .comment-panel-header button{
-    border:1px solid #d0d4da;background:#fff;border-radius:6px;
-    padding:6px 10px;cursor:pointer;font-size:13px;
-  }
-  .comment-panel-header button:hover{background:#f0f2f5}
-  .comment-panel-header button.primary{background:#2b7fff;color:#fff;border-color:#2b7fff}
-  .comment-panel-header button.primary:hover{background:#1f6de0}
-  .comment-panel-body{flex:1;overflow-y:auto;padding:8px}
-  .comment-panel-empty{padding:20px;text-align:center;color:#888;font-size:13px}
-  .comment-item{
-    padding:10px 12px;margin-bottom:8px;background:#fafbfc;
-    border:1px solid #e4e6eb;border-radius:8px;
-    cursor:pointer;transition:background .15s;
-    position:relative;
-  }
-  .comment-item:hover{background:#f0f4fa;border-color:var(--anchor)}
-  .comment-item.owner{border-left:3px solid var(--anchor)}
-  .comment-item .author{
-    font-size:12px;font-weight:600;color:#444;margin-bottom:2px;
-    display:flex;align-items:center;gap:6px;
-  }
-  .comment-item .owner-badge{
-    background:var(--anchor);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;font-weight:500;
-  }
-  .comment-item .timestamp{font-size:11px;color:#888;margin-bottom:4px}
-  .comment-item .text{font-size:13px;color:#222;line-height:1.4;white-space:pre-wrap;word-break:break-word}
-  .comment-item .delete-btn{
-    position:absolute;top:6px;right:6px;
-    width:22px;height:22px;border:none;border-radius:4px;cursor:pointer;
-    background:transparent;color:#999;font-size:13px;
-    opacity:0;transition:opacity .15s;
-  }
-  .comment-item:hover .delete-btn{opacity:1}
-  .comment-item .delete-btn:hover{background:#fdecea;color:var(--danger)}
-
-  .comment-placing-banner{
-    position:fixed;top:60px;left:50%;transform:translateX(-50%);
-    background:var(--warning);color:#fff;padding:8px 16px;border-radius:6px;
-    font-size:13px;z-index:60;box-shadow:0 4px 12px rgba(0,0,0,.2);
-    display:flex;align-items:center;gap:10px;
-  }
-  .comment-placing-banner button{
-    background:#fff;color:var(--warning);border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;
-  }
 </style>
 </head>
 <body>
 
 <div class="toolbar">
+  <div class="board-switcher" id="boardSwitcher" title="Board wechseln">
+    <div class="board-name" id="boardName">
+      <span id="boardNameText">Whiteboard</span>
+      <span style="font-size:10px;color:#888">▼</span>
+    </div>
+    <div class="board-menu-btn" id="boardMenuBtn" title="Board-Menü">⋮</div>
+  </div>
   <button id="addBtn" title="Neue Karte">+ Karte</button>
   <div class="palette" id="palette"><span class="legend">Farbe:</span></div>
   <button id="autoColorBtn" title="Neue Karten bekommen automatisch die Farbe der Zone">🎯 Auto-Farbe</button>
@@ -352,10 +332,6 @@
     <button id="zoomResetBtn" title="Auf Layout zentrieren">⟲</button>
   </div>
   <div class="spacer"></div>
-  <button class="comment-btn" id="commentBtn" title="Kommentare anzeigen">
-    💬 <span id="commentCount">0</span>
-    <span class="badge" id="commentBadge">0</span>
-  </button>
   <div class="sync-status" id="syncStatus" title="Cloud-Sync Status (klicken für Details)">
     <span class="dot"></span>
     <span id="syncStatusText">Offline</span>
@@ -375,18 +351,6 @@
   <button class="minimap-toggle" id="mmToggleBtn" title="Ausblenden">×</button>
 </div>
 
-<div class="comment-panel" id="commentPanel">
-  <div class="comment-panel-header">
-    <h3>💬 Kommentare</h3>
-    <button id="addCommentBtn" class="primary" title="Eigenen Kommentar hinzufügen">+ Neu</button>
-    <button id="refreshCommentsBtn" title="Aktualisieren">⟳</button>
-    <button id="closeCommentsBtn" title="Schließen">×</button>
-  </div>
-  <div class="comment-panel-body" id="commentList">
-    <div class="comment-panel-empty">Keine Kommentare</div>
-  </div>
-</div>
-
 <input id="importInput" type="file" accept="application/json" hidden />
 <div class="toast" id="toast"></div>
 
@@ -401,18 +365,21 @@
     {name:'Blau',bg:'#A0C4FF'},{name:'Lila',bg:'#CDB4DB'},{name:'Orange',bg:'#FFB86B'},
   ];
 
-  const STORAGE_KEY = 'mini_whiteboard_v13';
-  const BACKUP_KEY = 'mini_whiteboard_v13_backup';
-  const HISTORY_KEY = 'mini_whiteboard_v13_history';
-  const SYNC_KEY = 'mini_whiteboard_v13_sync';
-  const COMMENTS_CONFIG_KEY = 'mini_whiteboard_comments_config';
-  const COMMENTS_SEEN_KEY = 'mini_whiteboard_comments_seen';
+  const BOARDS_KEY = 'mini_whiteboard_boards_v1';
+  const BOARD_PREFIX = 'mini_whiteboard_v15__';
+  const BACKUP_PREFIX = 'mini_whiteboard_v15_backup__';
+  const HISTORY_PREFIX = 'mini_whiteboard_v15_history__';
+  const LEGACY_STORAGE_KEY = 'mini_whiteboard_v13';
+  const LEGACY_BACKUP_KEY = 'mini_whiteboard_v13_backup';
+  const LEGACY_HISTORY_KEY = 'mini_whiteboard_v13_history';
+  const SYNC_KEY = 'mini_whiteboard_sync_v2';
+  const LEGACY_SYNC_KEY = 'mini_whiteboard_v13_sync';
+
   const AUTOSAVE_INTERVAL = 3000;
   const HISTORY_INTERVAL = 60000;
   const MAX_HISTORY = 10;
   const SYNC_INTERVAL = 60000;
   const SYNC_DEBOUNCE = 3000;
-  const COMMENTS_POLL_INTERVAL = 60000;
   const BOARD_W = 8000, BOARD_H = 6000;
   const LAYOUT_W = 2488, LAYOUT_H = 1672;
   const LAYOUT_OFFSET_X = (BOARD_W - LAYOUT_W)/2;
@@ -424,7 +391,7 @@
   const CARD_REF_W = 170, CARD_REF_H = 120;
   const IMG_MAX_SIDE = 400;
   const UNDO_LIMIT = 50;
-  const COMMENT_MAX_LEN = 1000;
+  const BOARD_WARN_LIMIT = 20;
 
   const LAYOUT = {
     waterY: 500,
@@ -463,14 +430,10 @@
   const toastEl = document.getElementById('toast');
   const syncStatusEl = document.getElementById('syncStatus');
   const syncStatusText = document.getElementById('syncStatusText');
-  const commentBtn = document.getElementById('commentBtn');
-  const commentCount = document.getElementById('commentCount');
-  const commentBadge = document.getElementById('commentBadge');
-  const commentPanel = document.getElementById('commentPanel');
-  const commentList = document.getElementById('commentList');
-  const addCommentBtn = document.getElementById('addCommentBtn');
-  const refreshCommentsBtn = document.getElementById('refreshCommentsBtn');
-  const closeCommentsBtn = document.getElementById('closeCommentsBtn');
+  const boardSwitcher = document.getElementById('boardSwitcher');
+  const boardNameText = document.getElementById('boardNameText');
+  const boardNameEl = document.getElementById('boardName');
+  const boardMenuBtn = document.getElementById('boardMenuBtn');
 
   bgLayout.setAttribute('width', LAYOUT_W);
   bgLayout.setAttribute('height', LAYOUT_H);
@@ -498,7 +461,97 @@
     };
   }
 
-  // ========= TIMER-VARIABLEN =========
+  // ========= MULTI-BOARD REGISTRY =========
+  function newBoardId(){
+    return 'b_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+  }
+
+  function loadBoardsIndex(){
+    try{
+      const raw = localStorage.getItem(BOARDS_KEY);
+      if(!raw) return null;
+      const data = JSON.parse(raw);
+      if(!data || !Array.isArray(data.boards)) return null;
+      return data;
+    }catch{ return null; }
+  }
+  function saveBoardsIndex(){
+    try{
+      localStorage.setItem(BOARDS_KEY, JSON.stringify(boardsIndex));
+    }catch(err){ console.warn('boards index save failed', err); }
+  }
+
+  // Migration v13 → v15 Multi-Board
+  function migrateLegacy(){
+    const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if(!legacyRaw) return null;
+    try{
+      const legacyData = JSON.parse(legacyRaw);
+      const id = newBoardId();
+      localStorage.setItem(BOARD_PREFIX + id, legacyRaw);
+      const legacyBackup = localStorage.getItem(LEGACY_BACKUP_KEY);
+      if(legacyBackup) localStorage.setItem(BACKUP_PREFIX + id, legacyBackup);
+      const legacyHistory = localStorage.getItem(LEGACY_HISTORY_KEY);
+      if(legacyHistory) localStorage.setItem(HISTORY_PREFIX + id, legacyHistory);
+      // Legacy sync: in erstes Board übernehmen
+      let syncGistId = null;
+      try{
+        const legacySync = localStorage.getItem(LEGACY_SYNC_KEY);
+        if(legacySync){
+          const s = JSON.parse(legacySync);
+          if(s.token){
+            const newSync = loadSyncConfig() || { token:null, enabled:false };
+            newSync.token = s.token;
+            newSync.enabled = s.enabled || false;
+            localStorage.setItem(SYNC_KEY, JSON.stringify(newSync));
+          }
+          syncGistId = s.gistId || null;
+        }
+      }catch{}
+      toast('Bestehende Daten migriert nach Multi-Board', 'success');
+      return { id, name:'Mein Whiteboard', gistId: syncGistId, publicGistId: null, createdAt: Date.now() };
+    }catch(err){
+      console.warn('legacy migration failed', err);
+      return null;
+    }
+  }
+
+  let boardsIndex = loadBoardsIndex();
+  if(!boardsIndex){
+    boardsIndex = { boards: [], activeId: null };
+    const migrated = migrateLegacy();
+    if(migrated){
+      boardsIndex.boards.push(migrated);
+      boardsIndex.activeId = migrated.id;
+    } else {
+      const id = newBoardId();
+      const first = { id, name:'Whiteboard 1', gistId:null, publicGistId:null, createdAt:Date.now() };
+      boardsIndex.boards.push(first);
+      boardsIndex.activeId = id;
+    }
+    saveBoardsIndex();
+  }
+
+  function getActiveBoard(){
+    if(!boardsIndex) return null;
+    return boardsIndex.boards.find(b => b.id === boardsIndex.activeId) || boardsIndex.boards[0] || null;
+  }
+  function updateBoardMeta(partial){
+    const b = getActiveBoard();
+    if(!b) return;
+    Object.assign(b, partial);
+    saveBoardsIndex();
+    updateBoardSwitcherUI();
+  }
+
+  function updateBoardSwitcherUI(){
+    const b = getActiveBoard();
+    if(!b){ boardNameText.textContent = 'Whiteboard'; return; }
+    boardNameText.textContent = b.name;
+  }
+
+  // ========= STATE & TIMERS =========
+  let state;
   let saveTimer = null;
   let lastBackupAt = 0;
   let lastHistoryAt = 0;
@@ -507,15 +560,44 @@
   let toastTimer = null;
   let ctxMenuEl = null;
   let modalEl = null;
-  let commentsPollTimer = null;
-  let commentsInFlight = false;
 
-  // ========= UNDO/REDO =========
   let undoStack = [];
   let redoStack = [];
   let suspendSnapshots = false;
 
-  function cloneState(){ return JSON.parse(JSON.stringify(serializeState())); }
+  // ========= STORAGE KEYS for active board =========
+  function keyForActive(prefix){
+    const b = getActiveBoard();
+    return b ? (prefix + b.id) : null;
+  }
+
+  // ========= TOAST =========
+  function toast(msg, type){
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show' + (type ? ' '+type : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2500);
+  }
+
+  // ========= SYNC CONFIG =========
+  function loadSyncConfig(){
+    try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
+    catch{ return null; }
+  }
+  function saveSyncConfig(){
+    try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
+  }
+  let syncConfig = loadSyncConfig() || {
+    token: null, enabled: false,
+  };
+  // Pro-Board Sync-Status (In-Memory)
+  let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+
+  // ========= UNDO/REDO =========
+  function cloneState(){
+    const s = serializeState();
+    return JSON.parse(JSON.stringify(s));
+  }
   function pushUndo(){
     if(suspendSnapshots) return;
     try{
@@ -561,59 +643,80 @@
     updateUndoButtons();
     toast('Wiederhergestellt');
   }
+  
   undoBtn.addEventListener('click', doUndo);
   redoBtn.addEventListener('click', doRedo);
+  
 
-  // ========= SYNC STATE =========
-  let syncConfig = loadSyncConfig() || {
-    token: null, gistId: null, enabled: false,
-    lastSyncedAt: 0, lastSyncedHash: null,
-  };
-
-  function loadSyncConfig(){
-    try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
-    catch{ return null; }
-  }
-  function saveSyncConfig(){
-    try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
-  }
-
-  // ========= COMMENTS STATE =========
-  let commentsConfig = loadCommentsConfig() || {
-    token: null, gistId: null, enabled: false, ownerName: 'Owner',
-  };
-  let comments = [];
-  let commentsLastSeen = parseInt(localStorage.getItem(COMMENTS_SEEN_KEY) || '0', 10);
-  let placingComment = false;
-
-  function loadCommentsConfig(){
-    try{ const raw = localStorage.getItem(COMMENTS_CONFIG_KEY); return raw ? JSON.parse(raw) : null; }
-    catch{ return null; }
-  }
-  function saveCommentsConfig(){
-    try{ localStorage.setItem(COMMENTS_CONFIG_KEY, JSON.stringify(commentsConfig)); }catch{}
-  }
-  function saveCommentsLastSeen(){
-    try{ localStorage.setItem(COMMENTS_SEEN_KEY, String(commentsLastSeen)); }catch{}
+  // ========= LOAD/SAVE ACTIVE BOARD =========
+  function loadActiveBoardState(){
+    const key = keyForActive(BOARD_PREFIX);
+    if(!key) return defaultState();
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return defaultState();
+      const s = JSON.parse(raw);
+      if(s && s.sticky && s.sticky.type==='link' && typeof s.sticky.linkIdx==='number' && Array.isArray(s.links)){
+        s.sticky = { type:'link', link: s.links[s.sticky.linkIdx] || null };
+        if(!s.sticky.link) s.sticky = null;
+      }
+      return Object.assign(defaultState(), s);
+    }catch{ return defaultState(); }
   }
 
-  // ========= STATE =========
-  let state = loadState() || defaultState();
-  state = Object.assign(defaultState(), state);
-  if(!Array.isArray(state.cards)) state.cards = [];
-  if(!Array.isArray(state.links)) state.links = [];
-  state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
-  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
-  bgLayout.style.display = state.showBg ? '' : 'none';
-  minimap.style.display = state.showMm === false ? 'none' : '';
-  updateAutoColorButton();
+  function saveImmediate(){
+    const key = keyForActive(BOARD_PREFIX);
+    if(!key) return;
+    try{
+      const data = serializeState();
+      localStorage.setItem(key, JSON.stringify(data));
+    }catch(err){
+      console.warn('save failed', err);
+      if(err && /quota/i.test(err.name || err.message || '')){
+        toast('Speicher voll. Nutze Export, um zu sichern.', 'error');
+      }
+    }
+  }
+  function saveDelayed(){
+    try{
+      const now = Date.now();
+      const data = serializeState();
+      const json = JSON.stringify(data);
+      const backupKey = keyForActive(BACKUP_PREFIX);
+      const histKey = keyForActive(HISTORY_PREFIX);
+      if(backupKey){ try{ localStorage.setItem(backupKey, json); lastBackupAt = now; }catch{} }
+      if(histKey && now - lastHistoryAt > HISTORY_INTERVAL){
+        try{
+          const rawH = localStorage.getItem(histKey);
+          let hist = rawH ? JSON.parse(rawH) : [];
+          if(!Array.isArray(hist)) hist = [];
+          hist.push({ timestamp: now, data });
+          if(hist.length > MAX_HISTORY) hist = hist.slice(-MAX_HISTORY);
+          localStorage.setItem(histKey, JSON.stringify(hist));
+          lastHistoryAt = now;
+        }catch(e){ console.warn('history save failed', e); }
+      }
+    }catch(e){ console.warn(e); }
+  }
 
-  // ========= TOAST =========
-  function toast(msg, type){
-    toastEl.textContent = msg;
-    toastEl.className = 'toast show' + (type ? ' '+type : '');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2500);
+  function save(){
+    state.lastModified = Date.now();
+    saveImmediate();
+    if(saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveDelayed, AUTOSAVE_INTERVAL);
+    if(syncConfig.enabled){
+      setSyncStatus('pending', 'Änderung ausstehend');
+      scheduleSync();
+    }
+  }
+
+  function serializeState(){
+    const serializable = Object.assign({}, state);
+    if(state.sticky && state.sticky.type==='link'){
+      const idx = state.links.indexOf(state.sticky.link);
+      serializable.sticky = idx>=0 ? { type:'link', linkIdx:idx } : null;
+    }
+    return serializable;
   }
 
   // ========= ZONENERKENNUNG =========
@@ -639,7 +742,9 @@
     if(!state.autoColor) return state.color;
     return ZONE_COLORS[detectZone(p)] || state.color;
   }
-  function updateAutoColorButton(){ autoColorBtn.classList.toggle('active', !!state.autoColor); }
+  function updateAutoColorButton(){
+    autoColorBtn.classList.toggle('active', !!state.autoColor);
+  }
 
   // ========= VIEW =========
   function clampScale(s){ return Math.min(3, Math.max(0.15, s)); }
@@ -668,13 +773,15 @@
     v.tx = cx - (cx - v.tx)*k; v.ty = cy - (cy - v.ty)*k;
     v.scale = ns; applyView(); save();
   }
-  function centerOnPoint(px, py){
-    const vpRect = viewport.getBoundingClientRect();
-    state.view.tx = vpRect.width/2 - px*state.view.scale;
-    state.view.ty = vpRect.height/2 - py*state.view.scale;
-    applyView(); save();
-  }
 
+  // ========= INIT STATE =========
+  state = loadActiveBoardState();
+  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+  if(!Array.isArray(state.links)) state.links = [];
+  state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
+  bgLayout.style.display = state.showBg ? '' : 'none';
+  minimap.style.display = state.showMm === false ? 'none' : '';
+  updateAutoColorButton();
   if(!state.view || typeof state.view.scale !== 'number') fitLayoutToView();
   else applyView();
 
@@ -697,9 +804,7 @@
   viewport.addEventListener('mousedown', (e)=>{
     hideContextMenu();
     if(e.button !== 0 && e.button !== 1) return;
-    if(placingComment) return; // Kommentar-Platzierung hat Vorrang
     if(e.target.closest('.card')) return;
-    if(e.target.closest('.comment-note')) return;
     if(e.target.closest('.link-hit') || e.target.closest('circle.endpoint')) return;
     panPending = { x:e.clientX, y:e.clientY, tx:state.view.tx, ty:state.view.ty };
     e.preventDefault();
@@ -725,7 +830,7 @@
     if(!wasPanning && hadPending){
       if(!e.target.closest('.card') && !e.target.closest('.link-hit') && !e.target.closest('circle.endpoint')
          && !e.target.closest('.minimap') && !e.target.closest('.toolbar') && !e.target.closest('.ctx-menu')
-         && !e.target.closest('.modal-backdrop') && !e.target.closest('.comment-panel') && !e.target.closest('.comment-note')){
+         && !e.target.closest('.modal-backdrop')){
         state.sticky = null;
         deactivateAllCards();
         save();
@@ -733,23 +838,14 @@
     }
   });
 
-  viewport.addEventListener('click', (e)=>{
-    if(placingComment){
-      if(e.target.closest('.comment-placing-banner')) return;
-      const p = toBoard(e.clientX, e.clientY);
-      stopPlacingComment();
-      openCommentCreateDialog(p.x, p.y);
-    }
-  });
-
+  
   viewport.addEventListener('dblclick', (e) => {
-    if(placingComment) return;
     if(e.target.closest('.card')) return;
-    if(e.target.closest('.comment-note')) return;
     const p = toBoard(e.clientX, e.clientY);
     pushUndo();
     createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-60, color:colorForPoint(p)});
   });
+  
 
   function toBoard(clientX, clientY){
     const r = viewport.getBoundingClientRect();
@@ -758,6 +854,7 @@
   }
 
   // ========= PALETTE & TOOLBAR =========
+  
   COLORS.forEach(c => {
     const dot = document.createElement('span');
     dot.className = 'color-dot';
@@ -808,8 +905,10 @@
     }catch{ toast('Ungültige Datei', 'error'); }
     importInput.value = '';
   });
+  
 
   // ========= PASTE =========
+  
   window.addEventListener('paste', async (e) => {
     const active = document.activeElement;
     if(active && (active.classList.contains('title-text') || active.classList.contains('details'))) return;
@@ -841,6 +940,7 @@
       toast('Bild eingefügt', 'success');
     }catch(err){ toast('Einfügen fehlgeschlagen', 'error'); }
   });
+  
 
   function blobToDataURL(blob){
     return new Promise((resolve,reject)=>{
@@ -915,7 +1015,9 @@
         cap.className = 'img-caption'; cap.textContent = card.caption;
         wrap.appendChild(cap);
       }
+      
       wrap.addEventListener('mousedown', (e)=>onCardDragStart(e, el, card));
+      
       el.appendChild(wrap);
     } else {
       if(card.autoH){ el.classList.add('autoH'); el.style.height = 'auto'; }
@@ -932,6 +1034,7 @@
       titleText.spellcheck = false;
       title.appendChild(titleText);
 
+      
       let titleBeforeEdit = null;
       function enterEdit(){
         if(title.classList.contains('editing')) return;
@@ -979,6 +1082,7 @@
         if(e.target !== title) return;
         onCardDragStart(e, el, card);
       });
+      
 
       const details = document.createElement('div');
       details.className = 'details';
@@ -986,6 +1090,8 @@
       details.spellcheck = false;
       details.textContent = card.details;
       details.setAttribute('data-placeholder','Details...');
+
+      
       let detailsBeforeEdit = null;
       details.addEventListener('focus', ()=>{
         el.classList.add('editing');
@@ -1012,11 +1118,13 @@
       });
       details.addEventListener('mousedown', (e)=>e.stopPropagation());
       details.addEventListener('keydown', (e)=>e.stopPropagation());
+      
 
       el.appendChild(title);
       el.appendChild(details);
     }
 
+    
     const actions = document.createElement('div');
     actions.className = 'actions';
     if(!card.image){
@@ -1056,6 +1164,7 @@
       h.addEventListener('mousedown', (e)=>onResizeStart(e, card, el, dir));
       el.appendChild(h);
     });
+    
 
     el.addEventListener('mouseenter', ()=>{
       if(connectDrag || endpointDrag || state.sticky) return;
@@ -1071,10 +1180,12 @@
       if(state.sticky && state.sticky.type==='card' && state.sticky.id===card.id) clearSticky();
       else setStickyCard(card.id);
     });
+    
     el.addEventListener('contextmenu', (e)=>{
       e.preventDefault(); e.stopPropagation();
       showCardMenu(e.clientX, e.clientY, card);
     });
+    
 
     board.appendChild(el);
     if(!card.image){ autoResizeCard(card, el); updateCardFontScale(el); }
@@ -1084,6 +1195,7 @@
   // ========= CARD DRAG =========
   let cardDrag = null;
   function onCardDragStart(e, cardEl, card){
+    
     if(e.button!==0) return;
     const start = toBoard(e.clientX, e.clientY);
     cardDrag = { card, cardEl, offX:start.x-card.x, offY:start.y-card.y, moved:false, sx:e.clientX, sy:e.clientY,
@@ -1118,6 +1230,7 @@
   // ========= RESIZE =========
   let resizeDrag = null;
   function onResizeStart(e, card, cardEl, dir){
+    
     if(e.button!==0) return;
     e.preventDefault(); e.stopPropagation();
     pushUndo();
@@ -1178,6 +1291,7 @@
   }
 
   function onAnchorDragStart(e, card, side, anchorEl){
+    
     if(e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
     clearHighlight();
@@ -1261,6 +1375,7 @@
   // ========= ENDPOINT DRAG =========
   let endpointDrag = null;
   function onEndpointDragStart(e, link, which, circleEl){
+    
     if(e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
     clearHighlight();
@@ -1427,10 +1542,12 @@
         if(state.sticky && state.sticky.type==='link' && state.sticky.link===l) clearSticky();
         else setStickyLink(l);
       });
+      
       hit.addEventListener('contextmenu', (e)=>{
         e.preventDefault(); e.stopPropagation();
         showLinkMenu(e.clientX, e.clientY, l);
       });
+      
 
       g.appendChild(hit); g.appendChild(path); g.appendChild(epA); g.appendChild(epB);
       g._link = l; g._epA = epA; g._epB = epB;
@@ -1517,31 +1634,41 @@
     }
   }
 
-  // ========= CONFIRM MODAL =========
-  function confirmSingle(title, warnHtml, destructiveLabel, onConfirm){
+  // ========= CONFIRM MODAL (Single-Step) =========
+  function confirmSimple(title, warnHtml, destructiveLabel, onConfirm){
     showModal(title, (body)=>{
-      body.innerHTML = `<div class="confirm-warn">${warnHtml}</div>
-        <p class="small">Dieser Vorgang kann mit <b>Strg+Z</b> rückgängig gemacht werden, sofern kein weiterer Reset erfolgt.</p>`;
-    }, destructiveLabel, ()=>{ closeModal(); onConfirm(); });
+      body.innerHTML = `<div class="confirm-warn">${warnHtml}</div>`;
+    }, destructiveLabel, ()=>{
+      closeModal();
+      onConfirm();
+    });
   }
 
   function confirmDeleteCard(card){
     const name = card.image ? 'diese Bildkarte' : `die Karte "${card.title || 'Unbenannt'}"`;
     const linkCount = state.links.filter(l=>l.a===card.id||l.b===card.id).length;
     const extra = linkCount ? ` Zusätzlich werden <b>${linkCount}</b> Verbindung(en) entfernt.` : '';
-    confirmSingle(
+    confirmSimple(
       'Karte löschen?',
       `Möchtest du ${name} wirklich löschen?${extra}`,
       'Löschen',
-      ()=>{ pushUndo(); deleteCard(card.id); toast('Karte gelöscht'); }
+      ()=>{
+        pushUndo();
+        deleteCard(card.id);
+        toast('Karte gelöscht');
+      }
     );
   }
   function confirmDeleteLink(link){
-    confirmSingle(
+    confirmSimple(
       'Verbindung löschen?',
       'Möchtest du diese Verbindung wirklich entfernen?',
       'Löschen',
-      ()=>{ pushUndo(); deleteLink(link); toast('Verbindung gelöscht'); }
+      ()=>{
+        pushUndo();
+        deleteLink(link);
+        toast('Verbindung gelöscht');
+      }
     );
   }
 
@@ -1557,6 +1684,7 @@
       if(it.info){ const i=document.createElement('div'); i.className='info'; i.textContent=it.info; menu.appendChild(i); return; }
       const btn = document.createElement('button');
       if(it.danger) btn.classList.add('danger');
+      if(it.current) btn.classList.add('current');
       btn.innerHTML = `<span>${it.icon||''}</span><span>${it.label}</span>`;
       btn.addEventListener('click', ()=>{ hideContextMenu(); it.action && it.action(); });
       menu.appendChild(btn);
@@ -1657,10 +1785,249 @@
     showContextMenu(x, y, items);
   }
 
+  // ========= BOARD SWITCHER =========
+  
+  boardNameEl.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    showBoardSwitcher();
+  });
+  boardMenuBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    showBoardMenu();
+  });
+  updateBoardSwitcherUI();
+  
+
+  function showBoardSwitcher(){
+    const rect = boardSwitcher.getBoundingClientRect();
+    const items = [
+      { head:'Boards wechseln' }
+    ];
+    boardsIndex.boards.forEach(b => {
+      items.push({
+        icon: b.id === boardsIndex.activeId ? '✓' : '  ',
+        label: b.name,
+        current: b.id === boardsIndex.activeId,
+        action: ()=>{
+          if(b.id !== boardsIndex.activeId) switchBoard(b.id);
+        }
+      });
+    });
+    items.push(
+      { sep:true },
+      { icon:'+', label:'Neues Board...', action: ()=> createNewBoardDialog() },
+      { icon:'🗂', label:'Alle Boards verwalten...', action: ()=> showBoardManager() },
+    );
+    showContextMenu(rect.left, rect.bottom + 4, items);
+  }
+
+  function showBoardMenu(){
+    const rect = boardSwitcher.getBoundingClientRect();
+    const b = getActiveBoard();
+    if(!b) return;
+    const items = [
+      { head: b.name },
+      { icon:'✎', label:'Umbenennen...', action: ()=> renameBoardDialog(b.id) },
+      { icon:'⧉', label:'Duplizieren', action: ()=> duplicateBoard(b.id) },
+      { sep:true },
+      { icon:'+', label:'Neues Board...', action: ()=> createNewBoardDialog() },
+    ];
+    if(boardsIndex.boards.length > 1){
+      items.push({ icon:'🗑', label:'Dieses Board löschen...', danger:true, action: ()=> confirmDeleteBoard(b.id) });
+    }
+    showContextMenu(rect.right - 220, rect.bottom + 4, items);
+  }
+
+  function suggestBoardName(){
+    const existing = new Set(boardsIndex.boards.map(b => b.name));
+    let i = boardsIndex.boards.length + 1;
+    while(existing.has('Board ' + i)) i++;
+    return 'Board ' + i;
+  }
+
+  function createNewBoardDialog(){
+    if(boardsIndex.boards.length >= BOARD_WARN_LIMIT){
+      if(!confirm(`Du hast bereits ${boardsIndex.boards.length} Boards. Weiteres anlegen?`)) return;
+    }
+    const defaultName = suggestBoardName();
+    showModal('Neues Board', (body)=>{
+      body.innerHTML = `
+        <p>Neues Board mit Zonen-Vorlage (Value Proposition, Market Risk, Customer, Competitor, Influencer) erstellen.</p>
+        <p><b>Name</b></p>
+        <input type="text" id="newBoardName" value="${escapeAttr(defaultName)}" autofocus />
+      `;
+      setTimeout(()=>{
+        const input = body.querySelector('#newBoardName');
+        input.focus(); input.select();
+        input.addEventListener('keydown', e=>{
+          if(e.key==='Enter'){ e.preventDefault(); body.closest('.modal').querySelector('.primary').click(); }
+        });
+      },50);
+    }, 'Erstellen', (box)=>{
+      const name = box.querySelector('#newBoardName').value.trim() || defaultName;
+      createNewBoard(name);
+      closeModal();
+    });
+  }
+
+  function createNewBoard(name){
+    const id = newBoardId();
+    const b = { id, name, gistId:null, publicGistId:null, createdAt:Date.now() };
+    boardsIndex.boards.push(b);
+    boardsIndex.activeId = id;
+    saveBoardsIndex();
+    // Initial state mit Zonen-Vorlage
+    state = defaultState();
+    initZoneTemplate();
+    saveImmediate();
+    undoStack = []; redoStack = []; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+    updateBoardSwitcherUI();
+    fitLayoutToView();
+    render();
+    toast('Board "'+name+'" erstellt', 'success');
+    if(syncConfig.enabled) scheduleSync();
+  }
+
+  function switchBoard(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    // aktuellen Sync abschließen (falls pending)
+    if(syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
+    boardsIndex.activeId = id;
+    saveBoardsIndex();
+    state = loadActiveBoardState();
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
+    bgLayout.style.display = state.showBg ? '' : 'none';
+    minimap.style.display = state.showMm === false ? 'none' : '';
+    updateAutoColorButton();
+    if(!state.view) fitLayoutToView(); else applyView();
+    undoStack = []; redoStack = []; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+    updateBoardSwitcherUI();
+    render();
+    toast('Gewechselt zu "'+b.name+'"');
+    if(syncConfig.enabled){
+      setSyncStatus('syncing','Verbinde...');
+      initialSyncForActive();
+    } else {
+      setSyncStatus('off','Offline (Sync aus)');
+    }
+  }
+
+  function renameBoardDialog(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    showModal('Board umbenennen', (body)=>{
+      body.innerHTML = `
+        <p>Neuer Name für das Board:</p>
+        <input type="text" id="renameInput" value="${escapeAttr(b.name)}" autofocus />
+      `;
+      setTimeout(()=>{
+        const input = body.querySelector('#renameInput');
+        input.focus(); input.select();
+        input.addEventListener('keydown', e=>{
+          if(e.key==='Enter'){ e.preventDefault(); body.closest('.modal').querySelector('.primary').click(); }
+        });
+      },50);
+    }, 'Speichern', (box)=>{
+      const name = box.querySelector('#renameInput').value.trim();
+      if(!name) return;
+      b.name = name;
+      saveBoardsIndex();
+      updateBoardSwitcherUI();
+      closeModal();
+      toast('Umbenannt zu "'+name+'"');
+      if(b.id === boardsIndex.activeId && syncConfig.enabled){
+        scheduleSync();
+      }
+    });
+  }
+
+  function duplicateBoard(id){
+    const srcBoard = boardsIndex.boards.find(x => x.id === id);
+    if(!srcBoard) return;
+    const srcKey = BOARD_PREFIX + id;
+    const data = localStorage.getItem(srcKey);
+    const newId = newBoardId();
+    const newName = srcBoard.name + ' (Kopie)';
+    try{
+      if(data) localStorage.setItem(BOARD_PREFIX + newId, data);
+    }catch(err){ toast('Speicher voll', 'error'); return; }
+    const newB = { id:newId, name:newName, gistId:null, publicGistId:null, createdAt:Date.now() };
+    boardsIndex.boards.push(newB);
+    boardsIndex.activeId = newId;
+    saveBoardsIndex();
+    state = loadActiveBoardState();
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    undoStack=[]; redoStack=[]; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+    updateBoardSwitcherUI();
+    if(!state.view) fitLayoutToView(); else applyView();
+    render();
+    toast('Board dupliziert');
+    if(syncConfig.enabled) scheduleSync();
+  }
+
+  function confirmDeleteBoard(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    if(boardsIndex.boards.length <= 1){
+      toast('Letztes Board kann nicht gelöscht werden', 'error');
+      return;
+    }
+    const syncWarn = b.gistId ? '<br><b>Hinweis:</b> Der Secret Gist in der Cloud wird <u>nicht</u> automatisch gelöscht.' : '';
+    confirmSimple(
+      'Board löschen?',
+      `Das Board <b>"${escapeHtml(b.name)}"</b> inkl. aller Karten und Verbindungen wird lokal gelöscht.${syncWarn}`,
+      'Löschen',
+      async ()=>{
+        try{
+          localStorage.removeItem(BOARD_PREFIX + id);
+          localStorage.removeItem(BACKUP_PREFIX + id);
+          localStorage.removeItem(HISTORY_PREFIX + id);
+        }catch{}
+        boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
+        if(boardsIndex.activeId === id){
+          boardsIndex.activeId = boardsIndex.boards[0].id;
+        }
+        saveBoardsIndex();
+        switchBoard(boardsIndex.activeId);
+        toast('Board gelöscht');
+      }
+    );
+  }
+
+  function showBoardManager(){
+    showModal('Alle Boards verwalten', (body)=>{
+      body.innerHTML = `<p>${boardsIndex.boards.length} Board(s) vorhanden:</p>`;
+      const list = document.createElement('div');
+      list.style.cssText = 'max-height:300px;overflow-y:auto;border:1px solid #e4e6eb;border-radius:6px;margin:8px 0';
+      boardsIndex.boards.forEach(b => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:8px 10px;border-bottom:1px solid #f0f2f5;display:flex;align-items:center;gap:8px';
+        const active = b.id === boardsIndex.activeId ? '<b style="color:var(--success)">●</b> ' : '';
+        const synced = b.gistId ? ' ☁' : '';
+        row.innerHTML = `<div style="flex:1;font-size:13px">${active}${escapeHtml(b.name)}${synced}<div style="font-size:10px;color:#888">${new Date(b.createdAt).toLocaleDateString()}</div></div>`;
+        const btnGo = document.createElement('button');
+        btnGo.textContent = 'Öffnen';
+        btnGo.style.cssText = 'font-size:11px;padding:4px 8px';
+        btnGo.addEventListener('click', ()=>{ closeModal(); if(b.id !== boardsIndex.activeId) switchBoard(b.id); });
+        row.appendChild(btnGo);
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+      body.innerHTML += `<p class="small">● = aktiv · ☁ = cloud-synchronisiert</p>`;
+    }, null, null);
+  }
+
   // ========= BURGER MENU =========
+  
   burgerBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const rect = burgerBtn.getBoundingClientRect();
+    const b = getActiveBoard();
     const items = [
       { head:'Ansicht' },
       { icon: state.showBg ? '☑' : '☐', label:'Hintergrund-Layout anzeigen', action:()=>{
@@ -1686,18 +2053,6 @@
     }
     items.push(
       { sep:true },
-      { head:'Kommentare' },
-      { icon: commentsConfig.enabled ? '💬' : '⊘', label: commentsConfig.enabled ? 'Kommentare konfiguriert' : 'Kommentare einrichten...',
-        action:()=> openCommentsModal() },
-    );
-    if(commentsConfig.enabled){
-      items.push(
-        { icon:'⟳', label:'Kommentare aktualisieren', action:()=> loadComments(true) },
-        { icon:'📋', label:'Kommentar-Panel öffnen', action:()=> openCommentPanel() },
-      );
-    }
-    items.push(
-      { sep:true },
       { head:'Versionen' },
       { icon:'🕒', label:'Versionshistorie...', action:()=> showHistoryMenu() },
       { sep:true },
@@ -1713,8 +2068,11 @@
     showContextMenu(rect.right - 240, rect.bottom + 4, items);
   });
 
+  syncStatusEl.addEventListener('click', ()=> openSyncModal());
+  
+
   function confirmClearCards(){
-    confirmSingle(
+    confirmSimple(
       'Alle Karten löschen?',
       `Alle <b>${state.cards.length}</b> Karten und <b>${state.links.length}</b> Verbindungen werden entfernt. Zoom/Position bleiben erhalten.`,
       'Alles löschen',
@@ -1727,30 +2085,39 @@
     );
   }
   function confirmFullReset(){
-    confirmSingle(
+    confirmSimple(
       'Kompletter Reset?',
-      'Alles wird gelöscht: Karten, Verbindungen, Zoom/Position, Undo-Verlauf und Cloud-Konfiguration. Die Seite wird neu geladen.',
+      'ALLE Boards, Verbindungen, Cloud-Konfiguration und Undo-Verlauf werden gelöscht. Die Seite wird neu geladen.',
       'Komplett zurücksetzen',
       ()=>{
         try{
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.removeItem(BACKUP_KEY);
-          localStorage.removeItem(HISTORY_KEY);
+          // Alle Board-spezifischen Keys entfernen
+          const keysToRemove = [];
+          for(let i=0; i<localStorage.length; i++){
+            const key = localStorage.key(i);
+            if(key && (key.startsWith(BOARD_PREFIX) || key.startsWith(BACKUP_PREFIX) || key.startsWith(HISTORY_PREFIX))){
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          localStorage.removeItem(BOARDS_KEY);
           localStorage.removeItem(SYNC_KEY);
-          localStorage.removeItem(COMMENTS_CONFIG_KEY);
-          localStorage.removeItem(COMMENTS_SEEN_KEY);
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          localStorage.removeItem(LEGACY_BACKUP_KEY);
+          localStorage.removeItem(LEGACY_HISTORY_KEY);
+          localStorage.removeItem(LEGACY_SYNC_KEY);
         }catch{}
         location.reload();
       }
     );
   }
 
-  syncStatusEl.addEventListener('click', ()=> openSyncModal());
-
   function exportData(){
+    const b = getActiveBoard();
+    const name = b ? b.name.replace(/[^\w-]+/g,'_') : 'whiteboard';
     const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download='whiteboard.json'; a.click();
+    a.href = URL.createObjectURL(blob); a.download = name + '.json'; a.click();
   }
 
   // ========= PDF EXPORT =========
@@ -1854,6 +2221,7 @@
       document.activeElement.tagName === 'TEXTAREA'
     );
 
+    
     if((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
       if(inEditable) return;
       e.preventDefault(); doUndo(); return;
@@ -1862,10 +2230,10 @@
       if(inEditable) return;
       e.preventDefault(); doRedo(); return;
     }
+    
 
     if(e.key==='Escape'){
       hideContextMenu();
-      if(placingComment){ stopPlacingComment(); return; }
       state.sticky = null;
       deactivateAllCards();
       if(connectDrag) cleanupConnectDrag();
@@ -1915,10 +2283,6 @@
       const fill = c.image ? '#222' : c.color;
       html += `<rect class="mm-card" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="4" fill="${fill}"/>`;
     });
-    // Kommentare als kleine gelbe Punkte
-    comments.forEach(c=>{
-      html += `<circle class="mm-comment" cx="${c.x}" cy="${c.y}" r="20"/>`;
-    });
     html += `<rect class="mm-viewport" x="${vX}" y="${vY}" width="${vW}" height="${vH}" rx="2"/>`;
     minimapSvg.innerHTML = html;
     minimapSvg.dataset.vb = JSON.stringify({minX,minY,bw,bh});
@@ -1946,85 +2310,41 @@
   window.addEventListener('mousemove', (e)=>{ if(mmDrag){ const p = mmPointToBoard(e); if(p) mmCenterOn(p); } });
   window.addEventListener('mouseup', ()=>{ mmDrag = false; });
 
-  // ========= RENDER / PERSIST =========
+  // ========= RENDER =========
   function render(){
     [...board.querySelectorAll('.card')].forEach(n=>n.remove());
-    [...board.querySelectorAll('.comment-note')].forEach(n=>n.remove());
     state.cards.forEach(renderCard);
-    renderCommentNotes();
     updateLinks(); renderMinimap(); applyStickyVisual();
   }
-  function serializeState(){
-    const serializable = Object.assign({}, state);
-    if(state.sticky && state.sticky.type==='link'){
-      const idx = state.links.indexOf(state.sticky.link);
-      serializable.sticky = idx>=0 ? { type:'link', linkIdx:idx } : null;
-    }
-    return serializable;
-  }
 
-  function save(){
-    state.lastModified = Date.now();
-    saveImmediate();
-    if(saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveDelayed, AUTOSAVE_INTERVAL);
-    if(syncConfig.enabled){
-      setSyncStatus('pending', 'Änderung ausstehend');
-      scheduleSync();
-    }
-  }
-  function saveImmediate(){
-    try{
-      const data = serializeState();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    }catch(err){
-      console.warn('save failed', err);
-      if(err && /quota/i.test(err.name || err.message || '')){
-        toast('Speicher voll. Nutze Export, um zu sichern.', 'error');
-      }
-    }
-  }
-  function saveDelayed(){
-    try{
-      const now = Date.now();
-      const data = serializeState();
-      const json = JSON.stringify(data);
-      try{ localStorage.setItem(BACKUP_KEY, json); lastBackupAt = now; }catch{}
-      if(now - lastHistoryAt > HISTORY_INTERVAL){
-        try{
-          const rawH = localStorage.getItem(HISTORY_KEY);
-          let hist = rawH ? JSON.parse(rawH) : [];
-          if(!Array.isArray(hist)) hist = [];
-          hist.push({ timestamp: now, data });
-          if(hist.length > MAX_HISTORY) hist = hist.slice(-MAX_HISTORY);
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
-          lastHistoryAt = now;
-        }catch(e){ console.warn('history save failed', e); }
-      }
-    }catch(e){ console.warn(e); }
-  }
-
-  function loadState(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return null;
-      const s = JSON.parse(raw);
-      if(s && s.sticky && s.sticky.type==='link' && typeof s.sticky.linkIdx==='number' && Array.isArray(s.links)){
-        s.sticky = { type:'link', link: s.links[s.sticky.linkIdx] || null };
-        if(!s.sticky.link) s.sticky = null;
-      }
-      return s;
-    }catch{ return null; }
+  function initZoneTemplate(){
+    const zones = [
+      { zone:'value_proposition', title:'Value Proposition', x: LAYOUT_OFFSET_X + 1159, y: LAYOUT_OFFSET_Y + 180 },
+      { zone:'market_risks',      title:'Market Risk',       x: LAYOUT_OFFSET_X + 300,  y: LAYOUT_OFFSET_Y + 350 },
+      { zone:'competition',       title:'Competitor',        x: LAYOUT_OFFSET_X + 700,  y: LAYOUT_OFFSET_Y + 560 },
+      { zone:'customers',         title:'Customer Segment',  x: LAYOUT_OFFSET_X + 1159, y: LAYOUT_OFFSET_Y + 850 },
+      { zone:'influencer',        title:'Influencer',        x: LAYOUT_OFFSET_X + 1640, y: LAYOUT_OFFSET_Y + 560 },
+    ];
+    zones.forEach(z => {
+      const card = {
+        id: state.nextId++, x: z.x, y: z.y,
+        color: ZONE_COLORS[z.zone] || COLORS[0].bg,
+        title: z.title, details: '',
+        w: null, h: null, autoH: true, image: null, caption: ''
+      };
+      state.cards.push(card);
+    });
   }
 
   function showHistoryMenu(){
     let hist = [];
-    try{ const raw = localStorage.getItem(HISTORY_KEY); hist = raw ? JSON.parse(raw) : []; }catch{}
+    const histKey = keyForActive(HISTORY_PREFIX);
+    try{ if(histKey){ const raw = localStorage.getItem(histKey); hist = raw ? JSON.parse(raw) : []; } }catch{}
     if(!Array.isArray(hist) || !hist.length){
       toast('Noch keine Versionen vorhanden');
       return;
     }
-    const items = [{ head:'Versionshistorie' }];
+    const items = [{ head:'Versionshistorie (dieses Board)' }];
     [...hist].reverse().forEach((entry)=>{
       const d = new Date(entry.timestamp);
       const label = d.toLocaleString();
@@ -2032,7 +2352,7 @@
       items.push({
         icon:'🕒', label:`${label} (${cardCount} Karten)`,
         action:()=>{
-          confirmSingle(
+          confirmSimple(
             'Version wiederherstellen?',
             `Version vom <b>${label}</b> laden? Der aktuelle Stand wird überschrieben (Undo möglich).`,
             'Wiederherstellen',
@@ -2052,7 +2372,7 @@
       });
     });
     const rect = burgerBtn.getBoundingClientRect();
-    showContextMenu(rect.right - 260, rect.bottom + 4, items);
+    showContextMenu(rect.right - 280, rect.bottom + 4, items);
   }
 
   // ========= MODAL =========
@@ -2078,10 +2398,10 @@
         actions.appendChild(b);
       });
     }
-    const cancel = document.createElement('button'); cancel.textContent = 'Abbrechen'; cancel.addEventListener('click', closeModal); actions.appendChild(cancel);
+    const cancel = document.createElement('button'); cancel.textContent = primaryLabel ? 'Abbrechen' : 'Schließen'; cancel.addEventListener('click', closeModal); actions.appendChild(cancel);
     if(primaryLabel){
       const ok = document.createElement('button'); ok.textContent = primaryLabel;
-      ok.classList.add(primaryLabel.toLowerCase().includes('löschen') || primaryLabel.toLowerCase().includes('reset') ? 'danger' : 'primary');
+      ok.classList.add(primaryLabel.toLowerCase().includes('löschen') || primaryLabel.toLowerCase().includes('reset') || primaryLabel.toLowerCase().includes('deaktivieren') || primaryLabel.toLowerCase().includes('widerrufen') ? 'danger' : 'primary');
       ok.addEventListener('click', ()=> primaryAction(box));
       actions.appendChild(ok);
     }
@@ -2094,87 +2414,33 @@
   function openSyncModal(){
     showModal('GitHub Gist Cloud-Sync', (body)=>{
       body.innerHTML = `
-        <p>Synchronisiert dein Whiteboard über einen <b>Secret Gist</b> auf GitHub. Gerätewechsel möglich, Daten werden automatisch alle 60 Sekunden gepusht und beim Start geladen (falls Cloud neuer).</p>
+        <p>Synchronisiert deine Whiteboards über <b>Secret Gists</b> auf GitHub (pro Board ein eigener Gist). Token wird global gespeichert.</p>
         <p><b>1. Token erstellen:</b> Gehe zu <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens (Fine-grained)</a>, erstelle ein Token mit Permission <code>Gists: Read and write</code>.</p>
         <p><b>GitHub Token</b></p>
         <input type="password" id="syncTokenInput" placeholder="github_pat_..." value="${syncConfig.token || ''}" autocomplete="off" />
-        <p><b>Gist-ID</b> <span class="small">(optional; leer = neuer Secret Gist wird erstellt)</span></p>
-        <input type="text" id="syncGistInput" placeholder="a1b2c3d4e5f6..." value="${syncConfig.gistId || ''}" />
-        <p class="small">Token und ID werden nur lokal im Browser gespeichert. Beim ersten Speichern wird automatisch ein Secret Gist erstellt.</p>
-        ${syncConfig.enabled ? `<p class="small">✓ Aktuell aktiv. Letzter Sync: ${syncConfig.lastSyncedAt ? new Date(syncConfig.lastSyncedAt).toLocaleString() : '—'}</p>` : ''}
+        <p class="small">Token wird nur lokal im Browser gespeichert. Pro Board wird automatisch ein eigener Secret Gist erstellt.</p>
+        ${syncConfig.enabled ? `<p class="small">✓ Aktuell aktiv. ${boardsIndex.boards.filter(b=>b.gistId).length} von ${boardsIndex.boards.length} Boards synchronisiert.</p>` : ''}
       `;
     }, 'Speichern & Aktivieren', async (box)=>{
       const token = box.querySelector('#syncTokenInput').value.trim();
-      const gistId = box.querySelector('#syncGistInput').value.trim();
       if(!token){ alert('Bitte Token eingeben'); return; }
       syncConfig.token = token;
-      syncConfig.gistId = gistId || null;
       syncConfig.enabled = true;
       saveSyncConfig();
       closeModal();
       toast('Sync aktiviert, prüfe Verbindung...');
-      const ok = await initialSync();
+      const ok = await initialSyncForActive();
       if(ok) toast('Sync eingerichtet', 'success');
     }, syncConfig.enabled ? [
       { label:'Sync deaktivieren', danger:true, action:()=>{
-          confirmSingle('Sync deaktivieren?',
-            'Cloud-Sync deaktivieren? Lokale Daten bleiben erhalten. Token und Gist-ID werden gelöscht.',
+          confirmSimple('Sync deaktivieren?',
+            'Cloud-Sync deaktivieren? Lokale Daten bleiben erhalten. Token wird gelöscht.',
             'Deaktivieren',
             ()=>{
-              syncConfig = { token:null, gistId:null, enabled:false, lastSyncedAt:0, lastSyncedHash:null };
+              syncConfig = { token:null, enabled:false };
               saveSyncConfig();
               setSyncStatus('off', 'Offline');
               toast('Sync deaktiviert');
-            });
-        }}
-    ] : null);
-  }
-
-  // ========= COMMENTS MODAL =========
-  function openCommentsModal(){
-    showModal('Kommentare einrichten', (body)=>{
-      body.innerHTML = `
-        <p>Kommentare werden über einen <b>separaten Gist</b> geladen. Das verhindert, dass Kommentatoren Zugriff auf dein Whiteboard-Token bekommen.</p>
-        <p><b>1. Separater GitHub-Account (empfohlen):</b> Erstelle einen eigenen Account für Kommentare (z.B. <code>whiteboard-comments</code>).</p>
-        <p><b>2. Token erstellen:</b> Im Kommentar-Account → <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">Fine-grained Token</a> mit Permission <code>Gists: Read and write</code>.</p>
-        <p><b>3. Kommentar-Gist:</b> Erstelle einen Public Gist mit Datei <code>comments.json</code> und Inhalt <code>[]</code>.</p>
-        <p><b>Comment-Token</b></p>
-        <input type="password" id="commentsTokenInput" placeholder="github_pat_..." value="${commentsConfig.token || ''}" autocomplete="off" />
-        <p><b>Comment-Gist-ID</b></p>
-        <input type="text" id="commentsGistInput" placeholder="abc123..." value="${commentsConfig.gistId || ''}" />
-        <p><b>Dein Anzeigename (als Owner)</b></p>
-        <input type="text" id="commentsOwnerInput" placeholder="Owner" value="${commentsConfig.ownerName || 'Owner'}" />
-        <p class="small">Token und IDs werden nur lokal im Browser gespeichert. Live-Polling alle 60s.</p>
-      `;
-    }, 'Speichern & Aktivieren', async (box)=>{
-      const token = box.querySelector('#commentsTokenInput').value.trim();
-      const gistId = box.querySelector('#commentsGistInput').value.trim();
-      const ownerName = box.querySelector('#commentsOwnerInput').value.trim() || 'Owner';
-      if(!token || !gistId){ alert('Bitte Token und Gist-ID eingeben'); return; }
-      commentsConfig = { token, gistId, ownerName, enabled: true };
-      saveCommentsConfig();
-      closeModal();
-      toast('Kommentare aktiviert, lade...');
-      const ok = await loadComments(true);
-      if(ok){
-        toast('Kommentare aktiviert', 'success');
-        startCommentsPolling();
-      }
-    }, commentsConfig.enabled ? [
-      { label:'Kommentare deaktivieren', danger:true, action:()=>{
-          confirmSingle('Kommentare deaktivieren?',
-            'Kommentar-Sync deaktivieren? Token und Gist-ID werden gelöscht.',
-            'Deaktivieren',
-            ()=>{
-              commentsConfig = { token:null, gistId:null, enabled:false, ownerName:'Owner' };
-              saveCommentsConfig();
-              stopCommentsPolling();
-              comments = [];
-              renderCommentNotes();
-              renderCommentList();
-              updateCommentBadge();
-              renderMinimap();
-              toast('Kommentare deaktiviert');
             });
         }}
     ] : null);
@@ -2193,16 +2459,17 @@
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
   }
 
-  async function githubRequest(token, path, method, body){
+  async function githubRequest(path, method, body){
     const headers = {
       'Accept':'application/vnd.github+json',
-      'Authorization':'Bearer '+token,
+      'Authorization':'Bearer '+syncConfig.token,
       'X-GitHub-Api-Version':'2022-11-28',
     };
     if(body) headers['Content-Type'] = 'application/json';
     const res = await fetch('https://api.github.com'+path, {
       method, headers, body: body ? JSON.stringify(body) : undefined,
     });
+    if(method === 'DELETE' && res.ok) return null;
     if(!res.ok){
       const text = await res.text().catch(()=>'');
       throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
@@ -2210,16 +2477,16 @@
     return res.json();
   }
 
-  async function createGist(dataJson){
-    const gist = await githubRequest(syncConfig.token, '/gists', 'POST', {
-      description: 'Mini Whiteboard Sync',
+  async function createGist(dataJson, boardName){
+    const gist = await githubRequest('/gists', 'POST', {
+      description: 'Mini Whiteboard Sync: ' + boardName,
       public: false,
       files: { 'whiteboard.json': { content: dataJson } }
     });
     return gist.id;
   }
-  async function readGist(){
-    const gist = await githubRequest(syncConfig.token, '/gists/'+syncConfig.gistId, 'GET');
+  async function readGist(gistId){
+    const gist = await githubRequest('/gists/'+gistId, 'GET');
     const file = gist.files && gist.files['whiteboard.json'];
     if(!file) return null;
     let content = file.content;
@@ -2229,34 +2496,35 @@
     }
     return { content, updatedAt: new Date(gist.updated_at).getTime() };
   }
-  async function writeGist(dataJson){
-    await githubRequest(syncConfig.token, '/gists/'+syncConfig.gistId, 'PATCH', {
+  async function writeGist(gistId, dataJson){
+    await githubRequest('/gists/'+gistId, 'PATCH', {
       files: { 'whiteboard.json': { content: dataJson } }
     });
   }
 
-  async function initialSync(){
+  async function initialSyncForActive(){
     if(!syncConfig.enabled) return false;
+    const b = getActiveBoard();
+    if(!b) return false;
     setSyncStatus('syncing','Verbinde...');
     try{
-      if(!syncConfig.gistId){
+      if(!b.gistId){
         const dataJson = JSON.stringify(serializeState(), null, 2);
-        const id = await createGist(dataJson);
-        syncConfig.gistId = id;
-        syncConfig.lastSyncedAt = Date.now();
-        syncConfig.lastSyncedHash = await hashString(dataJson);
-        saveSyncConfig();
-        setSyncStatus('ok', 'Synchronisiert · neuer Gist');
-        toast('Secret Gist erstellt: '+id.slice(0,8)+'...', 'success');
+        const id = await createGist(dataJson, b.name);
+        b.gistId = id;
+        saveBoardsIndex();
+        boardSyncState.lastSyncedAt = Date.now();
+        boardSyncState.lastSyncedHash = await hashString(dataJson);
+        setSyncStatus('ok', 'Synchronisiert');
+        toast('Secret Gist erstellt', 'success');
         return true;
       } else {
-        const remote = await readGist();
+        const remote = await readGist(b.gistId);
         if(!remote){
           const dataJson = JSON.stringify(serializeState(), null, 2);
-          await writeGist(dataJson);
-          syncConfig.lastSyncedAt = Date.now();
-          syncConfig.lastSyncedHash = await hashString(dataJson);
-          saveSyncConfig();
+          await writeGist(b.gistId, dataJson);
+          boardSyncState.lastSyncedAt = Date.now();
+          boardSyncState.lastSyncedHash = await hashString(dataJson);
           setSyncStatus('ok', 'Synchronisiert');
           return true;
         }
@@ -2276,18 +2544,16 @@
             if(!state.view) fitLayoutToView(); else applyView();
             render();
             saveImmediate();
-            syncConfig.lastSyncedAt = Date.now();
-            syncConfig.lastSyncedHash = await hashString(remote.content);
-            saveSyncConfig();
+            boardSyncState.lastSyncedAt = Date.now();
+            boardSyncState.lastSyncedHash = await hashString(remote.content);
             setSyncStatus('ok', 'Von Cloud geladen');
             return true;
           }
         }
         const dataJson = JSON.stringify(serializeState(), null, 2);
-        await writeGist(dataJson);
-        syncConfig.lastSyncedAt = Date.now();
-        syncConfig.lastSyncedHash = await hashString(dataJson);
-        saveSyncConfig();
+        await writeGist(b.gistId, dataJson);
+        boardSyncState.lastSyncedAt = Date.now();
+        boardSyncState.lastSyncedHash = await hashString(dataJson);
         setSyncStatus('ok', 'Synchronisiert');
         return true;
       }
@@ -2304,21 +2570,26 @@
     syncTimer = setTimeout(doSync, SYNC_DEBOUNCE);
   }
   async function doSync(){
-    if(!syncConfig.enabled || !syncConfig.gistId || syncInFlight) return;
+    if(!syncConfig.enabled || syncInFlight) return;
+    const b = getActiveBoard();
+    if(!b) return;
+    if(!b.gistId){
+      // Erster Sync für dieses Board
+      return initialSyncForActive();
+    }
     syncInFlight = true;
     try{
       const dataJson = JSON.stringify(serializeState(), null, 2);
       const hash = await hashString(dataJson);
-      if(hash === syncConfig.lastSyncedHash){
+      if(hash === boardSyncState.lastSyncedHash){
         setSyncStatus('ok', 'Aktuell');
         syncInFlight = false;
         return;
       }
       setSyncStatus('syncing', 'Sende...');
-      await writeGist(dataJson);
-      syncConfig.lastSyncedAt = Date.now();
-      syncConfig.lastSyncedHash = hash;
-      saveSyncConfig();
+      await writeGist(b.gistId, dataJson);
+      boardSyncState.lastSyncedAt = Date.now();
+      boardSyncState.lastSyncedHash = hash;
       setSyncStatus('ok', 'Synchronisiert');
     }catch(err){
       console.error(err);
@@ -2335,13 +2606,15 @@
   }
   async function manualPull(){
     if(!syncConfig.enabled){ openSyncModal(); return; }
-    confirmSingle('Cloud-Version laden?',
+    const b = getActiveBoard();
+    if(!b || !b.gistId){ toast('Kein Cloud-Gist für dieses Board', 'error'); return; }
+    confirmSimple('Cloud-Version laden?',
       'Wirklich Cloud-Version laden? Lokale nicht-synchronisierte Änderungen gehen verloren.',
       'Laden',
       async ()=>{
         setSyncStatus('syncing', 'Lade...');
         try{
-          const remote = await readGist();
+          const remote = await readGist(b.gistId);
           if(!remote){ toast('Cloud leer', 'error'); setSyncStatus('error','Leer'); return; }
           const remoteData = JSON.parse(remote.content);
           pushUndo();
@@ -2353,9 +2626,8 @@
           if(!state.view) fitLayoutToView(); else applyView();
           render();
           saveImmediate();
-          syncConfig.lastSyncedAt = Date.now();
-          syncConfig.lastSyncedHash = await hashString(remote.content);
-          saveSyncConfig();
+          boardSyncState.lastSyncedAt = Date.now();
+          boardSyncState.lastSyncedHash = await hashString(remote.content);
           setSyncStatus('ok', 'Von Cloud geladen');
           toast('Cloud-Version geladen', 'success');
         }catch(err){
@@ -2365,334 +2637,41 @@
       });
   }
 
+  
   setInterval(()=>{
-    if(syncConfig.enabled && syncConfig.gistId && !syncInFlight){
-      doSync();
+    if(syncConfig.enabled && !syncInFlight){
+      const b = getActiveBoard();
+      if(b && b.gistId) doSync();
     }
   }, SYNC_INTERVAL);
-
-  // ========= COMMENTS LOGIC =========
-  async function readCommentsGist(){
-    const res = await fetch('https://api.github.com/gists/'+commentsConfig.gistId, {
-      headers: {
-        'Accept':'application/vnd.github+json',
-        'Authorization':'Bearer '+commentsConfig.token,
-        'X-GitHub-Api-Version':'2022-11-28',
-      }
-    });
-    if(!res.ok){
-      const text = await res.text().catch(()=>'');
-      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
-    }
-    const gist = await res.json();
-    const file = gist.files && gist.files['comments.json'];
-    if(!file) return [];
-    let content = file.content;
-    if(file.truncated && file.raw_url){
-      const r = await fetch(file.raw_url);
-      content = await r.text();
-    }
-    try{
-      const arr = JSON.parse(content);
-      return Array.isArray(arr) ? arr : [];
-    }catch{ return []; }
-  }
-  async function writeCommentsGist(commentsArr){
-    const res = await fetch('https://api.github.com/gists/'+commentsConfig.gistId, {
-      method:'PATCH',
-      headers: {
-        'Accept':'application/vnd.github+json',
-        'Authorization':'Bearer '+commentsConfig.token,
-        'Content-Type':'application/json',
-        'X-GitHub-Api-Version':'2022-11-28',
-      },
-      body: JSON.stringify({
-        files: { 'comments.json': { content: JSON.stringify(commentsArr, null, 2) } }
-      })
-    });
-    if(!res.ok){
-      const text = await res.text().catch(()=>'');
-      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
-    }
-  }
-
-  async function loadComments(showToast){
-    if(!commentsConfig.enabled || commentsInFlight) return false;
-    commentsInFlight = true;
-    try{
-      const arr = await readCommentsGist();
-      const prevCount = comments.length;
-      const prevIds = new Set(comments.map(c=>c.id));
-      comments = arr.map(c => Object.assign({
-        id:'', x:0, y:0, text:'', author:'Anonym', timestamp:Date.now()
-      }, c));
-      comments.sort((a,b)=> (b.timestamp||0) - (a.timestamp||0));
-
-      // Neue Kommentare zählen (seit letztem "gesehen")
-      const newComments = comments.filter(c => (c.timestamp||0) > commentsLastSeen);
-      const newSinceReload = comments.filter(c => !prevIds.has(c.id) && prevCount > 0);
-
-      renderCommentNotes(newSinceReload.map(c=>c.id));
-      renderCommentList();
-      updateCommentBadge();
-      renderMinimap();
-
-      if(showToast){
-        toast(`${comments.length} Kommentar${comments.length===1?'':'e'} geladen`, 'success');
-      } else if(newSinceReload.length > 0){
-        toast(`💬 ${newSinceReload.length} neue${newSinceReload.length===1?'r':''} Kommentar${newSinceReload.length===1?'':'e'}`, 'success');
-      }
-      return true;
-    }catch(err){
-      console.error(err);
-      if(showToast) toast('Kommentare laden fehlgeschlagen: '+err.message, 'error');
-      return false;
-    }finally{
-      commentsInFlight = false;
-    }
-  }
-
-  async function addCommentToGist(newComment){
-    const arr = await readCommentsGist();
-    arr.push(newComment);
-    await writeCommentsGist(arr);
-    comments = arr.map(c => Object.assign({id:'', x:0, y:0, text:'', author:'Anonym', timestamp:Date.now()}, c));
-    comments.sort((a,b)=> (b.timestamp||0) - (a.timestamp||0));
-    renderCommentNotes();
-    renderCommentList();
-    updateCommentBadge();
-    renderMinimap();
-  }
-  async function deleteCommentFromGist(commentId){
-    const arr = await readCommentsGist();
-    const filtered = arr.filter(c=>c.id !== commentId);
-    await writeCommentsGist(filtered);
-    comments = filtered.map(c => Object.assign({id:'', x:0, y:0, text:'', author:'Anonym', timestamp:Date.now()}, c));
-    comments.sort((a,b)=> (b.timestamp||0) - (a.timestamp||0));
-    renderCommentNotes();
-    renderCommentList();
-    updateCommentBadge();
-    renderMinimap();
-  }
-
-  function startCommentsPolling(){
-    stopCommentsPolling();
-    if(!commentsConfig.enabled) return;
-    commentsPollTimer = setInterval(()=>{
-      if(!commentsInFlight) loadComments(false);
-    }, COMMENTS_POLL_INTERVAL);
-  }
-  function stopCommentsPolling(){
-    if(commentsPollTimer){ clearInterval(commentsPollTimer); commentsPollTimer = null; }
-  }
-
-  function updateCommentBadge(){
-    const total = comments.length;
-    const newCount = comments.filter(c => (c.timestamp||0) > commentsLastSeen && c.author !== commentsConfig.ownerName).length;
-    commentCount.textContent = total;
-    commentBadge.textContent = newCount;
-    commentBtn.classList.toggle('has-new', newCount > 0);
-  }
-
-  function renderCommentNotes(newIds){
-    [...board.querySelectorAll('.comment-note')].forEach(n=>n.remove());
-    const newIdSet = new Set(newIds || []);
-    comments.forEach(c=>{
-      const note = document.createElement('div');
-      note.className = 'comment-note';
-      if(c.author === commentsConfig.ownerName) note.classList.add('owner');
-      if(newIdSet.has(c.id)) note.classList.add('new');
-      note.style.left = (c.x - 18) + 'px';
-      note.style.top = (c.y - 18) + 'px';
-      note.textContent = '💬';
-      note.title = `${c.author || 'Anonym'}: ${(c.text||'').slice(0,100)}${(c.text||'').length>100?'...':''}`;
-      note.dataset.id = c.id;
-      note.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        openCommentPanel();
-        highlightCommentInList(c.id);
-      });
-      board.appendChild(note);
-    });
-  }
-
-  function renderCommentList(){
-    if(!comments.length){
-      commentList.innerHTML = '<div class="comment-panel-empty">Keine Kommentare vorhanden</div>';
-      return;
-    }
-    commentList.innerHTML = '';
-    comments.forEach(c=>{
-      const item = document.createElement('div');
-      item.className = 'comment-item';
-      if(c.author === commentsConfig.ownerName) item.classList.add('owner');
-      item.dataset.id = c.id;
-      const d = new Date(c.timestamp || Date.now());
-      const isOwner = c.author === commentsConfig.ownerName;
-      item.innerHTML = `
-        <button class="delete-btn" title="Löschen">🗑</button>
-        <div class="author">${escapeHtml(c.author || 'Anonym')}${isOwner ? ' <span class="owner-badge">OWNER</span>' : ''}</div>
-        <div class="timestamp">${d.toLocaleString()}</div>
-        <div class="text">${escapeHtml(c.text || '')}</div>
-      `;
-      item.addEventListener('click', (e)=>{
-        if(e.target.closest('.delete-btn')) return;
-        centerOnPoint(c.x, c.y);
-        const note = board.querySelector(`.comment-note[data-id="${c.id}"]`);
-        if(note){
-          note.classList.remove('new');
-          void note.offsetWidth;
-          note.classList.add('new');
-        }
-      });
-      item.querySelector('.delete-btn').addEventListener('click', (e)=>{
-        e.stopPropagation();
-        confirmSingle(
-          'Kommentar löschen?',
-          `Kommentar von <b>${escapeHtml(c.author||'Anonym')}</b> wirklich löschen?<br><i>"${escapeHtml((c.text||'').slice(0,80))}${(c.text||'').length>80?'...':''}"</i>`,
-          'Löschen',
-          async ()=>{
-            try{
-              await deleteCommentFromGist(c.id);
-              toast('Kommentar gelöscht', 'success');
-            }catch(err){
-              toast('Löschen fehlgeschlagen: '+err.message, 'error');
-            }
-          }
-        );
-      });
-      commentList.appendChild(item);
-    });
-  }
-
-  function highlightCommentInList(id){
-    const items = commentList.querySelectorAll('.comment-item');
-    items.forEach(it=>{
-      if(it.dataset.id === id){
-        it.style.background = '#fff4c4';
-        it.scrollIntoView({behavior:'smooth', block:'center'});
-        setTimeout(()=>{ it.style.background = ''; }, 2000);
-      }
-    });
-  }
-
-  function openCommentPanel(){
-    commentPanel.classList.add('open');
-    commentsLastSeen = Date.now();
-    saveCommentsLastSeen();
-    updateCommentBadge();
-    renderCommentNotes();
-  }
-  function closeCommentPanel(){
-    commentPanel.classList.remove('open');
-  }
-
-  commentBtn.addEventListener('click', ()=>{
-    if(!commentsConfig.enabled){
-      openCommentsModal();
-      return;
-    }
-    if(commentPanel.classList.contains('open')) closeCommentPanel();
-    else openCommentPanel();
-  });
-  closeCommentsBtn.addEventListener('click', closeCommentPanel);
-  refreshCommentsBtn.addEventListener('click', ()=> loadComments(true));
-
-  addCommentBtn.addEventListener('click', ()=>{
-    if(!commentsConfig.enabled){
-      openCommentsModal();
-      return;
-    }
-    closeCommentPanel();
-    startPlacingComment();
-  });
-
-  function startPlacingComment(){
-    placingComment = true;
-    viewport.classList.add('placing-comment');
-    const banner = document.createElement('div');
-    banner.className = 'comment-placing-banner';
-    banner.id = 'placingBanner';
-    banner.innerHTML = `📌 Klicke auf eine Stelle, um deinen Kommentar zu platzieren. <button id="cancelPlacing">Abbrechen</button>`;
-    document.body.appendChild(banner);
-    document.getElementById('cancelPlacing').addEventListener('click', stopPlacingComment);
-  }
-  function stopPlacingComment(){
-    placingComment = false;
-    viewport.classList.remove('placing-comment');
-    const banner = document.getElementById('placingBanner');
-    if(banner) banner.remove();
-  }
-
-  function openCommentCreateDialog(x, y){
-    showModal('Kommentar hinzufügen', (body)=>{
-      body.innerHTML = `
-        <p>An Position <code>(${Math.round(x)}, ${Math.round(y)})</code></p>
-        <p><b>Dein Kommentar</b> (max. ${COMMENT_MAX_LEN} Zeichen)</p>
-        <textarea id="commentTextInput" style="width:100%;min-height:100px;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical" maxlength="${COMMENT_MAX_LEN}" placeholder="Dein Kommentar..."></textarea>
-        <p class="small">Du schreibst als <b>${escapeHtml(commentsConfig.ownerName)}</b> (Owner-Markierung).</p>
-      `;
-      setTimeout(()=>{ const ta = body.querySelector('#commentTextInput'); if(ta) ta.focus(); }, 50);
-    }, 'Kommentar speichern', async (box)=>{
-      const text = box.querySelector('#commentTextInput').value.trim();
-      if(!text){ alert('Bitte Text eingeben'); return; }
-      closeModal();
-      const newComment = {
-        id: 'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
-        x: Math.round(x),
-        y: Math.round(y),
-        text,
-        author: commentsConfig.ownerName,
-        timestamp: Date.now(),
-      };
-      try{
-        toast('Kommentar wird gespeichert...');
-        await addCommentToGist(newComment);
-        toast('Kommentar hinzugefügt', 'success');
-      }catch(err){
-        toast('Speichern fehlgeschlagen: '+err.message, 'error');
-      }
-    });
-  }
+  
 
   // ========= INIT =========
+  state = loadActiveBoardState();
+  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+  if(!state.view) fitLayoutToView(); else applyView();
+
   if(state.cards.length === 0){
-    const zones = [
-      { zone:'value_proposition', title:'Value Proposition', x: LAYOUT_OFFSET_X + 1159, y: LAYOUT_OFFSET_Y + 180 },
-      { zone:'market_risks',      title:'Market Risk',       x: LAYOUT_OFFSET_X + 300,  y: LAYOUT_OFFSET_Y + 350 },
-      { zone:'competition',       title:'Competitor',        x: LAYOUT_OFFSET_X + 700,  y: LAYOUT_OFFSET_Y + 560 },
-      { zone:'customers',         title:'Customer Segment',  x: LAYOUT_OFFSET_X + 1159, y: LAYOUT_OFFSET_Y + 850 },
-      { zone:'influencer',        title:'Influencer',        x: LAYOUT_OFFSET_X + 1640, y: LAYOUT_OFFSET_Y + 560 },
-    ];
-    zones.forEach(z => {
-      createCard({ x: z.x, y: z.y, color: ZONE_COLORS[z.zone] || COLORS[0].bg, title: z.title, details:'' });
-    });
+    initZoneTemplate();
+    render();
+    saveImmediate();
   } else {
     render();
   }
-
-  window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
   updateUndoButtons();
 
   if(syncConfig.enabled && syncConfig.token){
     setSyncStatus('syncing', 'Verbinde...');
-    initialSync();
+    initialSyncForActive();
   } else {
     setSyncStatus('off', 'Offline (Sync aus)');
   }
 
-  if(commentsConfig.enabled){
-    loadComments(false).then(ok => {
-      if(ok) startCommentsPolling();
-    });
-  }
+  window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
 
-  updateCommentBadge();
-
-  console.log('Whiteboard v16 initialisiert', {
-    cards: state.cards.length, links: state.links.length,
+  console.log('Whiteboard v15 Multi-Board initialisiert', {
+    boards: boardsIndex ? boardsIndex.boards.length : 0,
     sync: syncConfig.enabled,
-    comments: commentsConfig.enabled,
   });
 
   } catch (err) {

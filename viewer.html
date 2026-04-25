@@ -351,8 +351,12 @@
       el.appendChild(title); el.appendChild(details);
     }
 
-    el.addEventListener('mouseenter', ()=> highlightCard(card.id));
-    el.addEventListener('mouseleave', clearHighlight);
+      el.addEventListener('mouseenter', ()=> { if(!pinned) highlightCard(card.id); });
+      el.addEventListener('mouseleave', ()=> { if(!pinned) clearHighlight(); });
+      el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      pinCard(card.id);
+    });
     board.appendChild(el);
     
     // Auto Font Scale
@@ -382,8 +386,12 @@
       path.setAttribute('class','link'); path.setAttribute('d', d);
       path.dataset.a = l.a; path.dataset.b = l.b;
 
-      hit.addEventListener('mouseenter', ()=> highlightLink(l));
-      hit.addEventListener('mouseleave', clearHighlight);
+hit.addEventListener('mouseenter', ()=> { if(!pinned) highlightLink(l); });
+      hit.addEventListener('mouseleave', ()=> { if(!pinned) clearHighlight(); });
+      hit.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        pinLink(l);
+      });
 
       g.appendChild(hit); g.appendChild(path);
       svg.appendChild(g);
@@ -421,38 +429,90 @@
     [...board.querySelectorAll('.card')].forEach(n=>n.remove());
     if(state.cards) state.cards.forEach(renderCard);
     renderLinks();
-    setTimeout(renderMinimap, 50); // warten bis DOM gerendert ist
+    setTimeout(()=>{ renderMinimap(); }, 50);
+
+    // Falls gepinntes Element nicht mehr existiert, lösen
+    if(pinned){
+      if(pinned.type === 'card' && !state.cards.some(c=>c.id===pinned.id)){
+        pinned = null;
+      } else if(pinned.type === 'link' &&
+        !state.links.some(l => l.a===pinned.a && l.b===pinned.b)){
+        pinned = null;
+      }
+    }
+    applyPinned();
   }
 
-  // Hover Highlights
+    // Highlights (Hover + Pinned via Click)
+  let pinned = null; // {type:'card', id} | {type:'link', a, b} | null
+
+  function applyCardHighlight(activeIds){
+    document.querySelectorAll('.card').forEach(el=>{
+      const cid = +el.dataset.id;
+      const on = activeIds.has(cid);
+      el.classList.toggle('hi', on);
+      el.classList.toggle('dim', !on);
+    });
+  }
+  function applyLinkHighlight(predicate){
+    svg.querySelectorAll('path.link').forEach(p=>{
+      const on = predicate(+p.dataset.a, +p.dataset.b);
+      p.classList.toggle('hi', on);
+      p.classList.toggle('dim', !on);
+    });
+  }
+
   function highlightCard(id){
     const connected = new Set([id]);
     state.links.forEach(l=>{ if(l.a===id) connected.add(l.b); if(l.b===id) connected.add(l.a); });
-    document.querySelectorAll('.card').forEach(el=>{
-      const cid = +el.dataset.id;
-      el.classList.toggle('hi', connected.has(cid));
-      el.classList.toggle('dim', !connected.has(cid));
-    });
-    svg.querySelectorAll('path.link').forEach(p=>{
-      const touches = +p.dataset.a===id || +p.dataset.b===id;
-      p.classList.toggle('hi', touches); p.classList.toggle('dim', !touches);
-    });
+    applyCardHighlight(connected);
+    applyLinkHighlight((a,b)=> a===id || b===id);
   }
   function highlightLink(l){
-    document.querySelectorAll('.card').forEach(el=>{
-      const cid = +el.dataset.id;
-      const on = cid===l.a || cid===l.b;
-      el.classList.toggle('hi', on); el.classList.toggle('dim', !on);
-    });
-    svg.querySelectorAll('path.link').forEach(p=>{
-      const on = (+p.dataset.a===l.a && +p.dataset.b===l.b);
-      p.classList.toggle('hi', on); p.classList.toggle('dim', !on);
-    });
+    applyCardHighlight(new Set([l.a, l.b]));
+    applyLinkHighlight((a,b)=> a===l.a && b===l.b);
   }
   function clearHighlight(){
     document.querySelectorAll('.card').forEach(el=>el.classList.remove('hi','dim'));
     svg.querySelectorAll('path.link').forEach(p=>p.classList.remove('hi','dim'));
   }
+
+  // Wendet das aktuell gepinnte Highlight (falls vorhanden) wieder an
+  function applyPinned(){
+    if(!pinned){ clearHighlight(); return; }
+    if(pinned.type === 'card') highlightCard(pinned.id);
+    else if(pinned.type === 'link') highlightLink({a: pinned.a, b: pinned.b});
+  }
+
+  function pinCard(id){
+    pinned = { type:'card', id };
+    highlightCard(id);
+  }
+  function pinLink(l){
+    pinned = { type:'link', a:l.a, b:l.b };
+    highlightLink(l);
+  }
+  function unpin(){
+    pinned = null;
+    clearHighlight();
+  }
+
+function clearHighlight(){
+    document.querySelectorAll('.card').forEach(el=>el.classList.remove('hi','dim'));
+    svg.querySelectorAll('path.link').forEach(p=>p.classList.remove('hi','dim'));
+  }
+
+  // Klick ins Leere = Highlight lösen
+  viewport.addEventListener('click', (e)=>{
+    if(e.target === viewport || e.target === board || e.target === bgLayout || e.target === svg){
+      if(pinned) unpin();
+    }
+  });
+
+  // Esc löst Highlight ebenfalls
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && pinned) unpin();
+  });
 
   // Start
   loadData();

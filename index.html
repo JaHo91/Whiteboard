@@ -1464,7 +1464,9 @@ body.link-selected .card .anchor{
         updateLinks(); renderMinimap(); save();
       }
     } else if(willDelete){
-      confirmDeleteLink(link);
+      pushUndo();
+               deleteLink(link);
+               toast('Verbindung gelöscht');
     }
     cleanupEndpointDrag();
   });
@@ -1742,7 +1744,11 @@ body.link-selected .card .anchor{
       ...sides.map(s => ({ icon: link.sideB===s ? '●' : '○', label: 'Seite '+sideLabels[s],
         action: ()=>{ pushUndo(); link.sideB = s; updateLinks(); renderMinimap(); save(); } })),
       { sep:true },
-      { icon:'🗑', label:'Verbindung löschen...', danger:true, action:()=>confirmDeleteLink(link) }
+      { icon:'🗑', label:'Verbindung löschen', danger:true, action:()=>{
+                    pushUndo();
+  		   deleteLink(link);
+    		  toast('Verbindung gelöscht');
+ 		  }}
     ]);
   }
   function showCardMenu(x, y, card){

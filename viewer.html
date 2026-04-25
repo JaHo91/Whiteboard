@@ -343,7 +343,13 @@
       }
       el.appendChild(wrap);
     } else {
-      if(card.autoH){ el.style.height = 'auto'; } else if(card.h){ el.style.height = card.h+'px'; }
+      // Höhe: autoH oder fehlende Höhe → automatisch an Inhalt anpassen
+      if(card.autoH || !card.h){
+        el.style.height = 'auto';
+      } else {
+        el.style.height = card.h + 'px';
+        el.style.minHeight = card.h + 'px';
+      }
       const title = document.createElement('div');
       title.className = 'title'; title.style.background = card.color; title.textContent = card.title;
       const details = document.createElement('div');
@@ -359,10 +365,10 @@
     });
     board.appendChild(el);
     
-    // Auto Font Scale
+    // Auto Font Scale: nur an Breite koppeln, damit auto-Höhe nicht die Schrift staucht
     setTimeout(() => {
-      const w = el.offsetWidth, h = el.offsetHeight;
-      const s = Math.max(0.5, Math.min(1.6, Math.min(w/CARD_REF_W, h/CARD_REF_H)));
+      const w = el.offsetWidth;
+      const s = Math.max(0.7, Math.min(1.6, w / CARD_REF_W));
       el.style.setProperty('--card-font-scale', s.toFixed(3));
     }, 0);
   }
@@ -425,11 +431,16 @@ hit.addEventListener('mouseenter', ()=> { if(!pinned) highlightLink(l); });
     minimapSvg.innerHTML = html;
   }
 
-  function render(){
+function render(){
     [...board.querySelectorAll('.card')].forEach(n=>n.remove());
     if(state.cards) state.cards.forEach(renderCard);
     renderLinks();
-    setTimeout(()=>{ renderMinimap(); }, 50);
+
+    // Nach Layout: Linien neu zeichnen (Karten kennen jetzt ihre echte Höhe)
+    requestAnimationFrame(() => {
+      renderLinks();
+      renderMinimap();
+    });
 
     // Falls gepinntes Element nicht mehr existiert, lösen
     if(pinned){

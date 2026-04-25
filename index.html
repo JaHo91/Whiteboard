@@ -1013,6 +1013,15 @@ body.link-selected .card .anchor{
     updateCardFontScale(cardEl);
   }
 
+function readEditableText(el){
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+  clone.querySelectorAll('div, p').forEach((block, i) => {
+    if(i > 0) block.prepend('\n');
+  });
+  return clone.textContent;
+}
+
   function renderCard(card){
     const el = document.createElement('div');
     el.className = 'card' + (card.image ? ' image-card' : '');
@@ -1116,7 +1125,7 @@ body.link-selected .card .anchor{
       });
       details.addEventListener('blur', ()=>{
         el.classList.remove('editing');
-        const newDetails = details.textContent;
+	const newDetails = readEditableText(details);
         if(detailsBeforeEdit !== null && newDetails !== detailsBeforeEdit){
           card.details = detailsBeforeEdit;
           pushUndo();
@@ -1129,12 +1138,18 @@ body.link-selected .card .anchor{
         save();
       });
       details.addEventListener('input', ()=>{
-        card.details = details.textContent;
+        card.details = readEditableText(details);
         autoResizeCard(card, el);
         updateLinks();
       });
       details.addEventListener('mousedown', (e)=>e.stopPropagation());
-      details.addEventListener('keydown', (e)=>e.stopPropagation());
+      details.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    document.execCommand('insertLineBreak');
+  }
+  e.stopPropagation();
+});
       
 
       el.appendChild(title);

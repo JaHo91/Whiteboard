@@ -391,6 +391,8 @@ body.link-selected .card .anchor{
   const LEGACY_HISTORY_KEY = 'mini_whiteboard_v13_history';
   const SYNC_KEY = 'mini_whiteboard_sync_v2';
   const LEGACY_SYNC_KEY = 'mini_whiteboard_v13_sync';
+  const INDEX_GIST_KEY = 'mini_whiteboard_index_gist_v1';
+  const INDEX_FILENAME = 'whiteboard-index.json';
 
   const AUTOSAVE_INTERVAL = 3000;
   const HISTORY_INTERVAL = 60000;
@@ -596,19 +598,22 @@ body.link-selected .card .anchor{
     toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2500);
   }
 
-  // ========= SYNC CONFIG =========
-  function loadSyncConfig(){
-    try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
-    catch{ return null; }
-  }
-  function saveSyncConfig(){
-    try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
-  }
-  let syncConfig = loadSyncConfig() || {
-    token: null, enabled: false,
-  };
-  // Pro-Board Sync-Status (In-Memory)
-  let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+// ========= SYNC CONFIG =========
+function loadSyncConfig(){
+  try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
+  catch{ return null; }
+}
+function saveSyncConfig(){
+  try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
+}
+let syncConfig = loadSyncConfig() || {
+  token: null, enabled: false, indexGistId: null,
+};
+// Sicherstellen, dass indexGistId existiert (für Migration alter Configs)
+if(syncConfig.indexGistId === undefined) syncConfig.indexGistId = null;
+
+// Pro-Board Sync-Status (In-Memory)
+let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
 
   // ========= UNDO/REDO =========
   function cloneState(){
@@ -1916,24 +1921,26 @@ function readEditableText(el){
     });
   }
 
-  function createNewBoard(name){
-    const id = newBoardId();
-    const b = { id, name, gistId:null, publicGistId:null, createdAt:Date.now() };
-    boardsIndex.boards.push(b);
-    boardsIndex.activeId = id;
-    saveBoardsIndex();
-    // Initial state mit Zonen-Vorlage
-    state = defaultState();
-    initZoneTemplate();
-    saveImmediate();
-    undoStack = []; redoStack = []; updateUndoButtons();
-    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
-    updateBoardSwitcherUI();
-    fitLayoutToView();
-    render();
-    toast('Board "'+name+'" erstellt', 'success');
-    if(syncConfig.enabled) scheduleSync();
+function createNewBoard(name){
+  const id = newBoardId();
+  const b = { id, name, gistId:null, publicGistId:null, createdAt:Date.now() };
+  boardsIndex.boards.push(b);
+  boardsIndex.activeId = id;
+  saveBoardsIndex();
+  state = defaultState();
+  initZoneTemplate();
+  saveImmediate();
+  undoStack = []; redoStack = []; updateUndoButtons();
+  boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+  updateBoardSwitcherUI();
+  fitLayoutToView();
+  render();
+  toast('Board "'+name+'" erstellt', 'success');
+  if(syncConfig.enabled){
+    scheduleSync();
+    scheduleIndexPush();
   }
+}
 
   function switchBoard(id){
     const b = boardsIndex.boards.find(x => x.id === id);
@@ -1985,8 +1992,9 @@ function readEditableText(el){
       updateBoardSwitcherUI();
       closeModal();
       toast('Umbenannt zu "'+name+'"');
-      if(b.id === boardsIndex.activeId && syncConfig.enabled){
-        scheduleSync();
+if(syncConfig.enabled){
+  scheduleIndexPush();
+  if(b.id === boardsIndex.activeId) scheduleSync();
       }
     });
   }
@@ -2013,7 +2021,9 @@ function readEditableText(el){
     if(!state.view) fitLayoutToView(); else applyView();
     render();
     toast('Board dupliziert');
-    if(syncConfig.enabled) scheduleSync();
+    if(syncConfig.enabled){
+  scheduleSync();
+  scheduleIndexPush();
   }
 
   function confirmDeleteBoard(id){
@@ -2028,19 +2038,31 @@ function readEditableText(el){
       'Board löschen?',
       `Das Board <b>"${escapeHtml(b.name)}"</b> inkl. aller Karten und Verbindungen wird lokal gelöscht.${syncWarn}`,
       'Löschen',
-      async ()=>{
-        try{
-          localStorage.removeItem(BOARD_PREFIX + id);
-          localStorage.removeItem(BACKUP_PREFIX + id);
-          localStorage.removeItem(HISTORY_PREFIX + id);
-        }catch{}
-        boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
-        if(boardsIndex.activeId === id){
-          boardsIndex.activeId = boardsIndex.boards[0].id;
-        }
-        saveBoardsIndex();
-        switchBoard(boardsIndex.activeId);
-        toast('Board gelöscht');
+async ( )=>{
+  // Vor lokalem Löschen: Tombstone in Cloud setzen
+  const boardToDelete = boardsIndex.boards.find(x => x.id === id);
+  if(boardToDelete) boardToDelete.deletedAt = Date.now();
+
+  try{
+    localStorage.removeItem(BOARD_PREFIX + id);
+    localStorage.removeItem(BACKUP_PREFIX + id);
+    localStorage.removeItem(HISTORY_PREFIX + id);
+  }catch{}
+
+  // Optional: Board-Gist auch in Cloud löschen
+  if(boardToDelete && boardToDelete.gistId && syncConfig.enabled){
+    try{ await githubRequest('/gists/' + boardToDelete.gistId, 'DELETE'); }
+    catch(err){ console.warn('Board-Gist delete failed', err); }
+  }
+
+  boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
+  if(boardsIndex.activeId === id){
+    boardsIndex.activeId = boardsIndex.boards[0].id;
+  }
+  saveBoardsIndex();
+  if(syncConfig.enabled) await pushIndexToCloud();
+  switchBoard(boardsIndex.activeId);
+  toast('Board gelöscht');
       }
     );
   }
@@ -2092,11 +2114,24 @@ function readEditableText(el){
         action:()=> openSyncModal() },
     ];
     if(syncConfig.enabled){
-      items.push(
-        { icon:'⟳', label:'Jetzt synchronisieren', action:()=> manualSync() },
-        { icon:'↓', label:'Vom Cloud laden (überschreibt lokal)', action:()=> manualPull() },
-      );
-    }
+if(syncConfig.enabled){
+  items.push(
+    { icon:'⟳', label:'Jetzt synchronisieren', action:()=> manualSync() },
+    { icon:'↓', label:'Vom Cloud laden (überschreibt lokal)', action:()=> manualPull() },
+    { icon:'🔄', label:'Board-Liste aktualisieren', action: async ()=> {
+        setSyncStatus('syncing','Lade Index...');
+        try {
+          const changed = await pullIndexFromCloud();
+          updateBoardSwitcherUI();
+          setSyncStatus('ok', changed ? 'Index aktualisiert' : 'Index aktuell');
+          toast(changed ? 'Board-Liste aktualisiert' : 'Bereits aktuell', 'success');
+        } catch(err) {
+          setSyncStatus('error','Fehler');
+          toast('Index-Pull fehlgeschlagen: '+err.message, 'error');
+        }
+      }},
+  );
+}
     items.push(
       { sep:true },
         { head:'Teilen' },
@@ -2470,15 +2505,23 @@ function readEditableText(el){
         ${syncConfig.enabled ? `<p class="small">✓ Aktuell aktiv. ${boardsIndex.boards.filter(b=>b.gistId).length} von ${boardsIndex.boards.length} Boards synchronisiert.</p>` : ''}
       `;
     }, 'Speichern & Aktivieren', async (box)=>{
-      const token = box.querySelector('#syncTokenInput').value.trim();
-      if(!token){ alert('Bitte Token eingeben'); return; }
-      syncConfig.token = token;
-      syncConfig.enabled = true;
-      saveSyncConfig();
-      closeModal();
-      toast('Sync aktiviert, prüfe Verbindung...');
-      const ok = await initialSyncForActive();
-      if(ok) toast('Sync eingerichtet', 'success');
+  const token = box.querySelector('#syncTokenInput').value.trim();
+  if(!token){ alert('Bitte Token eingeben'); return; }
+  syncConfig.token = token;
+  syncConfig.enabled = true;
+  saveSyncConfig();
+  closeModal();
+  toast('Sync aktiviert, prüfe Verbindung...');
+  setSyncStatus('syncing', 'Initialisiere Index...');
+  try {
+    await syncIndexWithCloud();
+    updateBoardSwitcherUI();
+    const ok = await initialSyncForActive();
+    if(ok) toast('Sync eingerichtet', 'success');
+  } catch(err) {
+    setSyncStatus('error', 'Index-Fehler');
+    toast('Sync-Fehler: '+err.message, 'error');
+  
     }, syncConfig.enabled ? [
       { label:'Sync deaktivieren', danger:true, action:()=>{
           confirmSimple('Sync deaktivieren?',
@@ -2626,6 +2669,176 @@ function readEditableText(el){
     });
   }
 
+// ========= INDEX GIST SYNC =========
+function serializeBoardsIndex(){
+  return {
+    version: 1,
+    lastModified: Date.now(),
+    boards: boardsIndex.boards.map(b => ({
+      id: b.id,
+      name: b.name,
+      gistId: b.gistId || null,
+      createdAt: b.createdAt || Date.now(),
+      deletedAt: b.deletedAt || null,
+    })),
+  };
+}
+
+async function findOrCreateIndexGist(){
+  // Falls bereits bekannt: zurückgeben
+  if(syncConfig.indexGistId) return syncConfig.indexGistId;
+
+  // Discovery: Eigene Gists durchsuchen
+  try{
+    const gists = await githubRequest('/gists?per_page=100', 'GET');
+    const found = gists.find(g =>
+      g.description === 'Mini Whiteboard Index' &&
+      g.files && g.files[INDEX_FILENAME]
+    );
+    if(found){
+      syncConfig.indexGistId = found.id;
+      saveSyncConfig();
+      return found.id;
+    }
+  }catch(err){
+    console.warn('Gist discovery failed', err);
+  }
+
+  // Neu erstellen
+  const indexData = serializeBoardsIndex();
+  const gist = await githubRequest('/gists', 'POST', {
+    description: 'Mini Whiteboard Index',
+    public: false,
+    files: { [INDEX_FILENAME]: { content: JSON.stringify(indexData, null, 2) } }
+  });
+  syncConfig.indexGistId = gist.id;
+  saveSyncConfig();
+  return gist.id;
+}
+
+async function loadIndexFromCloud(){
+  if(!syncConfig.enabled || !syncConfig.token) return null;
+  try{
+    const indexId = await findOrCreateIndexGist();
+    const gist = await githubRequest('/gists/'+indexId, 'GET');
+    const file = gist.files && gist.files[INDEX_FILENAME];
+    if(!file) return null;
+    let content = file.content;
+    if(file.truncated && file.raw_url){
+      const res = await fetch(file.raw_url);
+      content = await res.text();
+    }
+    return JSON.parse(content);
+  }catch(err){
+    console.warn('Index load failed', err);
+    return null;
+  }
+}
+
+async function pushIndexToCloud(){
+  if(!syncConfig.enabled || !syncConfig.token) return;
+  try{
+    const indexId = await findOrCreateIndexGist();
+    const indexData = serializeBoardsIndex();
+    await githubRequest('/gists/'+indexId, 'PATCH', {
+      files: { [INDEX_FILENAME]: { content: JSON.stringify(indexData, null, 2) } }
+    });
+  }catch(err){
+    console.warn('Index push failed', err);
+    toast('Index-Sync fehlgeschlagen', 'error');
+  }
+}
+
+// Debounced Index-Push
+let indexPushTimer = null;
+function scheduleIndexPush(){
+  if(!syncConfig.enabled) return;
+  if(indexPushTimer) clearTimeout(indexPushTimer);
+  indexPushTimer = setTimeout(pushIndexToCloud, 2000);
+}
+
+// Merge: Cloud-Index mit lokalem mergen
+async function mergeIndexFromCloud(){
+  const cloudIndex = await loadIndexFromCloud();
+  if(!cloudIndex || !Array.isArray(cloudIndex.boards)){
+    // Kein Cloud-Index: lokalen hochladen
+    await pushIndexToCloud();
+    return false;
+  }
+
+  const localById = new Map(boardsIndex.boards.map(b => [b.id, b]));
+  const cloudById = new Map(cloudIndex.boards.map(b => [b.id, b]));
+  const mergedById = new Map();
+  let changed = false;
+
+  // 1. Cloud-Boards übernehmen (auch neue, die lokal fehlen)
+  cloudById.forEach((cloudBoard, id) => {
+    if(cloudBoard.deletedAt){
+      // In Cloud gelöscht: lokal nicht hinzufügen, lokale Daten ggf. entfernen
+      if(localById.has(id)){
+        try{
+          localStorage.removeItem(BOARD_PREFIX + id);
+          localStorage.removeItem(BACKUP_PREFIX + id);
+          localStorage.removeItem(HISTORY_PREFIX + id);
+        }catch{}
+        changed = true;
+      }
+      return;
+    }
+    const local = localById.get(id);
+    if(!local){
+      // Neu aus Cloud: hinzufügen
+      mergedById.set(id, {
+        id: cloudBoard.id,
+        name: cloudBoard.name,
+        gistId: cloudBoard.gistId || null,
+        publicGistId: null,
+        createdAt: cloudBoard.createdAt || Date.now(),
+      });
+      changed = true;
+    } else {
+      // Beide kennen das Board: Cloud-Werte für Name/GistId nehmen, falls Cloud neuer ist
+      // Vereinfacht: Cloud-Name + Cloud-GistId, lokale Daten bleiben
+      const merged = Object.assign({}, local);
+      if(cloudBoard.name && cloudBoard.name !== local.name){ merged.name = cloudBoard.name; changed = true; }
+      if(cloudBoard.gistId && cloudBoard.gistId !== local.gistId){ merged.gistId = cloudBoard.gistId; changed = true; }
+      mergedById.set(id, merged);
+    }
+  });
+
+  // 2. Lokale Boards, die nicht in Cloud sind: behalten und nach oben pushen
+  localById.forEach((localBoard, id) => {
+    if(!cloudById.has(id)){
+      mergedById.set(id, localBoard);
+      changed = true; // Index muss aktualisiert werden
+    }
+  });
+
+  if(mergedById.size === 0){
+    // Edge case: alles gelöscht. Default-Board anlegen.
+    const fallbackId = newBoardId();
+    mergedById.set(fallbackId, {
+      id: fallbackId, name:'Whiteboard 1', gistId:null, publicGistId:null, createdAt:Date.now()
+    });
+    changed = true;
+  }
+
+  boardsIndex.boards = Array.from(mergedById.values());
+
+  // Aktives Board prüfen
+  if(!boardsIndex.boards.find(b => b.id === boardsIndex.activeId)){
+    boardsIndex.activeId = boardsIndex.boards[0].id;
+    changed = true;
+  }
+
+  saveBoardsIndex();
+  if(changed){
+    await pushIndexToCloud();
+    updateBoardSwitcherUI();
+  }
+  return changed;
+}
+
   async function initialSyncForActive(){
     if(!syncConfig.enabled) return false;
     const b = getActiveBoard();
@@ -2771,38 +2984,68 @@ function readEditableText(el){
   
 
   // ========= INIT =========
-  state = loadActiveBoardState();
-  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
-  if(!state.view) fitLayoutToView(); else applyView();
+state = loadActiveBoardState();
+state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+if(!state.view) fitLayoutToView(); else applyView();
 
-  if(state.cards.length === 0){
-    initZoneTemplate();
-    render();
-    saveImmediate();
-  } else {
-    render();
-  }
-  updateUndoButtons();
+if(state.cards.length === 0){
+  initZoneTemplate();
+  render();
+  saveImmediate();
+} else {
+  render();
+}
+updateUndoButtons();
 
-  if(syncConfig.enabled && syncConfig.token){
-    setSyncStatus('syncing', 'Verbinde...');
-    initialSyncForActive();
-  } else {
-    setSyncStatus('off', 'Offline (Sync aus)');
-  }
+if(syncConfig.enabled && syncConfig.token){
+  setSyncStatus('syncing', 'Verbinde...');
+  // Erst Index aus Cloud holen, dann aktives Board syncen
+  (async () => {
+    const indexChanged = await pullIndexFromCloud();
+    if(indexChanged){
+      // Aktives Board könnte jetzt anders sein (oder gelöscht)
+      const active = getActiveBoard();
+      if(!active && boardsIndex.boards.length > 0){
+        boardsIndex.activeId = boardsIndex.boards[0].id;
+        saveBoardsIndex();
+      }
+      // State neu laden (falls aktives Board gewechselt wurde)
+      state = loadActiveBoardState();
+      state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+      if(!state.view) fitLayoutToView(); else applyView();
+      render();
+      updateBoardSwitcherUI();
+    }
+    await initialSyncForActive();
+  })();
+} else {
+  setSyncStatus('off', 'Offline (Sync aus)');
+}
 
-  window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
+window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
 
-  console.log('Whiteboard v15 Multi-Board initialisiert', {
-    boards: boardsIndex ? boardsIndex.boards.length : 0,
-    sync: syncConfig.enabled,
-  });
+// Periodischer Index-Pull (alle 60s), damit neue Boards von anderen Geräten erscheinen
+setInterval(async () => {
+  if(!syncConfig.enabled || syncInFlight) return;
+  try {
+    const changed = await pullIndexFromCloud();
+    if(changed){
+      updateBoardSwitcherUI();
+      toast('Board-Liste aktualisiert');
+    }
+  } catch(err){ console.warn('periodic index pull failed', err); }
+}, 60000);
 
-  } catch (err) {
-    console.error('Whiteboard Init-Fehler:', err);
-    alert('Fehler beim Start: ' + err.message);
-  }
-})();
+console.log('Whiteboard v15 Multi-Board initialisiert', {
+  boards: boardsIndex ? boardsIndex.boards.length : 0,
+  sync: syncConfig.enabled,
+});
+
+} catch (err) {
+  console.error('Whiteboard Init-Fehler:', err);
+  alert('Fehler beim Start: ' + err.message);
+}
+})( );
 </script>
 </body>
 </html>

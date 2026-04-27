@@ -1999,7 +1999,7 @@ if(syncConfig.enabled){
     });
   }
 
-  function duplicateBoard(id){
+   function duplicateBoard(id){
     const srcBoard = boardsIndex.boards.find(x => x.id === id);
     if(!srcBoard) return;
     const srcKey = BOARD_PREFIX + id;
@@ -2022,8 +2022,9 @@ if(syncConfig.enabled){
     render();
     toast('Board dupliziert');
     if(syncConfig.enabled){
-  scheduleSync();
-  scheduleIndexPush();
+      scheduleSync();
+      scheduleIndexPush();
+    }
   }
 
   function confirmDeleteBoard(id){
@@ -2038,31 +2039,31 @@ if(syncConfig.enabled){
       'Board löschen?',
       `Das Board <b>"${escapeHtml(b.name)}"</b> inkl. aller Karten und Verbindungen wird lokal gelöscht.${syncWarn}`,
       'Löschen',
-async ( )=>{
-  // Vor lokalem Löschen: Tombstone in Cloud setzen
-  const boardToDelete = boardsIndex.boards.find(x => x.id === id);
-  if(boardToDelete) boardToDelete.deletedAt = Date.now();
+      async ( )=>{
+        // Vor lokalem Löschen: Tombstone in Cloud setzen
+        const boardToDelete = boardsIndex.boards.find(x => x.id === id);
+        if(boardToDelete) boardToDelete.deletedAt = Date.now();
 
-  try{
-    localStorage.removeItem(BOARD_PREFIX + id);
-    localStorage.removeItem(BACKUP_PREFIX + id);
-    localStorage.removeItem(HISTORY_PREFIX + id);
-  }catch{}
+        try{
+          localStorage.removeItem(BOARD_PREFIX + id);
+          localStorage.removeItem(BACKUP_PREFIX + id);
+          localStorage.removeItem(HISTORY_PREFIX + id);
+        }catch{}
 
-  // Optional: Board-Gist auch in Cloud löschen
-  if(boardToDelete && boardToDelete.gistId && syncConfig.enabled){
-    try{ await githubRequest('/gists/' + boardToDelete.gistId, 'DELETE'); }
-    catch(err){ console.warn('Board-Gist delete failed', err); }
-  }
+        // Optional: Board-Gist auch in Cloud löschen
+        if(boardToDelete && boardToDelete.gistId && syncConfig.enabled){
+          try{ await githubRequest('/gists/' + boardToDelete.gistId, 'DELETE'); }
+          catch(err){ console.warn('Board-Gist delete failed', err); }
+        }
 
-  boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
-  if(boardsIndex.activeId === id){
-    boardsIndex.activeId = boardsIndex.boards[0].id;
-  }
-  saveBoardsIndex();
-  if(syncConfig.enabled) await pushIndexToCloud();
-  switchBoard(boardsIndex.activeId);
-  toast('Board gelöscht');
+        boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
+        if(boardsIndex.activeId === id){
+          boardsIndex.activeId = boardsIndex.boards[0].id;
+        }
+        saveBoardsIndex();
+        if(syncConfig.enabled) await pushIndexToCloud();
+        switchBoard(boardsIndex.activeId);
+        toast('Board gelöscht');
       }
     );
   }
@@ -2114,24 +2115,24 @@ async ( )=>{
         action:()=> openSyncModal() },
     ];
     
-if(syncConfig.enabled){
-  items.push(
-    { icon:'⟳', label:'Jetzt synchronisieren', action:()=> manualSync() },
-    { icon:'↓', label:'Vom Cloud laden (überschreibt lokal)', action:()=> manualPull() },
-    { icon:'🔄', label:'Board-Liste aktualisieren', action: async ()=> {
-        setSyncStatus('syncing','Lade Index...');
-        try {
-          const changed = await pullIndexFromCloud();
-          updateBoardSwitcherUI();
-          setSyncStatus('ok', changed ? 'Index aktualisiert' : 'Index aktuell');
-          toast(changed ? 'Board-Liste aktualisiert' : 'Bereits aktuell', 'success');
-        } catch(err) {
-          setSyncStatus('error','Fehler');
-          toast('Index-Pull fehlgeschlagen: '+err.message, 'error');
-        }
-      }},
-  );
-}
+    if(syncConfig.enabled){
+      items.push(
+        { icon:'⟳', label:'Jetzt synchronisieren', action:()=> manualSync() },
+        { icon:'↓', label:'Vom Cloud laden (überschreibt lokal)', action:()=> manualPull() },
+        { icon:'🔄', label:'Board-Liste aktualisieren', action: async ()=> {
+            setSyncStatus('syncing','Lade Index...');
+            try {
+              const changed = await pullIndexFromCloud();
+              updateBoardSwitcherUI();
+              setSyncStatus('ok', changed ? 'Index aktualisiert' : 'Index aktuell');
+              toast(changed ? 'Board-Liste aktualisiert' : 'Bereits aktuell', 'success');
+            } catch(err) {
+              setSyncStatus('error','Fehler');
+              toast('Index-Pull fehlgeschlagen: '+err.message, 'error');
+            }
+          }},
+      );
+    }
     items.push(
       { sep:true },
         { head:'Teilen' },
@@ -2149,7 +2150,7 @@ if(syncConfig.enabled){
       { icon:'♻', label:'Kompletter Reset...', danger:true, action:()=> confirmFullReset() },
     );
     showContextMenu(rect.right - 240, rect.bottom + 4, items);
-  
+  });
 
   syncStatusEl.addEventListener('click', ()=> openSyncModal());
   

@@ -2521,8 +2521,9 @@ if(syncConfig.enabled){
   } catch(err) {
     setSyncStatus('error', 'Index-Fehler');
     toast('Sync-Fehler: '+err.message, 'error');
-  
-    }, syncConfig.enabled ? [
+  }
+	}
+    , syncConfig.enabled ? [
       { label:'Sync deaktivieren', danger:true, action:()=>{
           confirmSimple('Sync deaktivieren?',
             'Cloud-Sync deaktivieren? Lokale Daten bleiben erhalten. Token wird gelöscht.',
@@ -2535,7 +2536,7 @@ if(syncConfig.enabled){
             });
         }}
     ] : null);
-  }
+  });
 
   // ========= SHARE & INVITE DIALOG =========
   function openInviteDialog(){

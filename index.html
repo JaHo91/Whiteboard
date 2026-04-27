@@ -2149,7 +2149,7 @@ if(syncConfig.enabled){
       { icon:'♻', label:'Kompletter Reset...', danger:true, action:()=> confirmFullReset() },
     );
     showContextMenu(rect.right - 240, rect.bottom + 4, items);
-  });
+  );
 
   syncStatusEl.addEventListener('click', ()=> openSyncModal());
   

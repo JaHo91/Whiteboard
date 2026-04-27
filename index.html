@@ -2113,7 +2113,7 @@ async ( )=>{
       { icon: syncConfig.enabled ? '☁' : '⊘', label: syncConfig.enabled ? 'Cloud-Sync konfiguriert' : 'Cloud-Sync einrichten...',
         action:()=> openSyncModal() },
     ];
-    if(syncConfig.enabled){
+    
 if(syncConfig.enabled){
   items.push(
     { icon:'⟳', label:'Jetzt synchronisieren', action:()=> manualSync() },

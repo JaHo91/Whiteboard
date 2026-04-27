@@ -2122,7 +2122,7 @@ if(syncConfig.enabled){
         { icon:'🔄', label:'Board-Liste aktualisieren', action: async ()=> {
             setSyncStatus('syncing','Lade Index...');
             try {
-              const changed = await pullIndexFromCloud();
+              const changed = await mergeIndexFromCloud();
               updateBoardSwitcherUI();
               setSyncStatus('ok', changed ? 'Index aktualisiert' : 'Index aktuell');
               toast(changed ? 'Board-Liste aktualisiert' : 'Bereits aktuell', 'success');
@@ -2515,7 +2515,7 @@ if(syncConfig.enabled){
   toast('Sync aktiviert, prüfe Verbindung...');
   setSyncStatus('syncing', 'Initialisiere Index...');
   try {
-    await syncIndexWithCloud();
+    await mergeIndexFromCloud(); // KORRIGIERT: syncIndexWithCloud existierte nicht
     updateBoardSwitcherUI();
     const ok = await initialSyncForActive();
     if(ok) toast('Sync eingerichtet', 'success');
@@ -3003,7 +3003,7 @@ if(syncConfig.enabled && syncConfig.token){
   setSyncStatus('syncing', 'Verbinde...');
   // Erst Index aus Cloud holen, dann aktives Board syncen
   (async () => {
-    const indexChanged = await pullIndexFromCloud();
+    const indexChanged = await mergeIndexFromCloud(); // KORRIGIERT: pullIndexFromCloud existierte nicht
     if(indexChanged){
       // Aktives Board könnte jetzt anders sein (oder gelöscht)
       const active = getActiveBoard();
@@ -3030,7 +3030,7 @@ window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
 setInterval(async () => {
   if(!syncConfig.enabled || syncInFlight) return;
   try {
-    const changed = await pullIndexFromCloud();
+    const changed = await mergeIndexFromCloud(); // KORRIGIERT: pullIndexFromCloud existierte nicht
     if(changed){
       updateBoardSwitcherUI();
       toast('Board-Liste aktualisiert');
@@ -3043,6 +3043,11 @@ console.log('Whiteboard v15 Multi-Board initialisiert', {
   sync: syncConfig.enabled,
 });
 
+  // KORREKTUR: Try-Catch Block und IIFE am Ende sauber abschließen
+  } catch (err) {
+    console.error('Initialisierungsfehler im Whiteboard:', err);
+  }
+})();
 </script>
 </body>
 </html>

@@ -323,6 +323,13 @@ body.link-selected .card .anchor{
   pointer-events:none !important;
 }
 
+/* UI-Sperre während dem Initialsync */
+body.sync-blocked {
+  pointer-events: none !important;
+  opacity: 0.7;
+  cursor: wait;
+}
+	
 </style>
 </head>
 <body>
@@ -2761,6 +2768,7 @@ function scheduleIndexPush(){
 }
 
 // Merge: Cloud-Index mit lokalem mergen
+// Merge: Cloud-Index mit lokalem mergen
 async function mergeIndexFromCloud(){
   const cloudIndex = await loadIndexFromCloud();
   if(!cloudIndex || !Array.isArray(cloudIndex.boards)){
@@ -2801,7 +2809,6 @@ async function mergeIndexFromCloud(){
       changed = true;
     } else {
       // Beide kennen das Board: Cloud-Werte für Name/GistId nehmen, falls Cloud neuer ist
-      // Vereinfacht: Cloud-Name + Cloud-GistId, lokale Daten bleiben
       const merged = Object.assign({}, local);
       if(cloudBoard.name && cloudBoard.name !== local.name){ merged.name = cloudBoard.name; changed = true; }
       if(cloudBoard.gistId && cloudBoard.gistId !== local.gistId){ merged.gistId = cloudBoard.gistId; changed = true; }
@@ -2812,6 +2819,24 @@ async function mergeIndexFromCloud(){
   // 2. Lokale Boards, die nicht in Cloud sind: behalten und nach oben pushen
   localById.forEach((localBoard, id) => {
     if(!cloudById.has(id)){
+      // NEU: Verhindert "Geister-Boards" auf neuen Geräten
+      if(cloudById.size > 0 && !localBoard.gistId) {
+        const localDataRaw = localStorage.getItem(BOARD_PREFIX + id);
+        if(localDataRaw) {
+          const localData = JSON.parse(localDataRaw);
+          // Wenn das Board weniger als 6 Karten hat und nie synchronisiert wurde -> verwerfen
+          if(localData.cards && localData.cards.length <= 5 && !localData.lastModified) {
+            try { 
+              localStorage.removeItem(BOARD_PREFIX + id); 
+              localStorage.removeItem(BACKUP_PREFIX + id);
+              localStorage.removeItem(HISTORY_PREFIX + id);
+            } catch(e){}
+            changed = true;
+            return; // Nicht in mergedById übernehmen
+          }
+        }
+      }
+      
       mergedById.set(id, localBoard);
       changed = true; // Index muss aktualisiert werden
     }
@@ -3015,24 +3040,35 @@ updateUndoButtons();
 
 if(syncConfig.enabled && syncConfig.token){
   setSyncStatus('syncing', 'Verbinde...');
+  
+  // 1. Lade-Sperre aktivieren
+  document.body.classList.add('sync-blocked');
+  
   // Erst Index aus Cloud holen, dann aktives Board syncen
   (async () => {
-    const indexChanged = await mergeIndexFromCloud(); // BUGFIX
-    if(indexChanged){
-      // Aktives Board könnte jetzt anders sein (oder gelöscht)
-      const active = getActiveBoard();
-      if(!active && boardsIndex.boards.length > 0){
-        boardsIndex.activeId = boardsIndex.boards[0].id;
-        saveBoardsIndex();
+    try {
+      // (Falls deine Funktion pullIndexFromCloud heißt, lass es so. 
+      // Wenn du sie in mergeIndexFromCloud umbenannt hast, passe den Namen hier an)
+      const indexChanged = await pullIndexFromCloud(); 
+      
+      if(indexChanged){
+        const active = getActiveBoard();
+        if(!active && boardsIndex.boards.length > 0){
+          boardsIndex.activeId = boardsIndex.boards[0].id;
+          saveBoardsIndex();
+        }
+        state = loadActiveBoardState();
+        state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+        if(!state.view) fitLayoutToView(); else applyView();
+        render();
+        updateBoardSwitcherUI();
       }
-      // State neu laden (falls aktives Board gewechselt wurde)
-      state = loadActiveBoardState();
-      state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
-      if(!state.view) fitLayoutToView(); else applyView();
-      render();
-      updateBoardSwitcherUI();
+      await initialSyncForActive();
+      
+    } finally {
+      // 2. Lade-Sperre wieder aufheben (wird immer ausgeführt)
+      document.body.classList.remove('sync-blocked');
     }
-    await initialSyncForActive();
   })();
 } else {
   setSyncStatus('off', 'Offline (Sync aus)');

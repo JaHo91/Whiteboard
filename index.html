@@ -212,7 +212,6 @@
   .anchor.left{left:0;top:50%}
   .anchor.active{background:#fff;border-color:var(--anchor);transform:translate(-50%,-50%) scale(1.4)}
 
-  /* Unsichtbarer, vergrößerter Klick-Bereich für die blauen Ankerpunkte */
   .anchor::after {
     content: '';
     position: absolute;
@@ -297,7 +296,7 @@
   }
   .modal h2{margin:0 0 12px 0;font-size:18px}
   .modal p{margin:8px 0;font-size:13px;color:#555;line-height:1.5}
-  .modal input[type=text],.modal input[type=password]{
+  .modal input[type=text],.modal input[type=password],.modal input[type=email]{
     width:100%;padding:8px 10px;border:1px solid #d0d4da;border-radius:6px;
     font-size:13px;font-family:ui-monospace,monospace;margin:4px 0 8px;
   }
@@ -323,13 +322,11 @@ body.link-selected .card .anchor{
   pointer-events:none !important;
 }
 
-/* UI-Sperre während dem Initialsync */
 body.sync-blocked {
   pointer-events: none !important;
   opacity: 0.7;
   cursor: wait;
 }
-	
 </style>
 </head>
 <body>
@@ -383,7 +380,6 @@ body.sync-blocked {
   'use strict';
   try {
 
-  // ========= KONSTANTEN =========
   const COLORS = [
     {name:'Gelb',bg:'#FFE066'},{name:'Rosa',bg:'#FFADAD'},{name:'Grün',bg:'#B5EAD7'},
     {name:'Blau',bg:'#A0C4FF'},{name:'Lila',bg:'#CDB4DB'},{name:'Orange',bg:'#FFB86B'},
@@ -434,7 +430,6 @@ body.sync-blocked {
     outside:            null,
   };
 
-  // ========= DOM =========
   const viewport = document.getElementById('viewport');
   const board = document.getElementById('board');
   const svg = document.getElementById('links');
@@ -483,11 +478,10 @@ body.sync-blocked {
     return {
       cards:[], links:[], nextId:1, color:COLORS[0].bg,
       showBg:true, showMm:true, view:null, sticky:null,
-      autoColor:true, lastModified: 0, // BUGFIX: Startet mit 0, damit Cloud beim ersten Pull gewinnt!
+      autoColor:true, lastModified: 0,
     };
   }
 
-  // ========= MULTI-BOARD REGISTRY =========
   function newBoardId(){
     return 'b_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
   }
@@ -502,12 +496,10 @@ body.sync-blocked {
     }catch{ return null; }
   }
   function saveBoardsIndex(){
-    try{
-      localStorage.setItem(BOARDS_KEY, JSON.stringify(boardsIndex));
-    }catch(err){ console.warn('boards index save failed', err); }
+    try{ localStorage.setItem(BOARDS_KEY, JSON.stringify(boardsIndex)); }
+    catch(err){ console.warn('boards index save failed', err); }
   }
 
-  // Migration v13 → v15 Multi-Board
   function migrateLegacy(){
     const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
     if(!legacyRaw) return null;
@@ -519,7 +511,6 @@ body.sync-blocked {
       if(legacyBackup) localStorage.setItem(BACKUP_PREFIX + id, legacyBackup);
       const legacyHistory = localStorage.getItem(LEGACY_HISTORY_KEY);
       if(legacyHistory) localStorage.setItem(HISTORY_PREFIX + id, legacyHistory);
-      // Legacy sync: in erstes Board übernehmen
       let syncGistId = null;
       try{
         const legacySync = localStorage.getItem(LEGACY_SYNC_KEY);
@@ -536,10 +527,7 @@ body.sync-blocked {
       }catch{}
       toast('Bestehende Daten migriert nach Multi-Board', 'success');
       return { id, name:'Mein Whiteboard', gistId: syncGistId, publicGistId: null, createdAt: Date.now() };
-    }catch(err){
-      console.warn('legacy migration failed', err);
-      return null;
-    }
+    }catch(err){ return null; }
   }
 
   let boardsIndex = loadBoardsIndex();
@@ -576,7 +564,6 @@ body.sync-blocked {
     boardNameText.textContent = b.name;
   }
 
-  // ========= STATE & TIMERS =========
   let state;
   let saveTimer = null;
   let lastBackupAt = 0;
@@ -591,13 +578,11 @@ body.sync-blocked {
   let redoStack = [];
   let suspendSnapshots = false;
 
-  // ========= STORAGE KEYS for active board =========
   function keyForActive(prefix){
     const b = getActiveBoard();
     return b ? (prefix + b.id) : null;
   }
 
-  // ========= TOAST =========
   function toast(msg, type){
     toastEl.textContent = msg;
     toastEl.className = 'toast show' + (type ? ' '+type : '');
@@ -605,24 +590,18 @@ body.sync-blocked {
     toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2500);
   }
 
-// ========= SYNC CONFIG =========
-function loadSyncConfig(){
-  try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
-  catch{ return null; }
-}
-function saveSyncConfig(){
-  try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
-}
-let syncConfig = loadSyncConfig() || {
-  token: null, enabled: false, indexGistId: null,
-};
-// Sicherstellen, dass indexGistId existiert (für Migration alter Configs)
-if(syncConfig.indexGistId === undefined) syncConfig.indexGistId = null;
+  function loadSyncConfig(){
+    try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
+    catch{ return null; }
+  }
+  function saveSyncConfig(){
+    try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
+  }
+  let syncConfig = loadSyncConfig() || { token: null, enabled: false, indexGistId: null };
+  if(syncConfig.indexGistId === undefined) syncConfig.indexGistId = null;
 
-// Pro-Board Sync-Status (In-Memory)
-let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+  let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
 
-  // ========= UNDO/REDO =========
   function cloneState(){
     const s = serializeState();
     return JSON.parse(JSON.stringify(s));
@@ -644,6 +623,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     suspendSnapshots = true;
     state = Object.assign(defaultState(), snap);
     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    ensureIntegrity();
     if(state.sticky && state.sticky.type==='link' && typeof state.sticky.linkIdx==='number'){
       state.sticky = { type:'link', link: state.links[state.sticky.linkIdx] || null };
       if(!state.sticky.link) state.sticky = null;
@@ -675,9 +655,19 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
   
   undoBtn.addEventListener('click', doUndo);
   redoBtn.addEventListener('click', doRedo);
-  
 
-  // ========= LOAD/SAVE ACTIVE BOARD =========
+  function ensureIntegrity() {
+    if(!state || !state.cards || !state.links) return;
+    const cardIds = new Set(state.cards.map(c => c.id));
+    const validLinks = [];
+    let removed = 0;
+    for(const l of state.links){
+      if(cardIds.has(l.a) && cardIds.has(l.b)){ validLinks.push(l); } else { removed++; }
+    }
+    state.links = validLinks;
+    if(removed > 0) console.warn(`Entfernte ${removed} ungültige Links.`);
+  }
+
   function loadActiveBoardState(){
     const key = keyForActive(BOARD_PREFIX);
     if(!key) return defaultState();
@@ -702,7 +692,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     }catch(err){
       console.warn('save failed', err);
       if(err && /quota/i.test(err.name || err.message || '')){
-        toast('Speicher voll. Nutze Export, um zu sichern.', 'error');
+        toast('Speicher voll! Bilder löschen oder lokales Storage aufräumen.', 'error');
       }
     }
   }
@@ -748,7 +738,6 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     return serializable;
   }
 
-  // ========= ZONENERKENNUNG =========
   function detectZone(pBoard){
     const x = pBoard.x - LAYOUT_OFFSET_X;
     const y = pBoard.y - LAYOUT_OFFSET_Y;
@@ -775,7 +764,6 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     autoColorBtn.classList.toggle('active', !!state.autoColor);
   }
 
-  // ========= VIEW =========
   function clampScale(s){ return Math.min(3, Math.max(0.15, s)); }
   function applyView(){
     const {scale,tx,ty} = state.view;
@@ -803,8 +791,8 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     v.scale = ns; applyView(); save();
   }
 
-  // ========= INIT STATE =========
   state = loadActiveBoardState();
+  ensureIntegrity();
   state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
   if(!Array.isArray(state.links)) state.links = [];
   state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
@@ -828,7 +816,6 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
   viewport.addEventListener('mouseenter', (e)=>{ lastMouse.x=e.clientX; lastMouse.y=e.clientY; lastMouse.over=true; });
   viewport.addEventListener('mouseleave', ()=>{ lastMouse.over=false; });
 
-  // ========= PAN =========
   let panPending=null, pan=null;
   viewport.addEventListener('mousedown', (e)=>{
     hideContextMenu();
@@ -867,14 +854,12 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     }
   });
 
-  
   viewport.addEventListener('dblclick', (e) => {
     if(e.target.closest('.card')) return;
     const p = toBoard(e.clientX, e.clientY);
     pushUndo();
     createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-60, color:colorForPoint(p)});
   });
-  
 
   function toBoard(clientX, clientY){
     const r = viewport.getBoundingClientRect();
@@ -882,8 +867,6 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     return { x:(clientX-r.left-tx)/scale, y:(clientY-r.top-ty)/scale };
   }
 
-  // ========= PALETTE & TOOLBAR =========
-  
   COLORS.forEach(c => {
     const dot = document.createElement('span');
     dot.className = 'color-dot';
@@ -923,6 +906,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
       if(Array.isArray(data.cards) && Array.isArray(data.links)){
         pushUndo();
         state = Object.assign(defaultState(), data);
+        ensureIntegrity();
         state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
         bgLayout.style.display = state.showBg ? '' : 'none';
         minimap.style.display = state.showMm === false ? 'none' : '';
@@ -934,10 +918,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     }catch{ toast('Ungültige Datei', 'error'); }
     importInput.value = '';
   });
-  
 
-  // ========= PASTE =========
-  
   window.addEventListener('paste', async (e) => {
     const active = document.activeElement;
     if(active && (active.classList.contains('title-text') || active.classList.contains('details'))) return;
@@ -953,9 +934,17 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     e.preventDefault();
     try{
       const dataUrl = await blobToDataURL(imageBlob);
-      const { w, h } = await loadImageSize(dataUrl);
+      const imgObj = await loadImage(dataUrl);
+      const w = imgObj.width, h = imgObj.height;
       const scale = Math.min(1, IMG_MAX_SIDE / Math.max(w, h));
       const cw = Math.round(w * scale), ch = Math.round(h * scale);
+
+      const cvs = document.createElement('canvas');
+      cvs.width = cw; cvs.height = ch;
+      const ctx = cvs.getContext('2d');
+      ctx.drawImage(imgObj, 0, 0, cw, ch);
+      const compressedUrl = cvs.toDataURL('image/webp', 0.8);
+
       let pivot;
       if(lastMouse.over && lastMouse.x!==null) pivot = toBoard(lastMouse.x, lastMouse.y);
       else { const r = viewport.getBoundingClientRect(); pivot = toBoard(r.left + r.width/2, r.top + r.height/2); }
@@ -963,13 +952,12 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
       createImageCard({
         x: Math.max(0, Math.round(pivot.x - cw/2)),
         y: Math.max(0, Math.round(pivot.y - ch/2)),
-        w: cw, h: ch, image: dataUrl,
+        w: cw, h: ch, image: compressedUrl,
         caption: `Bild ${new Date().toLocaleString()}`,
       });
-      toast('Bild eingefügt', 'success');
+      toast('Bild eingefügt und komprimiert', 'success');
     }catch(err){ toast('Einfügen fehlgeschlagen', 'error'); }
   });
-  
 
   function blobToDataURL(blob){
     return new Promise((resolve,reject)=>{
@@ -978,15 +966,14 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
       fr.readAsDataURL(blob);
     });
   }
-  function loadImageSize(src){
+  function loadImage(src){
     return new Promise((resolve,reject)=>{
       const img = new Image();
-      img.onload = ()=>resolve({w:img.naturalWidth||img.width, h:img.naturalHeight||img.height});
+      img.onload = ()=>resolve(img);
       img.onerror = reject; img.src = src;
     });
   }
 
-  // ========= CARDS =========
   function createCard({x,y,color,title='Neue Karte',details='',w,h,autoH=true}){
     const card = { id: state.nextId++, x, y, color, title, details, w:w||null, h:h||null, autoH, image:null, caption:'' };
     state.cards.push(card); renderCard(card);
@@ -1025,14 +1012,14 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     updateCardFontScale(cardEl);
   }
 
-function readEditableText(el){
-  const clone = el.cloneNode(true);
-  clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
-  clone.querySelectorAll('div, p').forEach((block, i) => {
-    if(i > 0) block.prepend('\n');
-  });
-  return clone.textContent;
-}
+  function readEditableText(el){
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    clone.querySelectorAll('div, p').forEach((block, i) => {
+      if(i > 0) block.prepend('\n');
+    });
+    return clone.textContent;
+  }
 
   function renderCard(card){
     const el = document.createElement('div');
@@ -1053,9 +1040,7 @@ function readEditableText(el){
         cap.className = 'img-caption'; cap.textContent = card.caption;
         wrap.appendChild(cap);
       }
-      
       wrap.addEventListener('mousedown', (e)=>onCardDragStart(e, el, card));
-      
       el.appendChild(wrap);
     } else {
       if(card.autoH){ el.classList.add('autoH'); el.style.height = 'auto'; }
@@ -1072,7 +1057,6 @@ function readEditableText(el){
       titleText.spellcheck = false;
       title.appendChild(titleText);
 
-      
       let titleBeforeEdit = null;
       function enterEdit(){
         if(title.classList.contains('editing')) return;
@@ -1120,7 +1104,6 @@ function readEditableText(el){
         if(e.target !== title) return;
         onCardDragStart(e, el, card);
       });
-      
 
       const details = document.createElement('div');
       details.className = 'details';
@@ -1129,7 +1112,6 @@ function readEditableText(el){
       details.textContent = card.details;
       details.setAttribute('data-placeholder','Details...');
 
-      
       let detailsBeforeEdit = null;
       details.addEventListener('focus', ()=>{
         el.classList.add('editing');
@@ -1156,19 +1138,14 @@ function readEditableText(el){
       });
       details.addEventListener('mousedown', (e)=>e.stopPropagation());
       details.addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter' && !e.shiftKey){
-    e.preventDefault();
-    document.execCommand('insertLineBreak');
-  }
-  e.stopPropagation();
-});
-      
+        if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); document.execCommand('insertLineBreak'); }
+        e.stopPropagation();
+      });
 
       el.appendChild(title);
       el.appendChild(details);
     }
 
-    
     const actions = document.createElement('div');
     actions.className = 'actions';
     if(!card.image){
@@ -1187,10 +1164,7 @@ function readEditableText(el){
     }
     const delBtn = document.createElement('button');
     delBtn.textContent = '✕'; delBtn.title='Löschen';
-    delBtn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      confirmDeleteCard(card);
-    });
+    delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); confirmDeleteCard(card); });
     actions.appendChild(delBtn);
     el.appendChild(actions);
 
@@ -1208,7 +1182,6 @@ function readEditableText(el){
       h.addEventListener('mousedown', (e)=>onResizeStart(e, card, el, dir));
       el.appendChild(h);
     });
-    
 
     el.addEventListener('mouseenter', ()=>{
       if(connectDrag || endpointDrag || state.sticky) return;
@@ -1224,26 +1197,21 @@ function readEditableText(el){
       if(state.sticky && state.sticky.type==='card' && state.sticky.id===card.id) clearSticky();
       else setStickyCard(card.id);
     });
-    
     el.addEventListener('contextmenu', (e)=>{
       e.preventDefault(); e.stopPropagation();
       showCardMenu(e.clientX, e.clientY, card);
     });
-    
 
     board.appendChild(el);
     if(!card.image){ autoResizeCard(card, el); updateCardFontScale(el); }
     else updateCardFontScale(el);
   }
 
-  // ========= CARD DRAG =========
   let cardDrag = null;
   function onCardDragStart(e, cardEl, card){
-    
     if(e.button!==0) return;
     const start = toBoard(e.clientX, e.clientY);
-    cardDrag = { card, cardEl, offX:start.x-card.x, offY:start.y-card.y, moved:false, sx:e.clientX, sy:e.clientY,
-                 origX: card.x, origY: card.y, snapshotTaken:false };
+    cardDrag = { card, cardEl, offX:start.x-card.x, offY:start.y-card.y, moved:false, sx:e.clientX, sy:e.clientY, origX: card.x, origY: card.y, snapshotTaken:false };
     e.preventDefault(); e.stopPropagation();
   }
   window.addEventListener('mousemove', (e)=>{
@@ -1271,21 +1239,14 @@ function readEditableText(el){
     if(cardDrag){ if(cardDrag.moved){ cardDrag.cardEl.classList.remove('dragging'); save(); } cardDrag=null; }
   });
 
-  // ========= RESIZE =========
   let resizeDrag = null;
   function onResizeStart(e, card, cardEl, dir){
-    
     if(e.button!==0) return;
     e.preventDefault(); e.stopPropagation();
     pushUndo();
     card.autoH = false;
     cardEl.classList.remove('autoH');
-    resizeDrag = {
-      card, cardEl, dir,
-      startW: cardEl.offsetWidth, startH: cardEl.offsetHeight,
-      startX: card.x, startY: card.y,
-      sx: e.clientX, sy: e.clientY,
-    };
+    resizeDrag = { card, cardEl, dir, startW: cardEl.offsetWidth, startH: cardEl.offsetHeight, startX: card.x, startY: card.y, sx: e.clientX, sy: e.clientY };
   }
   window.addEventListener('mousemove', (e)=>{
     if(!resizeDrag) return;
@@ -1315,7 +1276,6 @@ function readEditableText(el){
   });
   window.addEventListener('mouseup', ()=>{ if(resizeDrag){ resizeDrag=null; save(); } });
 
-  // ========= ANCHOR (NEW LINK) =========
   let connectDrag = null;
   let ghostPath = null;
   let hoverTarget = null;
@@ -1335,7 +1295,6 @@ function readEditableText(el){
   }
 
   function onAnchorDragStart(e, card, side, anchorEl){
-    
     if(e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
     clearHighlight();
@@ -1351,10 +1310,7 @@ function readEditableText(el){
 
   function nearestSide(card, point){
     const r = cardRect(card);
-    const sides = {
-      top:{x:r.cx,y:r.y}, right:{x:r.x+r.w,y:r.cy},
-      bottom:{x:r.cx,y:r.y+r.h}, left:{x:r.x,y:r.cy},
-    };
+    const sides = { top:{x:r.cx,y:r.y}, right:{x:r.x+r.w,y:r.cy}, bottom:{x:r.cx,y:r.y+r.h}, left:{x:r.x,y:r.cy} };
     let best='right', bestD=Infinity;
     for(const s in sides){
       const dx=sides[s].x-point.x, dy=sides[s].y-point.y;
@@ -1416,10 +1372,8 @@ function readEditableText(el){
     updateLinks(); renderMinimap(); save();
   }
 
-  // ========= ENDPOINT DRAG =========
   let endpointDrag = null;
   function onEndpointDragStart(e, link, which, circleEl){
-    
     if(e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
     setStickyLink(link);
@@ -1491,15 +1445,12 @@ function readEditableText(el){
         updateLinks(); renderMinimap(); save();
       }
     } else if(willDelete){
-      pushUndo();
-               deleteLink(link);
-               toast('Verbindung gelöscht');
+      pushUndo(); deleteLink(link); toast('Verbindung gelöscht');
     }
     cleanupEndpointDrag();
   });
   window.addEventListener('blur', ()=>{ if(endpointDrag) cleanupEndpointDrag(); });
 
-  // ========= GEOMETRY =========
   function cardRect(card){
     const el = board.querySelector(`.card[data-id="${card.id}"]`);
     const w = el ? el.offsetWidth  : (card.w || CARD_DEFAULT_W);
@@ -1588,12 +1539,10 @@ function readEditableText(el){
         if(state.sticky && state.sticky.type==='link' && state.sticky.link===l) clearSticky();
         else setStickyLink(l);
       });
-      
       hit.addEventListener('contextmenu', (e)=>{
         e.preventDefault(); e.stopPropagation();
         showLinkMenu(e.clientX, e.clientY, l);
       });
-      
 
       g.appendChild(hit); g.appendChild(path); g.appendChild(epA); g.appendChild(epB);
       g._link = l; g._epA = epA; g._epB = epB;
@@ -1602,7 +1551,6 @@ function readEditableText(el){
     applyStickyVisual();
   }
 
-  // ========= HIGHLIGHT / STICKY =========
   function deactivateAllCards(){
     const active = document.activeElement;
     if(active && (active.classList.contains('title-text') || active.classList.contains('details'))) active.blur();
@@ -1661,7 +1609,6 @@ function readEditableText(el){
       else { g._epA.style.display='none'; g._epB.style.display='none'; }
     });
   }
-  
   function clearHighlight(){
     document.body.classList.remove('link-selected');
     document.querySelectorAll('.card').forEach(el=>el.classList.remove('hi','dim','sticky'));
@@ -1672,7 +1619,7 @@ function readEditableText(el){
   function setStickyCard(id){ state.sticky = { type:'card', id }; applyStickyVisual(); save(); }
   function setStickyLink(l){ state.sticky = { type:'link', link:l }; applyStickyVisual(); save(); }
   function clearSticky(){ state.sticky = null; deactivateAllCards(); save(); }
-   function applyStickyVisual(){
+  function applyStickyVisual(){
     const isLinkSticky = !!(state.sticky && state.sticky.type === 'link');
     document.body.classList.toggle('link-selected', isLinkSticky);
 
@@ -1686,7 +1633,6 @@ function readEditableText(el){
     }
   }
 
-  // ========= CONFIRM MODAL (Single-Step) =========
   function confirmSimple(title, warnHtml, destructiveLabel, onConfirm){
     showModal(title, (body)=>{
       body.innerHTML = `<div class="confirm-warn">${warnHtml}</div>`;
@@ -1700,33 +1646,18 @@ function readEditableText(el){
     const name = card.image ? 'diese Bildkarte' : `die Karte "${card.title || 'Unbenannt'}"`;
     const linkCount = state.links.filter(l=>l.a===card.id||l.b===card.id).length;
     const extra = linkCount ? ` Zusätzlich werden <b>${linkCount}</b> Verbindung(en) entfernt.` : '';
-    confirmSimple(
-      'Karte löschen?',
-      `Möchtest du ${name} wirklich löschen?${extra}`,
-      'Löschen',
-      ()=>{
-        pushUndo();
-        deleteCard(card.id);
-        toast('Karte gelöscht');
-      }
-    );
+    confirmSimple('Karte löschen?', `Möchtest du ${name} wirklich löschen?${extra}`, 'Löschen', ()=>{
+      pushUndo(); deleteCard(card.id); toast('Karte gelöscht');
+    });
   }
   function confirmDeleteLink(link){
-    confirmSimple(
-      'Verbindung löschen?',
-      'Möchtest du diese Verbindung wirklich entfernen?',
-      'Löschen',
-      ()=>{
-        pushUndo();
-        deleteLink(link);
-        toast('Verbindung gelöscht');
-      }
-    );
+    confirmSimple('Verbindung löschen?', 'Möchtest du diese Verbindung wirklich entfernen?', 'Löschen', ()=>{
+      pushUndo(); deleteLink(link); toast('Verbindung gelöscht');
+    });
   }
 
-  // ========= CONTEXT MENU =========
   function hideContextMenu(){ if(ctxMenuEl){ ctxMenuEl.remove(); ctxMenuEl=null; } }
-   function showContextMenu(x, y, items){
+  function showContextMenu(x, y, items){
     hideContextMenu();
     const menu = document.createElement('div');
     menu.className = 'ctx-menu';
@@ -1743,13 +1674,9 @@ function readEditableText(el){
     });
     document.body.appendChild(menu);
     const mw=menu.offsetWidth, mh=menu.offsetHeight;
-    
-    // ANGEPASST: Math.max hinzugefügt, damit das Menü nicht links/oben rausfällt
     const left = Math.max(4, Math.min(x, window.innerWidth - mw - 4));
     const top  = Math.max(4, Math.min(y, window.innerHeight - mh - 4));
-    
-    menu.style.left = left + 'px';
-    menu.style.top  = top + 'px';
+    menu.style.left = left + 'px'; menu.style.top  = top + 'px';
     ctxMenuEl = menu;
   }
   function showLinkMenu(x, y, link){
@@ -1776,11 +1703,7 @@ function readEditableText(el){
       ...sides.map(s => ({ icon: link.sideB===s ? '●' : '○', label: 'Seite '+sideLabels[s],
         action: ()=>{ pushUndo(); link.sideB = s; updateLinks(); renderMinimap(); save(); } })),
       { sep:true },
-      { icon:'🗑', label:'Verbindung löschen', danger:true, action:()=>{
-                    pushUndo();
-  		   deleteLink(link);
-    		  toast('Verbindung gelöscht');
- 		  }}
+      { icon:'🗑', label:'Verbindung löschen', danger:true, action:()=>{ pushUndo(); deleteLink(link); toast('Verbindung gelöscht'); }}
     ]);
   }
   function showCardMenu(x, y, card){
@@ -1846,32 +1769,18 @@ function readEditableText(el){
     showContextMenu(x, y, items);
   }
 
-  // ========= BOARD SWITCHER =========
-  
-  boardNameEl.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    showBoardSwitcher();
-  });
-  boardMenuBtn.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    showBoardMenu();
-  });
+  boardNameEl.addEventListener('click', (e)=>{ e.stopPropagation(); showBoardSwitcher(); });
+  boardMenuBtn.addEventListener('click', (e)=>{ e.stopPropagation(); showBoardMenu(); });
   updateBoardSwitcherUI();
-  
 
   function showBoardSwitcher(){
     const rect = boardSwitcher.getBoundingClientRect();
-    const items = [
-      { head:'Boards wechseln' }
-    ];
+    const items = [ { head:'Boards wechseln' } ];
     boardsIndex.boards.forEach(b => {
       items.push({
         icon: b.id === boardsIndex.activeId ? '✓' : '  ',
-        label: b.name,
-        current: b.id === boardsIndex.activeId,
-        action: ()=>{
-          if(b.id !== boardsIndex.activeId) switchBoard(b.id);
-        }
+        label: b.name, current: b.id === boardsIndex.activeId,
+        action: ()=>{ if(b.id !== boardsIndex.activeId) switchBoard(b.id); }
       });
     });
     items.push(
@@ -1882,7 +1791,7 @@ function readEditableText(el){
     showContextMenu(rect.left, rect.bottom + 4, items);
   }
 
-    function showBoardMenu(){
+  function showBoardMenu(){
     const rect = boardSwitcher.getBoundingClientRect();
     const b = getActiveBoard();
     if(!b) return;
@@ -1898,7 +1807,6 @@ function readEditableText(el){
     if(boardsIndex.boards.length > 1){
       items.push({ icon:'🗑', label:'Dieses Board löschen...', danger:true, action: ()=> confirmDeleteBoard(b.id) });
     }
-    // ANGEPASST: rect.left statt rect.right - 220
     showContextMenu(rect.left, rect.bottom + 4, items);
   }
 
@@ -1916,7 +1824,7 @@ function readEditableText(el){
     const defaultName = suggestBoardName();
     showModal('Neues Board', (body)=>{
       body.innerHTML = `
-        <p>Neues Board mit Zonen-Vorlage (Value Proposition, Market Risk, Customer, Competitor, Influencer) erstellen.</p>
+        <p>Neues Board mit Zonen-Vorlage erstellen.</p>
         <p><b>Name</b></p>
         <input type="text" id="newBoardName" value="${escapeAttr(defaultName)}" autofocus />
       `;
@@ -1934,36 +1842,33 @@ function readEditableText(el){
     });
   }
 
-function createNewBoard(name){
-  const id = newBoardId();
-  const b = { id, name, gistId:null, publicGistId:null, createdAt:Date.now() };
-  boardsIndex.boards.push(b);
-  boardsIndex.activeId = id;
-  saveBoardsIndex();
-  state = defaultState();
-  initZoneTemplate();
-  state.lastModified = Date.now(); // BUGFIX: Neues lokales Board bekommt echten Zeitstempel
-  saveImmediate();
-  undoStack = []; redoStack = []; updateUndoButtons();
-  boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
-  updateBoardSwitcherUI();
-  fitLayoutToView();
-  render();
-  toast('Board "'+name+'" erstellt', 'success');
-  if(syncConfig.enabled){
-    scheduleSync();
-    scheduleIndexPush();
+  function createNewBoard(name){
+    const id = newBoardId();
+    const b = { id, name, gistId:null, publicGistId:null, createdAt:Date.now() };
+    boardsIndex.boards.push(b);
+    boardsIndex.activeId = id;
+    saveBoardsIndex();
+    state = defaultState();
+    initZoneTemplate();
+    state.lastModified = Date.now();
+    saveImmediate();
+    undoStack = []; redoStack = []; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+    updateBoardSwitcherUI();
+    fitLayoutToView();
+    render();
+    toast('Board "'+name+'" erstellt', 'success');
+    if(syncConfig.enabled){ scheduleSync(); scheduleIndexPush(); }
   }
-}
 
   function switchBoard(id){
     const b = boardsIndex.boards.find(x => x.id === id);
     if(!b) return;
-    // aktuellen Sync abschließen (falls pending)
     if(syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
     boardsIndex.activeId = id;
     saveBoardsIndex();
     state = loadActiveBoardState();
+    ensureIntegrity();
     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
     state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
     bgLayout.style.display = state.showBg ? '' : 'none';
@@ -1975,12 +1880,8 @@ function createNewBoard(name){
     updateBoardSwitcherUI();
     render();
     toast('Gewechselt zu "'+b.name+'"');
-    if(syncConfig.enabled){
-      setSyncStatus('syncing','Verbinde...');
-      initialSyncForActive();
-    } else {
-      setSyncStatus('off','Offline (Sync aus)');
-    }
+    if(syncConfig.enabled){ setSyncStatus('syncing','Verbinde...'); initialSyncForActive(); } 
+    else { setSyncStatus('off','Offline (Sync aus)'); }
   }
 
   function renameBoardDialog(id){
@@ -2006,28 +1907,25 @@ function createNewBoard(name){
       updateBoardSwitcherUI();
       closeModal();
       toast('Umbenannt zu "'+name+'"');
-if(syncConfig.enabled){
-  scheduleIndexPush();
-  if(b.id === boardsIndex.activeId) scheduleSync();
-      }
+      if(syncConfig.enabled){ scheduleIndexPush(); if(b.id === boardsIndex.activeId) scheduleSync(); }
     });
   }
 
-   function duplicateBoard(id){
+  function duplicateBoard(id){
     const srcBoard = boardsIndex.boards.find(x => x.id === id);
     if(!srcBoard) return;
     const srcKey = BOARD_PREFIX + id;
     const data = localStorage.getItem(srcKey);
     const newId = newBoardId();
     const newName = srcBoard.name + ' (Kopie)';
-    try{
-      if(data) localStorage.setItem(BOARD_PREFIX + newId, data);
-    }catch(err){ toast('Speicher voll', 'error'); return; }
+    try{ if(data) localStorage.setItem(BOARD_PREFIX + newId, data); }
+    catch(err){ toast('Speicher voll', 'error'); return; }
     const newB = { id:newId, name:newName, gistId:null, publicGistId:null, createdAt:Date.now() };
     boardsIndex.boards.push(newB);
     boardsIndex.activeId = newId;
     saveBoardsIndex();
     state = loadActiveBoardState();
+    ensureIntegrity();
     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
     undoStack=[]; redoStack=[]; updateUndoButtons();
     boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
@@ -2035,51 +1933,33 @@ if(syncConfig.enabled){
     if(!state.view) fitLayoutToView(); else applyView();
     render();
     toast('Board dupliziert');
-    if(syncConfig.enabled){
-      scheduleSync();
-      scheduleIndexPush();
-    }
+    if(syncConfig.enabled){ scheduleSync(); scheduleIndexPush(); }
   }
 
   function confirmDeleteBoard(id){
     const b = boardsIndex.boards.find(x => x.id === id);
     if(!b) return;
-    if(boardsIndex.boards.length <= 1){
-      toast('Letztes Board kann nicht gelöscht werden', 'error');
-      return;
-    }
+    if(boardsIndex.boards.length <= 1){ toast('Letztes Board kann nicht gelöscht werden', 'error'); return; }
     const syncWarn = b.gistId ? '<br><b>Hinweis:</b> Der Secret Gist in der Cloud wird <u>nicht</u> automatisch gelöscht.' : '';
-    confirmSimple(
-      'Board löschen?',
-      `Das Board <b>"${escapeHtml(b.name)}"</b> inkl. aller Karten und Verbindungen wird lokal gelöscht.${syncWarn}`,
-      'Löschen',
-      async ( )=>{
-        // Vor lokalem Löschen: Tombstone in Cloud setzen
-        const boardToDelete = boardsIndex.boards.find(x => x.id === id);
-        if(boardToDelete) boardToDelete.deletedAt = Date.now();
-
-        try{
-          localStorage.removeItem(BOARD_PREFIX + id);
-          localStorage.removeItem(BACKUP_PREFIX + id);
-          localStorage.removeItem(HISTORY_PREFIX + id);
-        }catch{}
-
-        // Optional: Board-Gist auch in Cloud löschen
-        if(boardToDelete && boardToDelete.gistId && syncConfig.enabled){
-          try{ await githubRequest('/gists/' + boardToDelete.gistId, 'DELETE'); }
-          catch(err){ console.warn('Board-Gist delete failed', err); }
-        }
-
-        boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
-        if(boardsIndex.activeId === id){
-          boardsIndex.activeId = boardsIndex.boards[0].id;
-        }
-        saveBoardsIndex();
-        if(syncConfig.enabled) await pushIndexToCloud();
-        switchBoard(boardsIndex.activeId);
-        toast('Board gelöscht');
+    confirmSimple('Board löschen?', `Das Board <b>"${escapeHtml(b.name)}"</b> inkl. aller Karten wird lokal gelöscht.${syncWarn}`, 'Löschen', async ()=>{
+      const boardToDelete = boardsIndex.boards.find(x => x.id === id);
+      if(boardToDelete) boardToDelete.deletedAt = Date.now();
+      try{
+        localStorage.removeItem(BOARD_PREFIX + id);
+        localStorage.removeItem(BACKUP_PREFIX + id);
+        localStorage.removeItem(HISTORY_PREFIX + id);
+      }catch{}
+      if(boardToDelete && boardToDelete.gistId && syncConfig.enabled){
+        try{ await githubRequest('/gists/' + boardToDelete.gistId, 'DELETE'); }
+        catch(err){ console.warn('Board-Gist delete failed', err); }
       }
-    );
+      boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
+      if(boardsIndex.activeId === id){ boardsIndex.activeId = boardsIndex.boards[0].id; }
+      saveBoardsIndex();
+      if(syncConfig.enabled) await pushIndexToCloud();
+      switchBoard(boardsIndex.activeId);
+      toast('Board gelöscht');
+    });
   }
 
   function showBoardManager(){
@@ -2105,8 +1985,6 @@ if(syncConfig.enabled){
     }, null, null);
   }
 
-  // ========= BURGER MENU =========
-  
   burgerBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     const rect = burgerBtn.getBoundingClientRect();
@@ -2114,21 +1992,15 @@ if(syncConfig.enabled){
     const items = [
       { head:'Ansicht' },
       { icon: state.showBg ? '☑' : '☐', label:'Hintergrund-Layout anzeigen', action:()=>{
-          state.showBg = !state.showBg;
-          bgLayout.style.display = state.showBg ? '' : 'none';
-          renderMinimap(); save();
+          state.showBg = !state.showBg; bgLayout.style.display = state.showBg ? '' : 'none'; renderMinimap(); save();
         }},
       { icon: state.showMm !== false ? '☑' : '☐', label:'Mini-Map anzeigen', action:()=>{
-          state.showMm = !(state.showMm !== false);
-          minimap.style.display = state.showMm ? '' : 'none';
-          save();
+          state.showMm = !(state.showMm !== false); minimap.style.display = state.showMm ? '' : 'none'; save();
         }},
       { sep:true },
       { head:'Cloud-Sync' },
-      { icon: syncConfig.enabled ? '☁' : '⊘', label: syncConfig.enabled ? 'Cloud-Sync konfiguriert' : 'Cloud-Sync einrichten...',
-        action:()=> openSyncModal() },
+      { icon: syncConfig.enabled ? '☁' : '⊘', label: syncConfig.enabled ? 'Cloud-Sync konfiguriert' : 'Cloud-Sync einrichten...', action:()=> openSyncModal() },
     ];
-    
     if(syncConfig.enabled){
       items.push(
         { icon:'⟳', label:'Jetzt synchronisieren', action:()=> manualSync() },
@@ -2140,17 +2012,14 @@ if(syncConfig.enabled){
               updateBoardSwitcherUI();
               setSyncStatus('ok', changed ? 'Index aktualisiert' : 'Index aktuell');
               toast(changed ? 'Board-Liste aktualisiert' : 'Bereits aktuell', 'success');
-            } catch(err) {
-              setSyncStatus('error','Fehler');
-              toast('Index-Pull fehlgeschlagen: '+err.message, 'error');
-            }
+            } catch(err) { setSyncStatus('error','Fehler'); toast('Index-Pull fehlgeschlagen: '+err.message, 'error'); }
           }},
       );
     }
     items.push(
       { sep:true },
-        { head:'Teilen' },
-        { icon: '✉', label: 'Teilen & Einladen...', action: ()=> openInviteDialog() },
+      { head:'Teilen' },
+      { icon: '✉', label: 'Teilen & Einladen...', action: ()=> openInviteDialog() },
       { head:'Versionen' },
       { icon:'🕒', label:'Versionshistorie...', action:()=> showHistoryMenu() },
       { sep:true },
@@ -2167,47 +2036,27 @@ if(syncConfig.enabled){
   });
 
   syncStatusEl.addEventListener('click', ()=> openSyncModal());
-  
 
   function confirmClearCards(){
-    confirmSimple(
-      'Alle Karten löschen?',
-      `Alle <b>${state.cards.length}</b> Karten und <b>${state.links.length}</b> Verbindungen werden entfernt. Zoom/Position bleiben erhalten.`,
-      'Alles löschen',
-      ()=>{
-        pushUndo();
-        state.cards=[]; state.links=[]; state.nextId=1; state.sticky=null;
-        render(); save();
-        toast('Karten gelöscht');
-      }
-    );
+    confirmSimple('Alle Karten löschen?', `Alle <b>${state.cards.length}</b> Karten und <b>${state.links.length}</b> Verbindungen werden entfernt. Zoom/Position bleiben erhalten.`, 'Alles löschen', ()=>{
+      pushUndo(); state.cards=[]; state.links=[]; state.nextId=1; state.sticky=null; render(); save(); toast('Karten gelöscht');
+    });
   }
   function confirmFullReset(){
-    confirmSimple(
-      'Kompletter Reset?',
-      'ALLE Boards, Verbindungen, Cloud-Konfiguration und Undo-Verlauf werden gelöscht. Die Seite wird neu geladen.',
-      'Komplett zurücksetzen',
-      ()=>{
-        try{
-          // Alle Board-spezifischen Keys entfernen
-          const keysToRemove = [];
-          for(let i=0; i<localStorage.length; i++){
-            const key = localStorage.key(i);
-            if(key && (key.startsWith(BOARD_PREFIX) || key.startsWith(BACKUP_PREFIX) || key.startsWith(HISTORY_PREFIX))){
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach(k => localStorage.removeItem(k));
-          localStorage.removeItem(BOARDS_KEY);
-          localStorage.removeItem(SYNC_KEY);
-          localStorage.removeItem(LEGACY_STORAGE_KEY);
-          localStorage.removeItem(LEGACY_BACKUP_KEY);
-          localStorage.removeItem(LEGACY_HISTORY_KEY);
-          localStorage.removeItem(LEGACY_SYNC_KEY);
-        }catch{}
-        location.reload();
-      }
-    );
+    confirmSimple('Kompletter Reset?', 'ALLE Boards, Verbindungen, Cloud-Konfiguration und Undo-Verlauf werden gelöscht. Die Seite wird neu geladen.', 'Komplett zurücksetzen', ()=>{
+      try{
+        const keysToRemove = [];
+        for(let i=0; i<localStorage.length; i++){
+          const key = localStorage.key(i);
+          if(key && (key.startsWith(BOARD_PREFIX) || key.startsWith(BACKUP_PREFIX) || key.startsWith(HISTORY_PREFIX))) keysToRemove.push(key);
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        localStorage.removeItem(BOARDS_KEY); localStorage.removeItem(SYNC_KEY);
+        localStorage.removeItem(LEGACY_STORAGE_KEY); localStorage.removeItem(LEGACY_BACKUP_KEY);
+        localStorage.removeItem(LEGACY_HISTORY_KEY); localStorage.removeItem(LEGACY_SYNC_KEY);
+      }catch{}
+      location.reload();
+    });
   }
 
   function exportData(){
@@ -2218,16 +2067,13 @@ if(syncConfig.enabled){
     a.href = URL.createObjectURL(blob); a.download = name + '.json'; a.click();
   }
 
-  // ========= PDF EXPORT =========
   function exportPDF(){
     let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
     let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
     state.cards.forEach(c=>{
       const r = cardRect(c);
-      if(r.x < minX) minX = r.x;
-      if(r.y < minY) minY = r.y;
-      if(r.x + r.w > maxX) maxX = r.x + r.w;
-      if(r.y + r.h > maxY) maxY = r.y + r.h;
+      if(r.x < minX) minX = r.x; if(r.y < minY) minY = r.y;
+      if(r.x + r.w > maxX) maxX = r.x + r.w; if(r.y + r.h > maxY) maxY = r.y + r.h;
     });
     const pad = 60;
     minX -= pad; minY -= pad; maxX += pad; maxY += pad;
@@ -2250,14 +2096,11 @@ if(syncConfig.enabled){
     }
 
     state.links.forEach(l=>{
-      const a = state.cards.find(c=>c.id===l.a);
-      const b = state.cards.find(c=>c.id===l.b);
+      const a = state.cards.find(c=>c.id===l.a); const b = state.cards.find(c=>c.id===l.b);
       if(!a || !b) return;
       let pA, pB;
-      if(l.sideA) pA = sideAnchorPoint(a, l.sideA);
-      else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
-      if(l.sideB) pB = sideAnchorPoint(b, l.sideB);
-      else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
+      if(l.sideA) pA = sideAnchorPoint(a, l.sideA); else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
+      if(l.sideB) pB = sideAnchorPoint(b, l.sideB); else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
       const d = bezierPathDirected(pA, l.sideA, pB, l.sideB);
       parts.push(`<path d="${d}" fill="none" stroke="#9aa0a6" stroke-width="2.2" opacity="0.85"/>`);
     });
@@ -2283,10 +2126,8 @@ if(syncConfig.enabled){
         </g>`);
       }
     });
-
     parts.push(`</svg>`);
     const svgStr = parts.join('');
-
     const w = window.open('', '_blank');
     if(!w){ toast('Pop-up blockiert. Bitte erlauben.', 'error'); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Whiteboard Export</title>
@@ -2305,9 +2146,7 @@ if(syncConfig.enabled){
     w.document.close();
   }
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
   function escapeAttr(s){ return String(s).replace(/"/g,'&quot;'); }
 
   window.addEventListener('mousedown', (e)=>{ if(ctxMenuEl && !e.target.closest('.ctx-menu')) hideContextMenu(); });
@@ -2315,29 +2154,18 @@ if(syncConfig.enabled){
     const inEditable = document.activeElement && (
       document.activeElement.classList.contains('title-text') ||
       document.activeElement.classList.contains('details') ||
-      document.activeElement.tagName === 'INPUT' ||
-      document.activeElement.tagName === 'TEXTAREA'
+      document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA'
     );
-
-    
     if((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
-      if(inEditable) return;
-      e.preventDefault(); doUndo(); return;
+      if(inEditable) return; e.preventDefault(); doUndo(); return;
     }
     if((e.ctrlKey || e.metaKey) && ((e.key === 'y' || e.key === 'Y') || (e.shiftKey && (e.key === 'z' || e.key === 'Z')))){
-      if(inEditable) return;
-      e.preventDefault(); doRedo(); return;
+      if(inEditable) return; e.preventDefault(); doRedo(); return;
     }
-    
-
     if(e.key==='Escape'){
-      hideContextMenu();
-      state.sticky = null;
-      deactivateAllCards();
-      if(connectDrag) cleanupConnectDrag();
-      if(endpointDrag) cleanupEndpointDrag();
-      closeModal();
-      save();
+      hideContextMenu(); state.sticky = null; deactivateAllCards();
+      if(connectDrag) cleanupConnectDrag(); if(endpointDrag) cleanupEndpointDrag();
+      closeModal(); save();
     }
   });
   viewport.addEventListener('wheel', hideContextMenu);
@@ -2346,17 +2174,23 @@ if(syncConfig.enabled){
     e.preventDefault(); hideContextMenu();
   });
 
-  // ========= MINI-MAP =========
+  window.addEventListener('beforeunload', (e) => {
+    saveImmediate();
+    if (syncInFlight || (syncConfig.enabled && getActiveBoard() && !boardSyncState.lastSyncedHash)) {
+      e.preventDefault();
+      e.returnValue = 'Es gibt noch ungespeicherte Änderungen für den Cloud-Sync. Wirklich verlassen?';
+      return e.returnValue;
+    }
+  });
+
   function renderMinimap(){
     if(minimap.style.display === 'none') return;
     let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
     let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
     state.cards.forEach(c=>{
       const r = cardRect(c);
-      if(r.x < minX) minX = r.x;
-      if(r.y < minY) minY = r.y;
-      if(r.x + r.w > maxX) maxX = r.x + r.w;
-      if(r.y + r.h > maxY) maxY = r.y + r.h;
+      if(r.x < minX) minX = r.x; if(r.y < minY) minY = r.y;
+      if(r.x + r.w > maxX) maxX = r.x + r.w; if(r.y + r.h > maxY) maxY = r.y + r.h;
     });
     const vpRect = viewport.getBoundingClientRect();
     const {scale,tx,ty} = state.view;
@@ -2408,7 +2242,6 @@ if(syncConfig.enabled){
   window.addEventListener('mousemove', (e)=>{ if(mmDrag){ const p = mmPointToBoard(e); if(p) mmCenterOn(p); } });
   window.addEventListener('mouseup', ()=>{ mmDrag = false; });
 
-  // ========= RENDER =========
   function render(){
     [...board.querySelectorAll('.card')].forEach(n=>n.remove());
     state.cards.forEach(renderCard);
@@ -2438,34 +2271,25 @@ if(syncConfig.enabled){
     let hist = [];
     const histKey = keyForActive(HISTORY_PREFIX);
     try{ if(histKey){ const raw = localStorage.getItem(histKey); hist = raw ? JSON.parse(raw) : []; } }catch{}
-    if(!Array.isArray(hist) || !hist.length){
-      toast('Noch keine Versionen vorhanden');
-      return;
-    }
+    if(!Array.isArray(hist) || !hist.length){ toast('Noch keine Versionen vorhanden'); return; }
     const items = [{ head:'Versionshistorie (dieses Board)' }];
     [...hist].reverse().forEach((entry)=>{
-      const d = new Date(entry.timestamp);
-      const label = d.toLocaleString();
+      const d = new Date(entry.timestamp); const label = d.toLocaleString();
       const cardCount = entry.data.cards ? entry.data.cards.length : 0;
       items.push({
         icon:'🕒', label:`${label} (${cardCount} Karten)`,
         action:()=>{
-          confirmSimple(
-            'Version wiederherstellen?',
-            `Version vom <b>${label}</b> laden? Der aktuelle Stand wird überschrieben (Undo möglich).`,
-            'Wiederherstellen',
-            ()=>{
-              pushUndo();
-              state = Object.assign(defaultState(), entry.data);
-              state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
-              bgLayout.style.display = state.showBg ? '' : 'none';
-              minimap.style.display = state.showMm === false ? 'none' : '';
-              updateAutoColorButton();
-              if(!state.view) fitLayoutToView(); else applyView();
-              render(); save();
-              toast('Version wiederhergestellt', 'success');
-            }
-          );
+          confirmSimple('Version wiederherstellen?', `Version vom <b>${label}</b> laden?`, 'Wiederherstellen', ()=>{
+            pushUndo();
+            state = Object.assign(defaultState(), entry.data);
+            ensureIntegrity();
+            state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+            bgLayout.style.display = state.showBg ? '' : 'none';
+            minimap.style.display = state.showMm === false ? 'none' : '';
+            updateAutoColorButton();
+            if(!state.view) fitLayoutToView(); else applyView();
+            render(); save(); toast('Version wiederhergestellt', 'success');
+          });
         }
       });
     });
@@ -2473,7 +2297,6 @@ if(syncConfig.enabled){
     showContextMenu(rect.right - 280, rect.bottom + 4, items);
   }
 
-  // ========= MODAL =========
   function closeModal(){ if(modalEl){ modalEl.remove(); modalEl = null; } }
   function showModal(title, bodyFn, primaryLabel, primaryAction, extraButtons){
     closeModal();
@@ -2485,103 +2308,77 @@ if(syncConfig.enabled){
     const h = document.createElement('h2'); h.textContent = title; box.appendChild(h);
     const body = document.createElement('div'); box.appendChild(body);
     bodyFn(body);
-    const actions = document.createElement('div');
-    actions.className = 'modal-actions';
+    const actions = document.createElement('div'); actions.className = 'modal-actions';
     if(extraButtons){
       extraButtons.forEach(btnDef => {
-        const b = document.createElement('button');
-        b.textContent = btnDef.label;
+        const b = document.createElement('button'); b.textContent = btnDef.label;
         if(btnDef.danger) b.classList.add('danger');
-        b.addEventListener('click', ()=> btnDef.action(box));
-        actions.appendChild(b);
+        b.addEventListener('click', ()=> btnDef.action(box)); actions.appendChild(b);
       });
     }
     const cancel = document.createElement('button'); cancel.textContent = primaryLabel ? 'Abbrechen' : 'Schließen'; cancel.addEventListener('click', closeModal); actions.appendChild(cancel);
     if(primaryLabel){
       const ok = document.createElement('button'); ok.textContent = primaryLabel;
       ok.classList.add(primaryLabel.toLowerCase().includes('löschen') || primaryLabel.toLowerCase().includes('reset') || primaryLabel.toLowerCase().includes('deaktivieren') || primaryLabel.toLowerCase().includes('widerrufen') ? 'danger' : 'primary');
-      ok.addEventListener('click', ()=> primaryAction(box));
-      actions.appendChild(ok);
+      ok.addEventListener('click', ()=> primaryAction(box)); actions.appendChild(ok);
     }
-    box.appendChild(actions);
-    backdrop.appendChild(box);
-    document.body.appendChild(backdrop);
+    box.appendChild(actions); backdrop.appendChild(box); document.body.appendChild(backdrop);
     modalEl = backdrop;
   }
 
   function openSyncModal(){
     showModal('GitHub Gist Cloud-Sync', (body)=>{
       body.innerHTML = `
-        <p>Synchronisiert deine Whiteboards über <b>Secret Gists</b> auf GitHub (pro Board ein eigener Gist). Token wird global gespeichert.</p>
-        <p><b>1. Token erstellen:</b> Gehe zu <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens (Fine-grained)</a>, erstelle ein Token mit Permission <code>Gists: Read and write</code>.</p>
+        <p>Synchronisiert deine Whiteboards über <b>Secret Gists</b> auf GitHub.</p>
+        <p><b>1. Token erstellen:</b> Gehe zu <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens</a>, erstelle ein Token mit Permission <code>Gists: Read and write</code>.</p>
         <p><b>GitHub Token</b></p>
         <input type="password" id="syncTokenInput" placeholder="github_pat_..." value="${syncConfig.token || ''}" autocomplete="off" />
-        <p class="small">Token wird nur lokal im Browser gespeichert. Pro Board wird automatisch ein eigener Secret Gist erstellt.</p>
+        <p class="small">Token wird nur lokal gespeichert. Pro Board wird automatisch ein eigener Secret Gist erstellt.</p>
         ${syncConfig.enabled ? `<p class="small">✓ Aktuell aktiv. ${boardsIndex.boards.filter(b=>b.gistId).length} von ${boardsIndex.boards.length} Boards synchronisiert.</p>` : ''}
       `;
     }, 'Speichern & Aktivieren', async (box)=>{
-  const token = box.querySelector('#syncTokenInput').value.trim();
-  if(!token){ alert('Bitte Token eingeben'); return; }
-  syncConfig.token = token;
-  syncConfig.enabled = true;
-  saveSyncConfig();
-  closeModal();
-  toast('Sync aktiviert, prüfe Verbindung...');
-  setSyncStatus('syncing', 'Initialisiere Index...');
-  try {
-    await mergeIndexFromCloud(); // BUGFIX
-    updateBoardSwitcherUI();
-    const ok = await initialSyncForActive();
-    if(ok) toast('Sync eingerichtet', 'success');
-  } catch(err) {
-    setSyncStatus('error', 'Index-Fehler');
-    toast('Sync-Fehler: '+err.message, 'error');
-  }
-	}
-    , syncConfig.enabled ? [
-      { label:'Sync deaktivieren', danger:true, action:()=>{
-          confirmSimple('Sync deaktivieren?',
-            'Cloud-Sync deaktivieren? Lokale Daten bleiben erhalten. Token wird gelöscht.',
-            'Deaktivieren',
-            ()=>{
-              syncConfig = { token:null, enabled:false };
-              saveSyncConfig();
-              setSyncStatus('off', 'Offline');
-              toast('Sync deaktiviert');
-            });
-        }}
-    ] : null);
+      const token = box.querySelector('#syncTokenInput').value.trim();
+      if(!token){ alert('Bitte Token eingeben'); return; }
+      syncConfig.token = token; syncConfig.enabled = true; saveSyncConfig(); closeModal();
+      toast('Sync aktiviert, prüfe Verbindung...'); setSyncStatus('syncing', 'Initialisiere Index...');
+      try {
+        await mergeIndexFromCloud();
+        updateBoardSwitcherUI();
+        const ok = await initialSyncForActive();
+        if(ok) toast('Sync eingerichtet', 'success');
+      } catch(err) { setSyncStatus('error', 'Index-Fehler'); toast('Sync-Fehler: '+err.message, 'error'); }
+    }, syncConfig.enabled ? [{
+      label:'Sync deaktivieren', danger:true, action:()=>{
+        confirmSimple('Sync deaktivieren?', 'Cloud-Sync deaktivieren? Lokale Daten bleiben erhalten. Token wird gelöscht.', 'Deaktivieren', ()=>{
+          syncConfig = { token:null, enabled:false }; saveSyncConfig(); setSyncStatus('off', 'Offline'); toast('Sync deaktiviert');
+        });
+      }
+    }] : null);
   }
 
-  // ========= SHARE & INVITE DIALOG =========
   function openInviteDialog(){
     const b = getActiveBoard();
     if(!b) return;
-    
     if(!syncConfig.enabled || !syncConfig.token || !b.gistId){
-      showModal('Teilen benötigt Cloud-Sync', (body)=>{
-        body.innerHTML = `<p>Damit das Board geteilt werden kann, muss es zuerst mit der Cloud synchronisiert werden.</p>`;
-      }, 'Sync einrichten...', ()=>{ closeModal(); openSyncModal(); });
+      showModal('Teilen benötigt Cloud-Sync', (body)=>{ body.innerHTML = `<p>Damit das Board geteilt werden kann, muss es zuerst synchronisiert werden.</p>`; }, 'Sync einrichten...', ()=>{ closeModal(); openSyncModal(); });
       return;
     }
-
     const baseUrl = window.location.href.split('?')[0].replace(/[^/]*$/, '');
     const viewerUrl = baseUrl + 'viewer.html?token=' + b.gistId;
 
     showModal('Board teilen & einladen', (body)=>{
       body.innerHTML = `
-        <div class="share-box" style="background:#e3f2fd; border-color:#90caf9;">
+        <div class="share-box" style="background:#e3f2fd; border-color:#90caf9; padding: 12px; border-radius: 6px;">
           <b>🔗 Privater Lese-Link</b><br>
           <span class="small">Jeder mit diesem Link kann das Board lesen. Es ist keine Anmeldung nötig.</span>
-          <div class="share-link">
+          <div class="share-link" style="display:flex; gap:8px; margin-top:8px;">
             <input type="text" id="shareLinkInput" value="${escapeAttr(viewerUrl)}" readonly />
             <button type="button" id="copyShareBtn">Kopieren</button>
           </div>
         </div>
-        
         <div style="margin-top: 16px; padding: 12px; border: 1px solid #d0d4da; border-radius: 6px; background: #fff;">
           <b>✉️ Per Outlook / E-Mail einladen</b>
-          <p class="small" style="margin-bottom: 8px;">Öffnet dein E-Mail-Programm mit einem fertigen Entwurf inklusive Zugriffslink.</p>
+          <p class="small" style="margin-bottom: 8px;">Öffnet dein E-Mail-Programm mit einem fertigen Entwurf.</p>
           <input type="email" id="inviteEmail" placeholder="E-Mail-Adresse des Empfängers (optional)" style="width:100%; margin-bottom: 8px;" />
           <button type="button" id="sendMailBtn" style="width:100%; justify-content:center;" class="primary">E-Mail-Entwurf öffnen</button>
         </div>
@@ -2589,14 +2386,8 @@ if(syncConfig.enabled){
       setTimeout(()=>{
         const copyBtn = body.querySelector('#copyShareBtn');
         const input = body.querySelector('#shareLinkInput');
-        copyBtn.addEventListener('click', ()=>{
-          navigator.clipboard.writeText(viewerUrl).then(()=>{
-            copyBtn.textContent = '✓ Kopiert';
-            setTimeout(()=>{ copyBtn.textContent = 'Kopieren'; }, 1500);
-          });
-        });
+        copyBtn.addEventListener('click', ()=>{ navigator.clipboard.writeText(viewerUrl).then(()=>{ copyBtn.textContent = '✓ Kopiert'; setTimeout(()=>{ copyBtn.textContent = 'Kopieren'; }, 1500); }); });
         input.addEventListener('click', ()=> input.select());
-
         const mailBtn = body.querySelector('#sendMailBtn');
         mailBtn.addEventListener('click', ()=>{
           const email = body.querySelector('#inviteEmail').value.trim();
@@ -2605,31 +2396,23 @@ if(syncConfig.enabled){
           window.location.href = `mailto:${email}?subject=${subject}&body=${bodyText}`;
         });
       }, 50);
-    }, 'Schließen', ()=>{ closeModal(); }, [
-      { label: 'Token erneuern (Zugriff entziehen)', danger: true, action: ()=>{
-          confirmSimple('Zugriffs-Token erneuern?',
-            'Dadurch wird der aktuelle geheime Link <b>sofort ungültig</b>. Personen mit dem alten Link verlieren den Zugriff. Es wird ein neues Token generiert.',
-            'Erneuern & Entziehen',
-            async ()=>{
-              try {
-                closeModal();
-                toast('Lösche alte Freigabe...');
-                await githubRequest('/gists/' + b.gistId, 'DELETE');
-                b.gistId = null;
-                saveBoardsIndex();
-                toast('Erstelle neues Token...');
-                await initialSyncForActive();
-                toast('Token erfolgreich erneuert', 'success');
-                setTimeout(openInviteDialog, 500);
-              } catch(err) {
-                toast('Fehler beim Erneuern: ' + err.message, 'error');
-              }
-            });
-      }}
-    ]);
+    }, 'Schließen', ()=>{ closeModal(); }, [{
+      label: 'Token erneuern (Zugriff entziehen)', danger: true, action: ()=>{
+        confirmSimple('Zugriffs-Token erneuern?', 'Dadurch wird der aktuelle Link <b>sofort ungültig</b>. Es wird ein neues Token generiert.', 'Erneuern & Entziehen', async ()=>{
+          try {
+            closeModal(); toast('Lösche alte Freigabe...');
+            await githubRequest('/gists/' + b.gistId, 'DELETE');
+            b.gistId = null; saveBoardsIndex();
+            toast('Erstelle neues Token...');
+            await initialSyncForActive();
+            toast('Token erfolgreich erneuert', 'success');
+            setTimeout(openInviteDialog, 500);
+          } catch(err) { toast('Fehler beim Erneuern: ' + err.message, 'error'); }
+        });
+      }
+    }]);
   }
 
-  // ========= SYNC LOGIC =========
   function setSyncStatus(kind, text){
     syncStatusEl.classList.remove('ok','pending','error','syncing','off');
     if(kind) syncStatusEl.classList.add(kind);
@@ -2643,29 +2426,16 @@ if(syncConfig.enabled){
   }
 
   async function githubRequest(path, method, body){
-    const headers = {
-      'Accept':'application/vnd.github+json',
-      'Authorization':'Bearer '+syncConfig.token,
-      'X-GitHub-Api-Version':'2022-11-28',
-    };
+    const headers = { 'Accept':'application/vnd.github+json', 'Authorization':'Bearer '+syncConfig.token, 'X-GitHub-Api-Version':'2022-11-28' };
     if(body) headers['Content-Type'] = 'application/json';
-    const res = await fetch('https://api.github.com'+path, {
-      method, headers, body: body ? JSON.stringify(body) : undefined,
-    });
+    const res = await fetch('https://api.github.com'+path, { method, headers, body: body ? JSON.stringify(body) : undefined });
     if(method === 'DELETE' && res.ok) return null;
-    if(!res.ok){
-      const text = await res.text().catch(()=>'');
-      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
-    }
+    if(!res.ok){ const text = await res.text().catch(()=>''); throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`); }
     return res.json();
   }
 
   async function createGist(dataJson, boardName){
-    const gist = await githubRequest('/gists', 'POST', {
-      description: 'Mini Whiteboard Sync: ' + boardName,
-      public: false,
-      files: { 'whiteboard.json': { content: dataJson } }
-    });
+    const gist = await githubRequest('/gists', 'POST', { description: 'Mini Whiteboard Sync: ' + boardName, public: false, files: { 'whiteboard.json': { content: dataJson } } });
     return gist.id;
   }
   async function readGist(gistId){
@@ -2673,208 +2443,120 @@ if(syncConfig.enabled){
     const file = gist.files && gist.files['whiteboard.json'];
     if(!file) return null;
     let content = file.content;
-    if(file.truncated && file.raw_url){
-      const res = await fetch(file.raw_url);
-      content = await res.text();
-    }
+    if(file.truncated && file.raw_url){ const res = await fetch(file.raw_url); content = await res.text(); }
     return { content, updatedAt: new Date(gist.updated_at).getTime() };
   }
   async function writeGist(gistId, dataJson){
-    await githubRequest('/gists/'+gistId, 'PATCH', {
-      files: { 'whiteboard.json': { content: dataJson } }
-    });
+    await githubRequest('/gists/'+gistId, 'PATCH', { files: { 'whiteboard.json': { content: dataJson } } });
   }
 
-// ========= INDEX GIST SYNC =========
-function serializeBoardsIndex(){
-  return {
-    version: 1,
-    lastModified: Date.now(),
-    boards: boardsIndex.boards.map(b => ({
-      id: b.id,
-      name: b.name,
-      gistId: b.gistId || null,
-      createdAt: b.createdAt || Date.now(),
-      deletedAt: b.deletedAt || null,
-    })),
-  };
-}
-
-async function findOrCreateIndexGist(){
-  // Falls bereits bekannt: zurückgeben
-  if(syncConfig.indexGistId) return syncConfig.indexGistId;
-
-  // Discovery: Eigene Gists durchsuchen
-  try{
-    const gists = await githubRequest('/gists?per_page=100', 'GET');
-    const found = gists.find(g =>
-      g.description === 'Mini Whiteboard Index' &&
-      g.files && g.files[INDEX_FILENAME]
-    );
-    if(found){
-      syncConfig.indexGistId = found.id;
-      saveSyncConfig();
-      return found.id;
-    }
-  }catch(err){
-    console.warn('Gist discovery failed', err);
+  function serializeBoardsIndex(){
+    return {
+      version: 1, lastModified: Date.now(),
+      boards: boardsIndex.boards.map(b => ({ id: b.id, name: b.name, gistId: b.gistId || null, createdAt: b.createdAt || Date.now(), deletedAt: b.deletedAt || null })),
+    };
   }
 
-  // Neu erstellen
-  const indexData = serializeBoardsIndex();
-  const gist = await githubRequest('/gists', 'POST', {
-    description: 'Mini Whiteboard Index',
-    public: false,
-    files: { [INDEX_FILENAME]: { content: JSON.stringify(indexData, null, 2) } }
-  });
-  syncConfig.indexGistId = gist.id;
-  saveSyncConfig();
-  return gist.id;
-}
-
-async function loadIndexFromCloud(){
-  if(!syncConfig.enabled || !syncConfig.token) return null;
-  try{
-    const indexId = await findOrCreateIndexGist();
-    const gist = await githubRequest('/gists/'+indexId, 'GET');
-    const file = gist.files && gist.files[INDEX_FILENAME];
-    if(!file) return null;
-    let content = file.content;
-    if(file.truncated && file.raw_url){
-      const res = await fetch(file.raw_url);
-      content = await res.text();
-    }
-    return JSON.parse(content);
-  }catch(err){
-    console.warn('Index load failed', err);
-    return null;
-  }
-}
-
-async function pushIndexToCloud(){
-  if(!syncConfig.enabled || !syncConfig.token) return;
-  try{
-    const indexId = await findOrCreateIndexGist();
+  async function findOrCreateIndexGist(){
+    if(syncConfig.indexGistId) return syncConfig.indexGistId;
+    try{
+      const gists = await githubRequest('/gists?per_page=100', 'GET');
+      const found = gists.find(g => g.description === 'Mini Whiteboard Index' && g.files && g.files[INDEX_FILENAME]);
+      if(found){ syncConfig.indexGistId = found.id; saveSyncConfig(); return found.id; }
+    }catch(err){ console.warn('Gist discovery failed', err); }
     const indexData = serializeBoardsIndex();
-    await githubRequest('/gists/'+indexId, 'PATCH', {
-      files: { [INDEX_FILENAME]: { content: JSON.stringify(indexData, null, 2) } }
-    });
-  }catch(err){
-    console.warn('Index push failed', err);
-    toast('Index-Sync fehlgeschlagen', 'error');
-  }
-}
-
-// Debounced Index-Push
-let indexPushTimer = null;
-function scheduleIndexPush(){
-  if(!syncConfig.enabled) return;
-  if(indexPushTimer) clearTimeout(indexPushTimer);
-  indexPushTimer = setTimeout(pushIndexToCloud, 2000);
-}
-
-// Merge: Cloud-Index mit lokalem mergen
-// Merge: Cloud-Index mit lokalem mergen
-async function mergeIndexFromCloud(){
-  const cloudIndex = await loadIndexFromCloud();
-  if(!cloudIndex || !Array.isArray(cloudIndex.boards)){
-    // Kein Cloud-Index: lokalen hochladen
-    await pushIndexToCloud();
-    return false;
+    const gist = await githubRequest('/gists', 'POST', { description: 'Mini Whiteboard Index', public: false, files: { [INDEX_FILENAME]: { content: JSON.stringify(indexData, null, 2) } } });
+    syncConfig.indexGistId = gist.id; saveSyncConfig();
+    return gist.id;
   }
 
-  const localById = new Map(boardsIndex.boards.map(b => [b.id, b]));
-  const cloudById = new Map(cloudIndex.boards.map(b => [b.id, b]));
-  const mergedById = new Map();
-  let changed = false;
+  async function loadIndexFromCloud(){
+    if(!syncConfig.enabled || !syncConfig.token) return null;
+    try{
+      const indexId = await findOrCreateIndexGist();
+      const gist = await githubRequest('/gists/'+indexId, 'GET');
+      const file = gist.files && gist.files[INDEX_FILENAME];
+      if(!file) return null;
+      let content = file.content;
+      if(file.truncated && file.raw_url){ const res = await fetch(file.raw_url); content = await res.text(); }
+      return JSON.parse(content);
+    }catch(err){ console.warn('Index load failed', err); return null; }
+  }
 
-  // 1. Cloud-Boards übernehmen (auch neue, die lokal fehlen)
-  cloudById.forEach((cloudBoard, id) => {
-    if(cloudBoard.deletedAt){
-      // In Cloud gelöscht: lokal nicht hinzufügen, lokale Daten ggf. entfernen
-      if(localById.has(id)){
-        try{
-          localStorage.removeItem(BOARD_PREFIX + id);
-          localStorage.removeItem(BACKUP_PREFIX + id);
-          localStorage.removeItem(HISTORY_PREFIX + id);
-        }catch{}
-        changed = true;
+  async function pushIndexToCloud(){
+    if(!syncConfig.enabled || !syncConfig.token) return;
+    try{
+      const indexId = await findOrCreateIndexGist(); const indexData = serializeBoardsIndex();
+      await githubRequest('/gists/'+indexId, 'PATCH', { files: { [INDEX_FILENAME]: { content: JSON.stringify(indexData, null, 2) } } });
+    }catch(err){ console.warn('Index push failed', err); toast('Index-Sync fehlgeschlagen', 'error'); }
+  }
+
+  let indexPushTimer = null;
+  function scheduleIndexPush(){
+    if(!syncConfig.enabled) return;
+    if(indexPushTimer) clearTimeout(indexPushTimer);
+    indexPushTimer = setTimeout(pushIndexToCloud, 2000);
+  }
+
+  async function mergeIndexFromCloud(){
+    const cloudIndex = await loadIndexFromCloud();
+    if(!cloudIndex || !Array.isArray(cloudIndex.boards)){ await pushIndexToCloud(); return false; }
+
+    const localById = new Map(boardsIndex.boards.map(b => [b.id, b]));
+    const cloudById = new Map(cloudIndex.boards.map(b => [b.id, b]));
+    const mergedById = new Map(); let changed = false;
+
+    cloudById.forEach((cloudBoard, id) => {
+      if(cloudBoard.deletedAt){
+        if(localById.has(id)){
+          try{ localStorage.removeItem(BOARD_PREFIX + id); localStorage.removeItem(BACKUP_PREFIX + id); localStorage.removeItem(HISTORY_PREFIX + id); }catch{}
+          changed = true;
+        }
+        return;
       }
-      return;
-    }
-    const local = localById.get(id);
-    if(!local){
-      // Neu aus Cloud: hinzufügen
-      mergedById.set(id, {
-        id: cloudBoard.id,
-        name: cloudBoard.name,
-        gistId: cloudBoard.gistId || null,
-        publicGistId: null,
-        createdAt: cloudBoard.createdAt || Date.now(),
-      });
-      changed = true;
-    } else {
-      // Beide kennen das Board: Cloud-Werte für Name/GistId nehmen, falls Cloud neuer ist
-      const merged = Object.assign({}, local);
-      if(cloudBoard.name && cloudBoard.name !== local.name){ merged.name = cloudBoard.name; changed = true; }
-      if(cloudBoard.gistId && cloudBoard.gistId !== local.gistId){ merged.gistId = cloudBoard.gistId; changed = true; }
-      mergedById.set(id, merged);
-    }
-  });
+      const local = localById.get(id);
+      if(!local){
+        mergedById.set(id, { id: cloudBoard.id, name: cloudBoard.name, gistId: cloudBoard.gistId || null, publicGistId: null, createdAt: cloudBoard.createdAt || Date.now() });
+        changed = true;
+      } else {
+        const merged = Object.assign({}, local);
+        if(cloudBoard.name && cloudBoard.name !== local.name){ merged.name = cloudBoard.name; changed = true; }
+        if(cloudBoard.gistId && cloudBoard.gistId !== local.gistId){ merged.gistId = cloudBoard.gistId; changed = true; }
+        mergedById.set(id, merged);
+      }
+    });
 
-  // 2. Lokale Boards, die nicht in Cloud sind: behalten und nach oben pushen
-  localById.forEach((localBoard, id) => {
-    if(!cloudById.has(id)){
-      // NEU: Verhindert "Geister-Boards" auf neuen Geräten
-      if(cloudById.size > 0 && !localBoard.gistId) {
-        const localDataRaw = localStorage.getItem(BOARD_PREFIX + id);
-        if(localDataRaw) {
-          const localData = JSON.parse(localDataRaw);
-          // Wenn das Board weniger als 6 Karten hat und nie synchronisiert wurde -> verwerfen
-          if(localData.cards && localData.cards.length <= 5 && !localData.lastModified) {
-            try { 
-              localStorage.removeItem(BOARD_PREFIX + id); 
-              localStorage.removeItem(BACKUP_PREFIX + id);
-              localStorage.removeItem(HISTORY_PREFIX + id);
-            } catch(e){}
-            changed = true;
-            return; // Nicht in mergedById übernehmen
+    localById.forEach((localBoard, id) => {
+      if(!cloudById.has(id)){
+        if(cloudById.size > 0 && !localBoard.gistId) {
+          const localDataRaw = localStorage.getItem(BOARD_PREFIX + id);
+          if(localDataRaw) {
+            const localData = JSON.parse(localDataRaw);
+            if(localData.cards && localData.cards.length <= 5 && !localData.lastModified) {
+              try { localStorage.removeItem(BOARD_PREFIX + id); localStorage.removeItem(BACKUP_PREFIX + id); localStorage.removeItem(HISTORY_PREFIX + id); } catch(e){}
+              changed = true; return; 
+            }
           }
         }
+        mergedById.set(id, localBoard); changed = true;
       }
-      
-      mergedById.set(id, localBoard);
-      changed = true; // Index muss aktualisiert werden
-    }
-  });
-
-  if(mergedById.size === 0){
-    // Edge case: alles gelöscht. Default-Board anlegen.
-    const fallbackId = newBoardId();
-    mergedById.set(fallbackId, {
-      id: fallbackId, name:'Whiteboard 1', gistId:null, publicGistId:null, createdAt:Date.now()
     });
-    changed = true;
-  }
 
-  boardsIndex.boards = Array.from(mergedById.values());
+    if(mergedById.size === 0){
+      const fallbackId = newBoardId();
+      mergedById.set(fallbackId, { id: fallbackId, name:'Whiteboard 1', gistId:null, publicGistId:null, createdAt:Date.now() });
+      changed = true;
+    }
 
-  // Aktives Board prüfen
-  if(!boardsIndex.boards.find(b => b.id === boardsIndex.activeId)){
-    boardsIndex.activeId = boardsIndex.boards[0].id;
-    changed = true;
+    boardsIndex.boards = Array.from(mergedById.values());
+    if(!boardsIndex.boards.find(b => b.id === boardsIndex.activeId)){ boardsIndex.activeId = boardsIndex.boards[0].id; changed = true; }
+    saveBoardsIndex();
+    if(changed){ await pushIndexToCloud(); updateBoardSwitcherUI(); }
+    return changed;
   }
-
-  saveBoardsIndex();
-  if(changed){
-    await pushIndexToCloud();
-    updateBoardSwitcherUI();
-  }
-  return changed;
-}
 
   async function initialSyncForActive(){
-if(!syncConfig.enabled) return false;
+    if(!syncConfig.enabled) return false;
     const b = getActiveBoard();
     if(!b) return false;
     setSyncStatus('syncing','Verbinde...');
@@ -2882,226 +2564,136 @@ if(!syncConfig.enabled) return false;
       if(!b.gistId){
         const dataJson = JSON.stringify(serializeState(), null, 2);
         const id = await createGist(dataJson, b.name);
-        b.gistId = id;
-        saveBoardsIndex();
+        b.gistId = id; saveBoardsIndex();
         boardSyncState.lastSyncedAt = Date.now();
         boardSyncState.lastSyncedHash = await hashString(dataJson);
-        setSyncStatus('ok', 'Synchronisiert');
-        toast('Secret Gist erstellt', 'success');
+        setSyncStatus('ok', 'Synchronisiert'); toast('Secret Gist erstellt', 'success');
         return true;
       } else {
         const remote = await readGist(b.gistId);
         if(!remote){
           const dataJson = JSON.stringify(serializeState(), null, 2);
           await writeGist(b.gistId, dataJson);
-          boardSyncState.lastSyncedAt = Date.now();
-          boardSyncState.lastSyncedHash = await hashString(dataJson);
-          setSyncStatus('ok', 'Synchronisiert');
-          return true;
+          boardSyncState.lastSyncedAt = Date.now(); boardSyncState.lastSyncedHash = await hashString(dataJson);
+          setSyncStatus('ok', 'Synchronisiert'); return true;
         }
         const remoteData = JSON.parse(remote.content);
         const localModified = state.lastModified || 0;
         const remoteModified = remoteData.lastModified || remote.updatedAt || 0;
-
-        // NEU: Prüfen, ob dieses Gerät das Board zum ersten Mal synchronisiert
         const isNewDeviceForThisBoard = !boardSyncState.lastSyncedHash;
 
-        // Wenn es ein neues Gerät ist ODER die Cloud neuer ist, Cloud-Daten priorisieren
         if(isNewDeviceForThisBoard || remoteModified > localModified + 1000){
-          const applyRemote = isNewDeviceForThisBoard || 
-            (state.cards.length === 0 && state.links.length === 0) ||
-            confirm(`Cloud-Version ist neuer (${new Date(remoteModified).toLocaleString()}). Lokale Daten überschreiben?`);
-          
+          const applyRemote = isNewDeviceForThisBoard || (state.cards.length === 0 && state.links.length === 0) || confirm(`Cloud-Version ist neuer (${new Date(remoteModified).toLocaleString()}). Lokale Daten überschreiben?`);
           if(applyRemote){
             state = Object.assign(defaultState(), remoteData);
+            ensureIntegrity();
             state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
             bgLayout.style.display = state.showBg ? '' : 'none';
             minimap.style.display = state.showMm === false ? 'none' : '';
             updateAutoColorButton();
             if(!state.view) fitLayoutToView(); else applyView();
-            render();
-            saveImmediate();
-            boardSyncState.lastSyncedAt = Date.now();
-            boardSyncState.lastSyncedHash = await hashString(remote.content);
+            render(); saveImmediate();
+            boardSyncState.lastSyncedAt = Date.now(); boardSyncState.lastSyncedHash = await hashString(remote.content);
             setSyncStatus('ok', 'Von Cloud geladen');
-            
-            // Kurzes Feedback, dass automatisch geladen wurde
             if(isNewDeviceForThisBoard) toast('Board aus der Cloud geladen', 'success');
-            
             return true;
           }
         }
         
         const dataJson = JSON.stringify(serializeState(), null, 2);
         await writeGist(b.gistId, dataJson);
-        boardSyncState.lastSyncedAt = Date.now();
-        boardSyncState.lastSyncedHash = await hashString(dataJson);
-        setSyncStatus('ok', 'Synchronisiert');
-        return true;
+        boardSyncState.lastSyncedAt = Date.now(); boardSyncState.lastSyncedHash = await hashString(dataJson);
+        setSyncStatus('ok', 'Synchronisiert'); return true;
       }
     }catch(err){
-      console.error(err);
-      setSyncStatus('error', 'Fehler: '+(err.message||'').slice(0,40));
-      toast('Sync-Fehler: '+err.message, 'error');
-      return false;
+      console.error(err); setSyncStatus('error', 'Fehler: '+(err.message||'').slice(0,40)); toast('Sync-Fehler: '+err.message, 'error'); return false;
     }
   }
-
 	  
   function scheduleSync(){
-    if(syncTimer) clearTimeout(syncTimer);
-    syncTimer = setTimeout(doSync, SYNC_DEBOUNCE);
+    if(syncTimer) clearTimeout(syncTimer); syncTimer = setTimeout(doSync, SYNC_DEBOUNCE);
   }
   async function doSync(){
     if(!syncConfig.enabled || syncInFlight) return;
     const b = getActiveBoard();
     if(!b) return;
-    if(!b.gistId){
-      // Erster Sync für dieses Board
-      return initialSyncForActive();
-    }
+    if(!b.gistId){ return initialSyncForActive(); }
     syncInFlight = true;
     try{
       const dataJson = JSON.stringify(serializeState(), null, 2);
       const hash = await hashString(dataJson);
-      if(hash === boardSyncState.lastSyncedHash){
-        setSyncStatus('ok', 'Aktuell');
-        syncInFlight = false;
-        return;
-      }
+      if(hash === boardSyncState.lastSyncedHash){ setSyncStatus('ok', 'Aktuell'); syncInFlight = false; return; }
       setSyncStatus('syncing', 'Sende...');
       await writeGist(b.gistId, dataJson);
-      boardSyncState.lastSyncedAt = Date.now();
-      boardSyncState.lastSyncedHash = hash;
+      boardSyncState.lastSyncedAt = Date.now(); boardSyncState.lastSyncedHash = hash;
       setSyncStatus('ok', 'Synchronisiert');
-    }catch(err){
-      console.error(err);
-      setSyncStatus('error', 'Sync-Fehler');
-      toast('Sync fehlgeschlagen: '+err.message, 'error');
-    }finally{
-      syncInFlight = false;
-    }
+    }catch(err){ console.error(err); setSyncStatus('error', 'Sync-Fehler'); toast('Sync fehlgeschlagen: '+err.message, 'error'); }
+    finally{ syncInFlight = false; }
   }
 
-  async function manualSync(){
-    if(!syncConfig.enabled){ openSyncModal(); return; }
-    await doSync();
-  }
+  async function manualSync(){ if(!syncConfig.enabled){ openSyncModal(); return; } await doSync(); }
   async function manualPull(){
     if(!syncConfig.enabled){ openSyncModal(); return; }
     const b = getActiveBoard();
     if(!b || !b.gistId){ toast('Kein Cloud-Gist für dieses Board', 'error'); return; }
-    confirmSimple('Cloud-Version laden?',
-      'Wirklich Cloud-Version laden? Lokale nicht-synchronisierte Änderungen gehen verloren.',
-      'Laden',
-      async ()=>{
-        setSyncStatus('syncing', 'Lade...');
-        try{
-          const remote = await readGist(b.gistId);
-          if(!remote){ toast('Cloud leer', 'error'); setSyncStatus('error','Leer'); return; }
-          const remoteData = JSON.parse(remote.content);
-          pushUndo();
-          state = Object.assign(defaultState(), remoteData);
-          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
-          bgLayout.style.display = state.showBg ? '' : 'none';
-          minimap.style.display = state.showMm === false ? 'none' : '';
-          updateAutoColorButton();
-          if(!state.view) fitLayoutToView(); else applyView();
-          render();
-          saveImmediate();
-          boardSyncState.lastSyncedAt = Date.now();
-          boardSyncState.lastSyncedHash = await hashString(remote.content);
-          setSyncStatus('ok', 'Von Cloud geladen');
-          toast('Cloud-Version geladen', 'success');
-        }catch(err){
-          setSyncStatus('error','Fehler');
-          toast('Laden fehlgeschlagen: '+err.message, 'error');
-        }
-      });
-  }
-
-  
-  setInterval(()=>{
-    if(syncConfig.enabled && !syncInFlight){
-      const b = getActiveBoard();
-      if(b && b.gistId) doSync();
-    }
-  }, SYNC_INTERVAL);
-  
-
-  // ========= INIT =========
-state = loadActiveBoardState();
-state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
-if(!state.view) fitLayoutToView(); else applyView();
-
-if(state.cards.length === 0){
-  initZoneTemplate();
-  render();
-  state.lastModified = Date.now(); // BUGFIX: Template bekommt echten Zeitstempel
-  saveImmediate();
-} else {
-  render();
-}
-updateUndoButtons();
-
-if(syncConfig.enabled && syncConfig.token){
-  setSyncStatus('syncing', 'Verbinde...');
-  
-  // 1. Lade-Sperre aktivieren
-  document.body.classList.add('sync-blocked');
-  
-  // Erst Index aus Cloud holen, dann aktives Board syncen
-  (async () => {
-    try {
-      // (Falls deine Funktion pullIndexFromCloud heißt, lass es so. 
-      // Wenn du sie in mergeIndexFromCloud umbenannt hast, passe den Namen hier an)
-      const indexChanged = await pullIndexFromCloud(); 
-      
-      if(indexChanged){
-        const active = getActiveBoard();
-        if(!active && boardsIndex.boards.length > 0){
-          boardsIndex.activeId = boardsIndex.boards[0].id;
-          saveBoardsIndex();
-        }
-        state = loadActiveBoardState();
+    confirmSimple('Cloud-Version laden?', 'Wirklich Cloud-Version laden? Lokale nicht-synchronisierte Änderungen gehen verloren.', 'Laden', async ()=>{
+      setSyncStatus('syncing', 'Lade...');
+      try{
+        const remote = await readGist(b.gistId);
+        if(!remote){ toast('Cloud leer', 'error'); setSyncStatus('error','Leer'); return; }
+        const remoteData = JSON.parse(remote.content);
+        pushUndo(); state = Object.assign(defaultState(), remoteData);
+        ensureIntegrity();
         state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
-        if(!state.view) fitLayoutToView(); else applyView();
-        render();
-        updateBoardSwitcherUI();
-      }
-      await initialSyncForActive();
-      
-    } finally {
-      // 2. Lade-Sperre wieder aufheben (wird immer ausgeführt)
-      document.body.classList.remove('sync-blocked');
-    }
-  })();
-} else {
-  setSyncStatus('off', 'Offline (Sync aus)');
-}
-
-window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
-
-// Periodischer Index-Pull (alle 60s), damit neue Boards von anderen Geräten erscheinen
-setInterval(async () => {
-  if(!syncConfig.enabled || syncInFlight) return;
-  try {
-    const changed = await mergeIndexFromCloud(); // BUGFIX
-    if(changed){
-      updateBoardSwitcherUI();
-      toast('Board-Liste aktualisiert');
-    }
-  } catch(err){ console.warn('periodic index pull failed', err); }
-}, 60000);
-
-console.log('Whiteboard v15 Multi-Board initialisiert', {
-  boards: boardsIndex ? boardsIndex.boards.length : 0,
-  sync: syncConfig.enabled,
-});
-
-  } catch (err) {
-    console.error('Initialisierungsfehler im Whiteboard:', err);
+        bgLayout.style.display = state.showBg ? '' : 'none'; minimap.style.display = state.showMm === false ? 'none' : '';
+        updateAutoColorButton(); if(!state.view) fitLayoutToView(); else applyView(); render(); saveImmediate();
+        boardSyncState.lastSyncedAt = Date.now(); boardSyncState.lastSyncedHash = await hashString(remote.content);
+        setSyncStatus('ok', 'Von Cloud geladen'); toast('Cloud-Version geladen', 'success');
+      }catch(err){ setSyncStatus('error','Fehler'); toast('Laden fehlgeschlagen: '+err.message, 'error'); }
+    });
   }
+
+  setInterval(()=>{ if(syncConfig.enabled && !syncInFlight){ const b = getActiveBoard(); if(b && b.gistId) doSync(); } }, SYNC_INTERVAL);
+  
+  state = loadActiveBoardState();
+  ensureIntegrity();
+  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+  if(!state.view) fitLayoutToView(); else applyView();
+
+  if(state.cards.length === 0){
+    initZoneTemplate(); render(); state.lastModified = Date.now(); saveImmediate();
+  } else { render(); }
+  updateUndoButtons();
+
+  if(syncConfig.enabled && syncConfig.token){
+    setSyncStatus('syncing', 'Verbinde...');
+    document.body.classList.add('sync-blocked');
+    (async () => {
+      try {
+        const indexChanged = await mergeIndexFromCloud(); 
+        if(indexChanged){
+          const active = getActiveBoard();
+          if(!active && boardsIndex.boards.length > 0){ boardsIndex.activeId = boardsIndex.boards[0].id; saveBoardsIndex(); }
+          state = loadActiveBoardState();
+          ensureIntegrity();
+          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+          if(!state.view) fitLayoutToView(); else applyView();
+          render(); updateBoardSwitcherUI();
+        }
+        await initialSyncForActive();
+      } finally { document.body.classList.remove('sync-blocked'); }
+    })();
+  } else { setSyncStatus('off', 'Offline (Sync aus)'); }
+
+  window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
+
+  setInterval(async () => {
+    if(!syncConfig.enabled || syncInFlight) return;
+    try { const changed = await mergeIndexFromCloud(); if(changed){ updateBoardSwitcherUI(); toast('Board-Liste aktualisiert'); } }
+    catch(err){ console.warn('periodic index pull failed', err); }
+  }, 60000);
+
+  } catch (err) { console.error('Initialisierungsfehler im Whiteboard:', err); }
 })();
 </script>
 </body>

@@ -1726,7 +1726,7 @@ function readEditableText(el){
 
   // ========= CONTEXT MENU =========
   function hideContextMenu(){ if(ctxMenuEl){ ctxMenuEl.remove(); ctxMenuEl=null; } }
-  function showContextMenu(x, y, items){
+   function showContextMenu(x, y, items){
     hideContextMenu();
     const menu = document.createElement('div');
     menu.className = 'ctx-menu';
@@ -1743,8 +1743,13 @@ function readEditableText(el){
     });
     document.body.appendChild(menu);
     const mw=menu.offsetWidth, mh=menu.offsetHeight;
-    menu.style.left = Math.min(x, window.innerWidth - mw - 4) + 'px';
-    menu.style.top  = Math.min(y, window.innerHeight - mh - 4) + 'px';
+    
+    // ANGEPASST: Math.max hinzugefügt, damit das Menü nicht links/oben rausfällt
+    const left = Math.max(4, Math.min(x, window.innerWidth - mw - 4));
+    const top  = Math.max(4, Math.min(y, window.innerHeight - mh - 4));
+    
+    menu.style.left = left + 'px';
+    menu.style.top  = top + 'px';
     ctxMenuEl = menu;
   }
   function showLinkMenu(x, y, link){
@@ -1877,7 +1882,7 @@ function readEditableText(el){
     showContextMenu(rect.left, rect.bottom + 4, items);
   }
 
-  function showBoardMenu(){
+    function showBoardMenu(){
     const rect = boardSwitcher.getBoundingClientRect();
     const b = getActiveBoard();
     if(!b) return;
@@ -1885,15 +1890,16 @@ function readEditableText(el){
       { head: b.name },
       { icon:'✎', label:'Umbenennen...', action: ()=> renameBoardDialog(b.id) },
       { icon:'⧉', label:'Duplizieren', action: ()=> duplicateBoard(b.id) },
-                { sep:true },
-       { icon: '✉', label: 'Teilen & Einladen...', action: ()=> openInviteDialog() },
+      { sep:true },
+      { icon: '✉', label: 'Teilen & Einladen...', action: ()=> openInviteDialog() },
       { sep:true },
       { icon:'+', label:'Neues Board...', action: ()=> createNewBoardDialog() },
     ];
     if(boardsIndex.boards.length > 1){
       items.push({ icon:'🗑', label:'Dieses Board löschen...', danger:true, action: ()=> confirmDeleteBoard(b.id) });
     }
-    showContextMenu(rect.right - 220, rect.bottom + 4, items);
+    // ANGEPASST: rect.left statt rect.right - 220
+    showContextMenu(rect.left, rect.bottom + 4, items);
   }
 
   function suggestBoardName(){

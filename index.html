@@ -2843,7 +2843,7 @@ async function mergeIndexFromCloud(){
 }
 
   async function initialSyncForActive(){
-    if(!syncConfig.enabled) return false;
+if(!syncConfig.enabled) return false;
     const b = getActiveBoard();
     if(!b) return false;
     setSyncStatus('syncing','Verbinde...');
@@ -2872,9 +2872,15 @@ async function mergeIndexFromCloud(){
         const localModified = state.lastModified || 0;
         const remoteModified = remoteData.lastModified || remote.updatedAt || 0;
 
-        if(remoteModified > localModified + 1000){
-          const applyRemote = (state.cards.length === 0 && state.links.length === 0) ||
+        // NEU: Prüfen, ob dieses Gerät das Board zum ersten Mal synchronisiert
+        const isNewDeviceForThisBoard = !boardSyncState.lastSyncedHash;
+
+        // Wenn es ein neues Gerät ist ODER die Cloud neuer ist, Cloud-Daten priorisieren
+        if(isNewDeviceForThisBoard || remoteModified > localModified + 1000){
+          const applyRemote = isNewDeviceForThisBoard || 
+            (state.cards.length === 0 && state.links.length === 0) ||
             confirm(`Cloud-Version ist neuer (${new Date(remoteModified).toLocaleString()}). Lokale Daten überschreiben?`);
+          
           if(applyRemote){
             state = Object.assign(defaultState(), remoteData);
             state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
@@ -2887,9 +2893,14 @@ async function mergeIndexFromCloud(){
             boardSyncState.lastSyncedAt = Date.now();
             boardSyncState.lastSyncedHash = await hashString(remote.content);
             setSyncStatus('ok', 'Von Cloud geladen');
+            
+            // Kurzes Feedback, dass automatisch geladen wurde
+            if(isNewDeviceForThisBoard) toast('Board aus der Cloud geladen', 'success');
+            
             return true;
           }
         }
+        
         const dataJson = JSON.stringify(serializeState(), null, 2);
         await writeGist(b.gistId, dataJson);
         boardSyncState.lastSyncedAt = Date.now();
@@ -2905,6 +2916,7 @@ async function mergeIndexFromCloud(){
     }
   }
 
+	  
   function scheduleSync(){
     if(syncTimer) clearTimeout(syncTimer);
     syncTimer = setTimeout(doSync, SYNC_DEBOUNCE);

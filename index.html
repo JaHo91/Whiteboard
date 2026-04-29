@@ -127,12 +127,13 @@
   svg.links circle.endpoint:hover{r:14;stroke-width:3}
   svg.links circle.endpoint.dragging{r:12;stroke-width:3;fill:var(--anchor)}
 
-  .card{
+ .card{
     position:absolute;width:130px;min-width:60px;min-height:60px;border-radius:var(--radius);
     background:#fff;box-shadow:var(--card-shadow);display:flex;flex-direction:column;
     transition:box-shadow .15s, opacity .15s, outline-color .15s;
     outline:2px solid transparent;
     --card-font-scale:1;
+    --card-font-manual:1;
   }
   .card.hi{box-shadow:var(--card-shadow-hi);outline-color:var(--line-hi)}
   .card.sticky{box-shadow:var(--card-shadow-hi);outline-color:var(--line-hi)}
@@ -140,8 +141,8 @@
   .card.editing{outline-color:var(--anchor);box-shadow:var(--card-shadow-hi);opacity:1 !important}
 
   .card .title{
-    position:relative;padding:10px 32px 10px 10px;font-weight:600;
-    font-size:calc(14px * var(--card-font-scale));
+    position:relative;padding:10px 56px 10px 10px;font-weight:600;
+    font-size:calc(14px * var(--card-font-scale) * var(--card-font-manual));
     line-height:1.25;
     min-height:calc(40px * var(--card-font-scale));
     cursor:grab;user-select:none;color:#222;outline:none;
@@ -160,13 +161,18 @@
 
   .card .details{
     padding:10px;background:#fff;
-    font-size:calc(13px * var(--card-font-scale));
+    font-size:calc(13px * var(--card-font-scale) * var(--card-font-manual));
     line-height:1.35;
     min-height:calc(40px * var(--card-font-scale));
     outline:none;white-space:pre-wrap;word-break:break-word;
     border-top:1px solid rgba(0,0,0,.06);border-radius:0 0 var(--radius) var(--radius);
-    cursor:text;flex:1 1 auto;overflow:hidden;
+    cursor:text;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;
   }
+  .card.autoH .details{overflow:visible}
+  .card .details::-webkit-scrollbar{width:6px}
+  .card .details::-webkit-scrollbar-thumb{background:rgba(0,0,0,.2);border-radius:3px}
+  .card .details::-webkit-scrollbar-track{background:transparent}
+	
   .card.autoH .details{overflow:visible}
   .card .details:empty::before{content:attr(data-placeholder);color:#aaa;pointer-events:none}
 
@@ -643,7 +649,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
   function applySnapshot(snap){
     suspendSnapshots = true;
     state = Object.assign(defaultState(), snap);
-    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
     if(state.sticky && state.sticky.type==='link' && typeof state.sticky.linkIdx==='number'){
       state.sticky = { type:'link', link: state.links[state.sticky.linkIdx] || null };
       if(!state.sticky.link) state.sticky = null;
@@ -805,7 +811,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
 
   // ========= INIT STATE =========
   state = loadActiveBoardState();
-  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
   if(!Array.isArray(state.links)) state.links = [];
   state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
   bgLayout.style.display = state.showBg ? '' : 'none';
@@ -923,7 +929,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
       if(Array.isArray(data.cards) && Array.isArray(data.links)){
         pushUndo();
         state = Object.assign(defaultState(), data);
-        state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+           state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
         bgLayout.style.display = state.showBg ? '' : 'none';
         minimap.style.display = state.showMm === false ? 'none' : '';
         updateAutoColorButton();
@@ -988,13 +994,13 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
 
   // ========= CARDS =========
   function createCard({x,y,color,title='Neue Karte',details='',w,h,autoH=true}){
-    const card = { id: state.nextId++, x, y, color, title, details, w:w||null, h:h||null, autoH, image:null, caption:'' };
+    const card = { id: state.nextId++, x, y, color, title, details, w:w||null, h:h||null, autoH, image:null, caption:'', fontScale:1 };
     state.cards.push(card); renderCard(card);
     updateLinks(); renderMinimap(); save();
     return card;
   }
   function createImageCard({x,y,w,h,image,caption=''}){
-    const card = { id: state.nextId++, x, y, color: '#222', title: '', details: '', w, h, autoH:false, image, caption };
+    const card = { id: state.nextId++, x, y, color: '#222', title: '', details: '', w, h, autoH:false, image, caption, fontScale:1 };
     state.cards.push(card); renderCard(card);
     updateLinks(); renderMinimap(); save();
     return card;
@@ -1034,12 +1040,13 @@ function readEditableText(el){
   return clone.textContent;
 }
 
-  function renderCard(card){
+   function renderCard(card){
     const el = document.createElement('div');
     el.className = 'card' + (card.image ? ' image-card' : '');
     el.dataset.id = card.id;
     el.style.left = card.x+'px'; el.style.top = card.y+'px';
     if(card.w) el.style.width = card.w+'px';
+    el.style.setProperty('--card-font-manual', (card.fontScale || 1).toFixed(3));
 
     if(card.image){
       el.style.height = (card.h || 200) + 'px';
@@ -1169,9 +1176,37 @@ function readEditableText(el){
     }
 
     
-    const actions = document.createElement('div');
+     const actions = document.createElement('div');
     actions.className = 'actions';
     if(!card.image){
+      const fontUpBtn = document.createElement('button');
+      fontUpBtn.textContent = '⌃'; fontUpBtn.title='Schrift vergrössern';
+      fontUpBtn.style.fontSize = '14px';
+      fontUpBtn.style.lineHeight = '1';
+      fontUpBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        pushUndo();
+        const current = card.fontScale || 1;
+        card.fontScale = Math.min(2.5, current + 0.15);
+        el.style.setProperty('--card-font-manual', card.fontScale.toFixed(3));
+        save();
+      });
+      actions.appendChild(fontUpBtn);
+
+      const fontDownBtn = document.createElement('button');
+      fontDownBtn.textContent = '⌄'; fontDownBtn.title='Schrift verkleinern';
+      fontDownBtn.style.fontSize = '14px';
+      fontDownBtn.style.lineHeight = '1';
+      fontDownBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        pushUndo();
+        const current = card.fontScale || 1;
+        card.fontScale = Math.max(0.5, current - 0.15);
+        el.style.setProperty('--card-font-manual', card.fontScale.toFixed(3));
+        save();
+      });
+      actions.appendChild(fontDownBtn);
+
       const colorBtn = document.createElement('button');
       colorBtn.textContent = '🎨'; colorBtn.title='Farbe ändern';
       colorBtn.addEventListener('click', (e)=>{
@@ -1964,7 +1999,7 @@ function createNewBoard(name){
     boardsIndex.activeId = id;
     saveBoardsIndex();
     state = loadActiveBoardState();
-    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
     state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
     bgLayout.style.display = state.showBg ? '' : 'none';
     minimap.style.display = state.showMm === false ? 'none' : '';
@@ -2028,7 +2063,7 @@ if(syncConfig.enabled){
     boardsIndex.activeId = newId;
     saveBoardsIndex();
     state = loadActiveBoardState();
-    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
     undoStack=[]; redoStack=[]; updateUndoButtons();
     boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     updateBoardSwitcherUI();
@@ -2457,7 +2492,7 @@ function initZoneTemplate(){
             ()=>{
               pushUndo();
               state = Object.assign(defaultState(), entry.data);
-              state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+                  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
               bgLayout.style.display = state.showBg ? '' : 'none';
               minimap.style.display = state.showMm === false ? 'none' : '';
               updateAutoColorButton();
@@ -2914,7 +2949,7 @@ if(!syncConfig.enabled) return false;
           
           if(applyRemote){
             state = Object.assign(defaultState(), remoteData);
-            state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+               state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
             bgLayout.style.display = state.showBg ? '' : 'none';
             minimap.style.display = state.showMm === false ? 'none' : '';
             updateAutoColorButton();
@@ -3002,7 +3037,7 @@ if(!syncConfig.enabled) return false;
           const remoteData = JSON.parse(remote.content);
           pushUndo();
           state = Object.assign(defaultState(), remoteData);
-          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+             state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
           bgLayout.style.display = state.showBg ? '' : 'none';
           minimap.style.display = state.showMm === false ? 'none' : '';
           updateAutoColorButton();
@@ -3031,7 +3066,7 @@ if(!syncConfig.enabled) return false;
 
   // ========= INIT =========
 state = loadActiveBoardState();
-state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
 if(!state.view) fitLayoutToView(); else applyView();
 
 if(state.cards.length === 0){
@@ -3064,7 +3099,7 @@ if(syncConfig.enabled && syncConfig.token){
           saveBoardsIndex();
         }
         state = loadActiveBoardState();
-        state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+           state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
         if(!state.view) fitLayoutToView(); else applyView();
         render();
         updateBoardSwitcherUI();

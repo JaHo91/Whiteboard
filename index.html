@@ -878,7 +878,18 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     if(e.target.closest('.card')) return;
     const p = toBoard(e.clientX, e.clientY);
     pushUndo();
-    createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-30, color:colorForPoint(p)});
+    const card = createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y, color:colorForPoint(p)});
+    requestAnimationFrame(() => {
+      const el = board.querySelector(`.card[data-id="${card.id}"]`);
+      if(el){
+        const h = el.offsetHeight;
+        card.y = p.y - h/2;
+        el.style.top = card.y + 'px';
+        updateLinks();
+        renderMinimap();
+        save();
+      }
+    });
   });
   
 

@@ -878,7 +878,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     if(e.target.closest('.card')) return;
     const p = toBoard(e.clientX, e.clientY);
     pushUndo();
-    createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-60, color:colorForPoint(p)});
+    createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-30, color:colorForPoint(p)});
   });
   
 

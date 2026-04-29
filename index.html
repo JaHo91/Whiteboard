@@ -412,7 +412,7 @@ body.sync-blocked {
   const MAX_HISTORY = 10;
   const SYNC_INTERVAL = 60000;
   const SYNC_DEBOUNCE = 3000;
-  const BOARD_W = 12000, BOARD_H = 9000;
+  const BOARD_W = 16000, BOARD_H = 12000;
 const LAYOUT_W = 4976, LAYOUT_H = 3344;
 const LAYOUT_OFFSET_X = (BOARD_W - LAYOUT_W)/2;
 const LAYOUT_OFFSET_Y = (BOARD_H - LAYOUT_H)/2;
@@ -2416,10 +2416,10 @@ if(state.showBg){
     minimapSvg.setAttribute('viewBox', `${minX} ${minY} ${bw} ${bh}`);
     let html = '';
     if(state.showBg){
-      html += `<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})">
-        <path class="mm-layout" d="M 830 500 A 414 414 0 0 1 1658 500" />
-        <line class="mm-layout" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
-        <polyline class="mm-layout" points="830,500 1244,1540 1658,500" />
+html += `<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})">
+        <path class="mm-layout" d="M 1660 1000 A 828 828 0 0 1 3316 1000" />
+        <line class="mm-layout" x1="0" y1="1000" x2="${LAYOUT_W}" y2="1000" />
+        <polyline class="mm-layout" points="1660,1000 2488,3080 3316,1000" />
       </g>`;
     }
     state.cards.forEach(c=>{

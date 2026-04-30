@@ -3002,10 +3002,13 @@ if(!syncConfig.enabled) return false;
     if(!syncConfig.enabled || syncInFlight) return;
     const b = getActiveBoard();
     if(!b) return;
-    if(!b.gistId){
-      // Erster Sync für dieses Board
+    
+    // WICHTIG: Wenn dieses Gerät noch nie erfolgreich gesynct hat, 
+    // darf es nichts hochladen, sondern muss den Initial-Sync anstoßen!
+    if(!b.gistId || !boardSyncState.lastSyncedHash){
       return initialSyncForActive();
     }
+    
     syncInFlight = true;
     try{
       const dataJson = JSON.stringify(serializeState(), null, 2);
@@ -3075,75 +3078,79 @@ if(!syncConfig.enabled) return false;
   }, SYNC_INTERVAL);
   
 
-  // ========= INIT =========
-state = loadActiveBoardState();
-    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
-if(!state.view) fitLayoutToView(); else applyView();
+    // ========= INIT =========
+  state = loadActiveBoardState();
+  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+  if(!state.view) fitLayoutToView(); else applyView();
 
-if(state.cards.length === 0){
-  initZoneTemplate();
-  render();
-  state.lastModified = Date.now(); // BUGFIX: Template bekommt echten Zeitstempel
-  saveImmediate();
-} else {
-  render();
-}
-updateUndoButtons();
+  // WICHTIG: Template nur erstellen, wenn lokal leer UND das Board nicht mit der Cloud verknüpft ist
+  if(state.cards.length === 0 && !getActiveBoard()?.gistId){
+    initZoneTemplate();
+    render();
+    state.lastModified = Date.now();
+    saveImmediate();
+  } else {
+    render();
+  }
+  updateUndoButtons();
 
-if(syncConfig.enabled && syncConfig.token){
-  setSyncStatus('syncing', 'Verbinde...');
-  
-  // 1. Lade-Sperre aktivieren
-  document.body.classList.add('sync-blocked');
-  
-  // Erst Index aus Cloud holen, dann aktives Board syncen
-  (async () => {
-    try {
-      // (Falls deine Funktion pullIndexFromCloud heißt, lass es so. 
-      // Wenn du sie in mergeIndexFromCloud umbenannt hast, passe den Namen hier an)
-      const indexChanged = await pullIndexFromCloud(); 
-      
-      if(indexChanged){
-        const active = getActiveBoard();
-        if(!active && boardsIndex.boards.length > 0){
-          boardsIndex.activeId = boardsIndex.boards[0].id;
-          saveBoardsIndex();
+  if(syncConfig.enabled && syncConfig.token){
+    setSyncStatus('syncing', 'Verbinde...');
+    document.body.classList.add('sync-blocked');
+
+    (async () => {
+      try {
+        // HIER WAR DER FEHLER: pullIndexFromCloud hieß falsch! Es muss mergeIndexFromCloud sein.
+        const indexChanged = await mergeIndexFromCloud(); 
+        
+        if(indexChanged){
+          const active = getActiveBoard();
+          if(!active && boardsIndex.boards.length > 0){
+            boardsIndex.activeId = boardsIndex.boards[0].id;
+            saveBoardsIndex();
+          }
+          // Reset Sync-State, damit Cloud priorisiert wird
+          boardSyncState = { lastSyncedAt: 0, lastSyncedHash: null };
+          
+          state = loadActiveBoardState();
+          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+          if(!state.view) fitLayoutToView(); else applyView();
+          render();
+          updateBoardSwitcherUI();
         }
-        state = loadActiveBoardState();
-           state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
-        if(!state.view) fitLayoutToView(); else applyView();
-        render();
-        updateBoardSwitcherUI();
+        await initialSyncForActive();
+        
+      } catch (err) {
+        console.error('Initialsync fehlgeschlagen', err);
+        setSyncStatus('error', 'Sync-Fehler');
+      } finally {
+        document.body.classList.remove('sync-blocked');
       }
-      await initialSyncForActive();
-      
-    } finally {
-      // 2. Lade-Sperre wieder aufheben (wird immer ausgeführt)
-      document.body.classList.remove('sync-blocked');
-    }
-  })();
-} else {
-  setSyncStatus('off', 'Offline (Sync aus)');
-}
+    })();
+  } else {
+    setSyncStatus('off', 'Offline (Sync aus)');
+  }
 
-window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
+  window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
 
-// Periodischer Index-Pull (alle 60s), damit neue Boards von anderen Geräten erscheinen
-setInterval(async () => {
-  if(!syncConfig.enabled || syncInFlight) return;
-  try {
-    const changed = await mergeIndexFromCloud(); // BUGFIX
-    if(changed){
-      updateBoardSwitcherUI();
-      toast('Board-Liste aktualisiert');
-    }
-  } catch(err){ console.warn('periodic index pull failed', err); }
-}, 60000);
+  setInterval(async () => {
+    if(!syncConfig.enabled || syncInFlight) return;
+    try {
+      const changed = await mergeIndexFromCloud();
+      if(changed){
+        updateBoardSwitcherUI();
+        toast('Board-Liste aktualisiert');
+      }
+      // Auch periodisch das aktive Board syncen, falls Änderungen ausstehen
+      const b = getActiveBoard();
+      if(b && b.gistId) doSync();
+    } catch(err){ console.warn('periodic index pull failed', err); }
+  }, 60000);
 
-console.log('Whiteboard v15 Multi-Board initialisiert', {
-  boards: boardsIndex ? boardsIndex.boards.length : 0,
-  sync: syncConfig.enabled,
-});
+  console.log('Whiteboard v15 Multi-Board initialisiert', {
+    boards: boardsIndex ? boardsIndex.boards.length : 0,
+    sync: syncConfig.enabled,
+  });
 
   } catch (err) {
     console.error('Initialisierungsfehler im Whiteboard:', err);

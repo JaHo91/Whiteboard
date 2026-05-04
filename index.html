@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Mini Whiteboard Pro Multi-Board</title>
+<title>Mini Whiteboard</title>
 <style>
   :root{
     --bg:#f4f5f7;
@@ -18,7 +18,6 @@
     --warning:#f57c00;
     --dim:.15;
     --radius:10px;
-    --sp-width: 400px;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#222;background:var(--bg);overflow:hidden}
@@ -84,15 +83,13 @@
     background-image:radial-gradient(circle, #dfe1e5 1px, transparent 1px);
     background-size:24px 24px;background-position:0 0;
     cursor:grab;
-    transition: right 0.3s ease;
   }
-  body.panel-open .viewport { right: var(--sp-width); }
   .viewport.panning{cursor:grabbing}
 
   .board{
-    position:absolute;left:0;top:0;width:8000px;height:6000px;
-    transform-origin:0 0;will-change:transform;
-  }
+  position:absolute;left:0;top:0;width:12000px;height:9000px;
+  transform-origin:0 0;will-change:transform;
+}
 
   svg.bg-layout{
     position:absolute;pointer-events:none;opacity:.85;
@@ -130,12 +127,13 @@
   svg.links circle.endpoint:hover{r:14;stroke-width:3}
   svg.links circle.endpoint.dragging{r:12;stroke-width:3;fill:var(--anchor)}
 
-  .card{
+ .card{
     position:absolute;width:130px;min-width:60px;min-height:60px;border-radius:var(--radius);
     background:#fff;box-shadow:var(--card-shadow);display:flex;flex-direction:column;
     transition:box-shadow .15s, opacity .15s, outline-color .15s;
     outline:2px solid transparent;
     --card-font-scale:1;
+    --card-font-manual:1;
   }
   .card.hi{box-shadow:var(--card-shadow-hi);outline-color:var(--line-hi)}
   .card.sticky{box-shadow:var(--card-shadow-hi);outline-color:var(--line-hi)}
@@ -143,8 +141,8 @@
   .card.editing{outline-color:var(--anchor);box-shadow:var(--card-shadow-hi);opacity:1 !important}
 
   .card .title{
-    position:relative;padding:10px 32px 10px 10px;font-weight:600;
-    font-size:calc(14px * var(--card-font-scale));
+    position:relative;padding:10px 56px 10px 10px;font-weight:600;
+    font-size:calc(14px * var(--card-font-scale) * var(--card-font-manual));
     line-height:1.25;
     min-height:calc(40px * var(--card-font-scale));
     cursor:grab;user-select:none;color:#222;outline:none;
@@ -163,13 +161,18 @@
 
   .card .details{
     padding:10px;background:#fff;
-    font-size:calc(13px * var(--card-font-scale));
+    font-size:calc(13px * var(--card-font-scale) * var(--card-font-manual));
     line-height:1.35;
     min-height:calc(40px * var(--card-font-scale));
     outline:none;white-space:pre-wrap;word-break:break-word;
     border-top:1px solid rgba(0,0,0,.06);border-radius:0 0 var(--radius) var(--radius);
-    cursor:text;flex:1 1 auto;overflow:hidden;
+    cursor:text;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;
   }
+  .card.autoH .details{overflow:visible}
+  .card .details::-webkit-scrollbar{width:6px}
+  .card .details::-webkit-scrollbar-thumb{background:rgba(0,0,0,.2);border-radius:3px}
+  .card .details::-webkit-scrollbar-track{background:transparent}
+	
   .card.autoH .details{overflow:visible}
   .card .details:empty::before{content:attr(data-placeholder);color:#aaa;pointer-events:none}
 
@@ -215,6 +218,7 @@
   .anchor.left{left:0;top:50%}
   .anchor.active{background:#fff;border-color:var(--anchor);transform:translate(-50%,-50%) scale(1.4)}
 
+  /* Unsichtbarer, vergrößerter Klick-Bereich für die blauen Ankerpunkte */
   .anchor::after {
     content: '';
     position: absolute;
@@ -320,135 +324,105 @@
     padding:10px 12px;border-radius:6px;font-size:13px;margin:8px 0;
   }
 
-  body.link-selected .card .anchor{
-    opacity:0 !important;
-    pointer-events:none !important;
-  }
+body.link-selected .card .anchor{
+  opacity:0 !important;
+  pointer-events:none !important;
+}
 
-  /* SIDE PANEL CSS */
-  .notes-indicator {
-    position: absolute;
-    bottom: 4px;
-    right: 4px;
-    font-size: 14px;
-    pointer-events: none;
-    opacity: 0.8;
-  }
+/* Notiz-Indikator auf Kachel */
+.card.has-notes .notes-indicator {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 11px;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 2;
+}
+.card.image-card.has-notes .notes-indicator {
+  background: rgba(255,255,255,0.85);
+  border-radius: 3px;
+  padding: 1px 4px;
+  opacity: 0.9;
+}
+	
+/* UI-Sperre während dem Initialsync */
+body.sync-blocked {
+  pointer-events: none !important;
+  opacity: 0.7;
+  cursor: wait;
+}
 
-  .side-panel {
-    position: fixed;
-    top: 48px;
-    right: 0;
-    bottom: 0;
-    width: var(--sp-width);
-    background: #fff;
-    border-left: 1px solid #d0d4da;
-    z-index: 30;
-    display: flex;
-    flex-direction: column;
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-    box-shadow: -4px 0 15px rgba(0,0,0,0.1);
-  }
+/* ===== Side Panel ===== */
+.side-panel{
+  position:fixed;top:48px;right:0;bottom:0;
+  width:480px;min-width:320px;max-width:80vw;
+  background:#fff;border-left:1px solid #d0d4da;
+  box-shadow:-4px 0 16px rgba(0,0,0,.12);
+  z-index:30;display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .25s ease;
+}
+.side-panel.open{transform:translateX(0)}
 
-  .side-panel.open {
-    transform: translateX(0);
-  }
+.side-panel .sp-resize{
+  position:absolute;left:0;top:0;bottom:0;width:6px;
+  cursor:ew-resize;background:transparent;z-index:2;
+}
+.side-panel .sp-resize:hover{background:rgba(43,127,255,.2)}
+.side-panel.resizing .sp-resize{background:rgba(43,127,255,.3)}
 
-  .sp-resize-handle {
-    position: absolute;
-    left: -4px;
-    top: 0;
-    bottom: 0;
-    width: 8px;
-    cursor: ew-resize;
-    z-index: 31;
-  }
+.side-panel .sp-header{
+  flex:0 0 auto;padding:10px 14px;border-bottom:1px solid #e4e6eb;
+  display:flex;align-items:center;gap:8px;
+}
+.side-panel .sp-header .sp-color-dot{
+  width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.15);flex:0 0 auto;
+}
+.side-panel .sp-header .sp-zone{
+  font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;flex:1;
+}
+.side-panel .sp-header .sp-close{
+  width:28px;height:28px;border:none;background:none;cursor:pointer;
+  border-radius:4px;font-size:16px;color:#666;
+}
+.side-panel .sp-header .sp-close:hover{background:#f0f2f5;color:#222}
 
-  .sp-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #fcfcfc;
-  }
+.side-panel .sp-toolbar{
+  flex:0 0 auto;padding:6px 10px;border-bottom:1px solid #e4e6eb;
+  display:flex;align-items:center;gap:4px;background:#fafbfc;flex-wrap:wrap;
+}
+.side-panel .sp-toolbar button,
+.side-panel .sp-toolbar select{
+  border:1px solid #d0d4da;background:#fff;border-radius:5px;
+  padding:5px 9px;font-size:13px;cursor:pointer;color:#222;
+}
+.side-panel .sp-toolbar button:hover{background:#f0f2f5}
+.side-panel .sp-toolbar button.active{background:#2b7fff;color:#fff;border-color:#2b7fff}
+.side-panel .sp-toolbar .sep{width:1px;height:20px;background:#d0d4da;margin:0 4px}
+.side-panel .sp-toolbar select{padding:5px 6px}
 
-  .sp-status {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--success);
-  }
+.side-panel .sp-body{flex:1 1 auto;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
 
-  .sp-close {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    color: #888;
-  }
+.side-panel .sp-title-input{
+  width:100%;border:1px solid #e4e6eb;border-radius:6px;
+  padding:10px 12px;font-size:18px;font-weight:600;
+  font-family:inherit;outline:none;
+}
+.side-panel .sp-title-input:focus{border-color:var(--anchor)}
 
-  .sp-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
+.side-panel .sp-details{
+  flex:1 1 auto;min-height:200px;border:1px solid #e4e6eb;border-radius:6px;
+  padding:12px;font-size:14px;line-height:1.5;outline:none;overflow-y:auto;
+  white-space:pre-wrap;word-break:break-word;
+}
+.side-panel .sp-details:focus{border-color:var(--anchor)}
+.side-panel .sp-details:empty::before{content:attr(data-placeholder);color:#aaa;pointer-events:none}
 
-  .sp-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .sp-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .sp-title-input {
-    width: 100%;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 10px;
-    font-size: 16px;
-    font-weight: 600;
-    outline: none;
-  }
-
-  .sp-editable {
-    width: 100%;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 12px;
-    font-size: 14px;
-    line-height: 1.5;
-    outline: none;
-    background: #fff;
-    min-height: 40px;
-  }
-
-  .sp-editable:empty::before {
-    content: attr(data-placeholder);
-    color: #aaa;
-  }
-
-  .sp-notes {
-    min-height: 300px;
-    background: #fffdf2;
-    border-color: #f1e4b8;
-  }
-
-  body.sync-blocked {
-    pointer-events: none !important;
-    opacity: 0.7;
-    cursor: wait;
-  }
+.side-panel .sp-footer{
+  flex:0 0 auto;padding:8px 14px;border-top:1px solid #e4e6eb;
+  font-size:11px;color:#888;display:flex;justify-content:space-between;
+}
+	
 </style>
 </head>
 <body>
@@ -489,29 +463,6 @@
   </div>
 </div>
 
-<!-- SIDE PANEL HTML -->
-<div id="sidePanel" class="side-panel">
-  <div class="sp-resize-handle" id="spResize"></div>
-  <div class="sp-header">
-    <div class="sp-status" id="spStatus">Bereit</div>
-    <button class="sp-close" id="spClose">✕</button>
-  </div>
-  <div class="sp-body">
-    <div class="sp-group">
-      <div class="sp-label">Titel</div>
-      <input type="text" class="sp-title-input" id="spTitle" placeholder="Titel...">
-    </div>
-    <div class="sp-group">
-      <div class="sp-label">Details (auf Kachel sichtbar)</div>
-      <div class="sp-editable" id="spDetails" contenteditable="true" data-placeholder="Dieser Text erscheint direkt auf der Kachel..."></div>
-    </div>
-    <div class="sp-group">
-      <div class="sp-label">Notiz (intern)</div>
-      <div class="sp-editable sp-notes" id="spNotes" contenteditable="true" data-placeholder="Ausführliche interne Notizen hier..."></div>
-    </div>
-  </div>
-</div>
-
 <div class="minimap" id="minimap">
   <svg id="minimapSvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"></svg>
   <button class="minimap-toggle" id="mmToggleBtn" title="Ausblenden">×</button>
@@ -520,6 +471,42 @@
 <input id="importInput" type="file" accept="application/json" hidden />
 <div class="toast" id="toast"></div>
 
+<aside class="side-panel" id="sidePanel" aria-hidden="true">
+  <div class="sp-resize" id="spResize" title="Breite anpassen"></div>
+  <div class="sp-header">
+    <span class="sp-color-dot" id="spColorDot"></span>
+    <span class="sp-zone" id="spZone">Karte</span>
+    <button class="sp-close" id="spClose" title="Schließen (ESC)">×</button>
+  </div>
+  <div class="sp-toolbar">
+    <select id="spFontSize" title="Schriftgröße">
+      <option value="">Größe</option>
+      <option value="11">11 px</option>
+      <option value="13">13 px</option>
+      <option value="14">14 px (Standard)</option>
+      <option value="16">16 px</option>
+      <option value="18">18 px</option>
+      <option value="20">20 px</option>
+      <option value="24">24 px</option>
+      <option value="28">28 px</option>
+    </select>
+    <span class="sep"></span>
+    <button id="spBold" title="Fett (Strg+B)" style="font-weight:700">B</button>
+    <button id="spItalic" title="Kursiv (Strg+I)" style="font-style:italic">I</button>
+    <button id="spUnderline" title="Unterstrichen (Strg+U)" style="text-decoration:underline">U</button>
+    <span class="sep"></span>
+    <button id="spClearFmt" title="Formatierung entfernen">⌫ Format</button>
+  </div>
+  <div class="sp-body">
+    <input type="text" class="sp-title-input" id="spTitle" placeholder="Titel..." />
+    <div class="sp-details" id="spDetails" contenteditable="true" data-placeholder="Details... (Strg+B für fett, Schriftgröße im Toolbar)"></div>
+  </div>
+  <div class="sp-footer">
+    <span id="spStatus">Automatisch gespeichert</span>
+    <span>ESC zum Schließen</span>
+  </div>
+</aside>
+	
 <script>
 (() => {
   'use strict';
@@ -535,8 +522,12 @@
   const BOARD_PREFIX = 'mini_whiteboard_v15__';
   const BACKUP_PREFIX = 'mini_whiteboard_v15_backup__';
   const HISTORY_PREFIX = 'mini_whiteboard_v15_history__';
+  const LEGACY_STORAGE_KEY = 'mini_whiteboard_v13';
+  const LEGACY_BACKUP_KEY = 'mini_whiteboard_v13_backup';
+  const LEGACY_HISTORY_KEY = 'mini_whiteboard_v13_history';
   const SYNC_KEY = 'mini_whiteboard_sync_v2';
-  const SP_WIDTH_KEY = 'mini_whiteboard_sp_width';
+  const LEGACY_SYNC_KEY = 'mini_whiteboard_v13_sync';
+  const INDEX_GIST_KEY = 'mini_whiteboard_index_gist_v1';
   const INDEX_FILENAME = 'whiteboard-index.json';
 
   const AUTOSAVE_INTERVAL = 3000;
@@ -544,10 +535,10 @@
   const MAX_HISTORY = 10;
   const SYNC_INTERVAL = 60000;
   const SYNC_DEBOUNCE = 3000;
-  const BOARD_W = 8000, BOARD_H = 6000;
-  const LAYOUT_W = 2488, LAYOUT_H = 1672;
-  const LAYOUT_OFFSET_X = (BOARD_W - LAYOUT_W)/2;
-  const LAYOUT_OFFSET_Y = (BOARD_H - LAYOUT_H)/2;
+  const BOARD_W = 16000, BOARD_H = 12000;
+const LAYOUT_W = 4976, LAYOUT_H = 3344;
+const LAYOUT_OFFSET_X = (BOARD_W - LAYOUT_W)/2;
+const LAYOUT_OFFSET_Y = (BOARD_H - LAYOUT_H)/2;
   const CLICK_MOVE_THRESHOLD = 4;
   const CARD_MIN_W = 60, CARD_MIN_H = 60;
   const CARD_MAX_W = 1200, CARD_MAX_H = 900;
@@ -557,11 +548,11 @@
   const UNDO_LIMIT = 50;
   const BOARD_WARN_LIMIT = 20;
 
-  const LAYOUT = {
-    waterY: 500,
-    circle: { cx: 1244, cy: 500, r: 414 },
-    tri: { apex: {x:1244, y:1540}, left:{x:830, y:500}, right:{x:1658, y:500} },
-  };
+ const LAYOUT = {
+  waterY: 1000,
+  circle: { cx: 2488, cy: 1000, r: 828 },
+  tri: { apex: {x:2488, y:3080}, left:{x:1660, y:1000}, right:{x:3316, y:1000} },
+};
 
   const ZONE_COLORS = {
     value_proposition: '#FFE066',
@@ -599,12 +590,29 @@
   const boardNameEl = document.getElementById('boardName');
   const boardMenuBtn = document.getElementById('boardMenuBtn');
 
-  // SIDE PANEL DOM
-  const sidePanel = document.getElementById('sidePanel');
-  const spTitle = document.getElementById('spTitle');
-  const spDetails = document.getElementById('spDetails');
-  const spNotes = document.getElementById('spNotes');
-  const spStatus = document.getElementById('spStatus');
+const sidePanel = document.getElementById('sidePanel');
+const spResize = document.getElementById('spResize');
+const spClose = document.getElementById('spClose');
+const spTitle = document.getElementById('spTitle');
+const spDetails = document.getElementById('spDetails');
+const spColorDot = document.getElementById('spColorDot');
+const spZone = document.getElementById('spZone');
+const spStatus = document.getElementById('spStatus');
+const spBold = document.getElementById('spBold');
+const spItalic = document.getElementById('spItalic');
+const spUnderline = document.getElementById('spUnderline');
+const spClearFmt = document.getElementById('spClearFmt');
+const spFontSize = document.getElementById('spFontSize');
+
+const SP_WIDTH_KEY = 'mini_whiteboard_sp_width_v1';
+const ZONE_LABELS = {
+  value_proposition: 'Value Proposition',
+  market_risks: 'Market Risk',
+  competition: 'Competitor',
+  customers: 'Customer',
+  influencer: 'Influencer',
+  outside: 'Außerhalb',
+};
 
   bgLayout.setAttribute('width', LAYOUT_W);
   bgLayout.setAttribute('height', LAYOUT_H);
@@ -612,15 +620,15 @@
   bgLayout.style.left = LAYOUT_OFFSET_X + 'px';
   bgLayout.style.top  = LAYOUT_OFFSET_Y + 'px';
   bgLayout.innerHTML = `
-    <path class="layout-stroke" d="M 830 500 A 414 414 0 0 1 1658 500" />
-    <line class="layout-stroke" x1="0" y1="500" x2="${LAYOUT_W}" y2="500" />
-    <polyline class="layout-stroke" points="830,500 1244,1540 1658,500" />
-    <text class="layout-label" x="1244" y="130"  text-anchor="middle">value proposition</text>
-    <text class="layout-label" x="820"  y="485" text-anchor="end">market risks</text>
-    <text class="layout-label" x="745"  y="530" text-anchor="middle">competition</text>
-    <text class="layout-label" x="1244" y="530" text-anchor="middle">customers</text>
-    <text class="layout-label" x="1740" y="530" text-anchor="middle">influencer</text>
-  `;
+  <path class="layout-stroke" d="M 1660 1000 A 828 828 0 0 1 3316 1000" />
+  <line class="layout-stroke" x1="0" y1="1000" x2="${LAYOUT_W}" y2="1000" />
+  <polyline class="layout-stroke" points="1660,1000 2488,3080 3316,1000" />
+  <text class="layout-label" x="2488" y="220"  text-anchor="middle">value proposition</text>
+  <text class="layout-label" x="1640" y="985"  text-anchor="end">market risks</text>
+  <text class="layout-label" x="1565" y="1030" text-anchor="middle">competition</text>
+  <text class="layout-label" x="2488" y="1030" text-anchor="middle">customers</text>
+  <text class="layout-label" x="3410" y="1030" text-anchor="middle">influencer</text>
+`;
   svg.setAttribute('width', BOARD_W);
   svg.setAttribute('height', BOARD_H);
 
@@ -628,7 +636,7 @@
     return {
       cards:[], links:[], nextId:1, color:COLORS[0].bg,
       showBg:true, showMm:true, view:null, sticky:null,
-      autoColor:true, lastModified: 0,
+      autoColor:true, lastModified: 0, // BUGFIX: Startet mit 0, damit Cloud beim ersten Pull gewinnt!
     };
   }
 
@@ -652,13 +660,54 @@
     }catch(err){ console.warn('boards index save failed', err); }
   }
 
+  // Migration v13 → v15 Multi-Board
+  function migrateLegacy(){
+    const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if(!legacyRaw) return null;
+    try{
+      const legacyData = JSON.parse(legacyRaw);
+      const id = newBoardId();
+      localStorage.setItem(BOARD_PREFIX + id, legacyRaw);
+      const legacyBackup = localStorage.getItem(LEGACY_BACKUP_KEY);
+      if(legacyBackup) localStorage.setItem(BACKUP_PREFIX + id, legacyBackup);
+      const legacyHistory = localStorage.getItem(LEGACY_HISTORY_KEY);
+      if(legacyHistory) localStorage.setItem(HISTORY_PREFIX + id, legacyHistory);
+      // Legacy sync: in erstes Board übernehmen
+      let syncGistId = null;
+      try{
+        const legacySync = localStorage.getItem(LEGACY_SYNC_KEY);
+        if(legacySync){
+          const s = JSON.parse(legacySync);
+          if(s.token){
+            const newSync = loadSyncConfig() || { token:null, enabled:false };
+            newSync.token = s.token;
+            newSync.enabled = s.enabled || false;
+            localStorage.setItem(SYNC_KEY, JSON.stringify(newSync));
+          }
+          syncGistId = s.gistId || null;
+        }
+      }catch{}
+      toast('Bestehende Daten migriert nach Multi-Board', 'success');
+      return { id, name:'Mein Whiteboard', gistId: syncGistId, publicGistId: null, createdAt: Date.now() };
+    }catch(err){
+      console.warn('legacy migration failed', err);
+      return null;
+    }
+  }
+
   let boardsIndex = loadBoardsIndex();
   if(!boardsIndex){
     boardsIndex = { boards: [], activeId: null };
-    const id = newBoardId();
-    const first = { id, name:'Whiteboard 1', gistId:null, publicGistId:null, createdAt:Date.now() };
-    boardsIndex.boards.push(first);
-    boardsIndex.activeId = id;
+    const migrated = migrateLegacy();
+    if(migrated){
+      boardsIndex.boards.push(migrated);
+      boardsIndex.activeId = migrated.id;
+    } else {
+      const id = newBoardId();
+      const first = { id, name:'Whiteboard 1', gistId:null, publicGistId:null, createdAt:Date.now() };
+      boardsIndex.boards.push(first);
+      boardsIndex.activeId = id;
+    }
     saveBoardsIndex();
   }
 
@@ -666,6 +715,14 @@
     if(!boardsIndex) return null;
     return boardsIndex.boards.find(b => b.id === boardsIndex.activeId) || boardsIndex.boards[0] || null;
   }
+  function updateBoardMeta(partial){
+    const b = getActiveBoard();
+    if(!b) return;
+    Object.assign(b, partial);
+    saveBoardsIndex();
+    updateBoardSwitcherUI();
+  }
+
   function updateBoardSwitcherUI(){
     const b = getActiveBoard();
     if(!b){ boardNameText.textContent = 'Whiteboard'; return; }
@@ -682,15 +739,18 @@
   let toastTimer = null;
   let ctxMenuEl = null;
   let modalEl = null;
+
   let undoStack = [];
   let redoStack = [];
   let suspendSnapshots = false;
 
+  // ========= STORAGE KEYS for active board =========
   function keyForActive(prefix){
     const b = getActiveBoard();
     return b ? (prefix + b.id) : null;
   }
 
+  // ========= TOAST =========
   function toast(msg, type){
     toastEl.textContent = msg;
     toastEl.className = 'toast show' + (type ? ' '+type : '');
@@ -698,32 +758,22 @@
     toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2500);
   }
 
-  function loadSyncConfig(){
-    try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
-    catch{ return null; }
-  }
-  function saveSyncConfig(){
-    try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
-  }
-  let syncConfig = loadSyncConfig() || { token: null, enabled: false, indexGistId: null };
-  let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+// ========= SYNC CONFIG =========
+function loadSyncConfig(){
+  try{ const raw = localStorage.getItem(SYNC_KEY); return raw ? JSON.parse(raw) : null; }
+  catch{ return null; }
+}
+function saveSyncConfig(){
+  try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch{}
+}
+let syncConfig = loadSyncConfig() || {
+  token: null, enabled: false, indexGistId: null,
+};
+// Sicherstellen, dass indexGistId existiert (für Migration alter Configs)
+if(syncConfig.indexGistId === undefined) syncConfig.indexGistId = null;
 
-  // ========= LOAD STATE FIRST =========
-  function loadActiveBoardState(){
-    const key = keyForActive(BOARD_PREFIX);
-    if(!key) return defaultState();
-    try{
-      const raw = localStorage.getItem(key);
-      if(!raw) return defaultState();
-      const s = JSON.parse(raw);
-      // MIGRATION: Notiz-Feld hinzufügen
-      if(s.cards) s.cards = s.cards.map(c => Object.assign({details:'', notes:'', autoH:true, image:null, caption:''}, c));
-      return Object.assign(defaultState(), s);
-    }catch{ return defaultState(); }
-  }
-
-  // Initialer State-Load
-  state = loadActiveBoardState();
+// Pro-Board Sync-Status (In-Memory)
+let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
 
   // ========= UNDO/REDO =========
   function cloneState(){
@@ -746,7 +796,11 @@
   function applySnapshot(snap){
     suspendSnapshots = true;
     state = Object.assign(defaultState(), snap);
-    state.cards = state.cards.map(c => Object.assign({details:'', notes:'', autoH:true, image:null, caption:''}, c));
+     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+    if(state.sticky && state.sticky.type==='link' && typeof state.sticky.linkIdx==='number'){
+      state.sticky = { type:'link', link: state.links[state.sticky.linkIdx] || null };
+      if(!state.sticky.link) state.sticky = null;
+    }
     bgLayout.style.display = state.showBg ? '' : 'none';
     minimap.style.display = state.showMm === false ? 'none' : '';
     updateAutoColorButton();
@@ -771,8 +825,26 @@
     updateUndoButtons();
     toast('Wiederhergestellt');
   }
+  
   undoBtn.addEventListener('click', doUndo);
   redoBtn.addEventListener('click', doRedo);
+  
+
+  // ========= LOAD/SAVE ACTIVE BOARD =========
+  function loadActiveBoardState(){
+    const key = keyForActive(BOARD_PREFIX);
+    if(!key) return defaultState();
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return defaultState();
+      const s = JSON.parse(raw);
+      if(s && s.sticky && s.sticky.type==='link' && typeof s.sticky.linkIdx==='number' && Array.isArray(s.links)){
+        s.sticky = { type:'link', link: s.links[s.sticky.linkIdx] || null };
+        if(!s.sticky.link) s.sticky = null;
+      }
+      return Object.assign(defaultState(), s);
+    }catch{ return defaultState(); }
+  }
 
   function saveImmediate(){
     const key = keyForActive(BOARD_PREFIX);
@@ -780,7 +852,12 @@
     try{
       const data = serializeState();
       localStorage.setItem(key, JSON.stringify(data));
-    }catch(err){ console.warn('save failed', err); }
+    }catch(err){
+      console.warn('save failed', err);
+      if(err && /quota/i.test(err.name || err.message || '')){
+        toast('Speicher voll. Nutze Export, um zu sichern.', 'error');
+      }
+    }
   }
   function saveDelayed(){
     try{
@@ -794,21 +871,27 @@
         try{
           const rawH = localStorage.getItem(histKey);
           let hist = rawH ? JSON.parse(rawH) : [];
+          if(!Array.isArray(hist)) hist = [];
           hist.push({ timestamp: now, data });
           if(hist.length > MAX_HISTORY) hist = hist.slice(-MAX_HISTORY);
           localStorage.setItem(histKey, JSON.stringify(hist));
           lastHistoryAt = now;
-        }catch(e){}
+        }catch(e){ console.warn('history save failed', e); }
       }
-    }catch(e){}
+    }catch(e){ console.warn(e); }
   }
+
   function save(){
     state.lastModified = Date.now();
     saveImmediate();
     if(saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(saveDelayed, AUTOSAVE_INTERVAL);
-    if(syncConfig.enabled){ scheduleSync(); }
+    if(syncConfig.enabled){
+      setSyncStatus('pending', 'Änderung ausstehend');
+      scheduleSync();
+    }
   }
+
   function serializeState(){
     const serializable = Object.assign({}, state);
     if(state.sticky && state.sticky.type==='link'){
@@ -873,6 +956,17 @@
     v.scale = ns; applyView(); save();
   }
 
+  // ========= INIT STATE =========
+  state = loadActiveBoardState();
+     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+  if(!Array.isArray(state.links)) state.links = [];
+  state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
+  bgLayout.style.display = state.showBg ? '' : 'none';
+  minimap.style.display = state.showMm === false ? 'none' : '';
+  updateAutoColorButton();
+  if(!state.view || typeof state.view.scale !== 'number') fitLayoutToView();
+  else applyView();
+
   viewport.addEventListener('wheel', (e) => {
     e.preventDefault();
     const rect = viewport.getBoundingClientRect();
@@ -884,6 +978,8 @@
 
   let lastMouse = { x: null, y: null, over: false };
   viewport.addEventListener('mousemove', (e)=>{ lastMouse.x=e.clientX; lastMouse.y=e.clientY; lastMouse.over=true; });
+  viewport.addEventListener('mouseenter', (e)=>{ lastMouse.x=e.clientX; lastMouse.y=e.clientY; lastMouse.over=true; });
+  viewport.addEventListener('mouseleave', ()=>{ lastMouse.over=false; });
 
   // ========= PAN =========
   let panPending=null, pan=null;
@@ -911,18 +1007,38 @@
   window.addEventListener('mouseup', (e)=>{
     const wasPanning = !!pan;
     if(pan){ pan=null; viewport.classList.remove('panning'); save(); }
+    const hadPending = !!panPending;
     panPending = null;
-    if(!wasPanning && !e.target.closest('.card') && !e.target.closest('.toolbar') && !e.target.closest('.side-panel')){
-      clearSticky();
+    if(!wasPanning && hadPending){
+      if(!e.target.closest('.card') && !e.target.closest('.link-hit') && !e.target.closest('circle.endpoint')
+         && !e.target.closest('.minimap') && !e.target.closest('.toolbar') && !e.target.closest('.ctx-menu')
+         && !e.target.closest('.modal-backdrop')){
+        state.sticky = null;
+        deactivateAllCards();
+        save();
+      }
     }
   });
 
+  
   viewport.addEventListener('dblclick', (e) => {
     if(e.target.closest('.card')) return;
     const p = toBoard(e.clientX, e.clientY);
     pushUndo();
-    createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-60, color:colorForPoint(p)});
+    const card = createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y, color:colorForPoint(p)});
+    requestAnimationFrame(() => {
+      const el = board.querySelector(`.card[data-id="${card.id}"]`);
+      if(el){
+        const h = el.offsetHeight;
+        card.y = p.y - h/2;
+        el.style.top = card.y + 'px';
+        updateLinks();
+        renderMinimap();
+        save();
+      }
+    });
   });
+  
 
   function toBoard(clientX, clientY){
     const r = viewport.getBoundingClientRect();
@@ -930,11 +1046,13 @@
     return { x:(clientX-r.left-tx)/scale, y:(clientY-r.top-ty)/scale };
   }
 
-  // ========= PALETTE =========
+  // ========= PALETTE & TOOLBAR =========
+  
   COLORS.forEach(c => {
     const dot = document.createElement('span');
-    dot.className = 'color-dot' + (c.bg === state.color ? ' active' : '');
+    dot.className = 'color-dot';
     dot.style.background = c.bg; dot.title = c.name;
+    if(c.bg === state.color) dot.classList.add('active');
     dot.addEventListener('click', () => {
       state.color = c.bg;
       [...palette.querySelectorAll('.color-dot')].forEach(d=>d.classList.remove('active'));
@@ -945,84 +1063,102 @@
   });
 
   autoColorBtn.addEventListener('click', ()=>{
-    pushUndo(); state.autoColor = !state.autoColor;
-    updateAutoColorButton(); save();
+    pushUndo();
+    state.autoColor = !state.autoColor;
+    updateAutoColorButton();
+    toast(state.autoColor ? 'Auto-Farbe aktiv' : 'Manuelle Farbe aktiv');
+    save();
   });
   addBtn.addEventListener('click', () => {
     const r = viewport.getBoundingClientRect();
     const p = toBoard(r.left + r.width/2, r.top + r.height/2);
-    pushUndo(); createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-60, color:colorForPoint(p)});
+    pushUndo();
+    createCard({x:p.x-CARD_DEFAULT_W/2, y:p.y-60, color:colorForPoint(p)});
   });
 
-  // ========= SIDE PANEL LOGIK =========
-  let activePanelCard = null;
+  mmToggleBtn.addEventListener('click', ()=>{
+    state.showMm = false; minimap.style.display = 'none'; save();
+  });
 
-  function openPanelForCard(card){
-    if(card.image) return; // Bildkarten haben kein Panel
-    
-    // Competition-Check
-    if(detectZone({x: card.x, y: card.y}) === 'competition') return;
-
-    activePanelCard = card;
-    spTitle.value = card.title || '';
-    spDetails.textContent = card.details || '';
-    spNotes.innerHTML = card.notes || '';
-    
-    document.body.classList.add('panel-open');
-    sidePanel.classList.add('open');
-    spStatus.textContent = 'Karte #' + card.id + ' wird bearbeitet';
-  }
-
-  function closePanel(){
-    activePanelCard = null;
-    document.body.classList.remove('panel-open');
-    sidePanel.classList.remove('open');
-  }
-
-  document.getElementById('spClose').onclick = closePanel;
-
-  // Live-Sync: Panel -> Kachel
-  [spTitle, spDetails, spNotes].forEach(el => {
-    el.addEventListener('input', () => {
-      if(!activePanelCard) return;
-      if(el === spTitle) activePanelCard.title = spTitle.value;
-      if(el === spDetails) activePanelCard.details = spDetails.textContent;
-      if(el === spNotes) activePanelCard.notes = spNotes.innerHTML;
-
-      const cardEl = document.querySelector(`.card[data-id="${activePanelCard.id}"]`);
-      if(cardEl){
-        if(el === spTitle) cardEl.querySelector('.title-text').textContent = activePanelCard.title;
-        if(el === spDetails) cardEl.querySelector('.details').textContent = activePanelCard.details;
-        
-        // Notiz-Icon Update
-        const hasNotes = activePanelCard.notes && activePanelCard.notes.replace(/<[^>]*>/g, '').trim().length > 0;
-        let ind = cardEl.querySelector('.notes-indicator');
-        if(hasNotes && !ind) {
-          ind = document.createElement('div'); ind.className = 'notes-indicator'; ind.textContent = '📝';
-          cardEl.appendChild(ind);
-        } else if(!hasNotes && ind) { ind.remove(); }
+  importInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    try{
+      const data = JSON.parse(await file.text());
+      if(Array.isArray(data.cards) && Array.isArray(data.links)){
+        pushUndo();
+        state = Object.assign(defaultState(), data);
+           state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+        bgLayout.style.display = state.showBg ? '' : 'none';
+        minimap.style.display = state.showMm === false ? 'none' : '';
+        updateAutoColorButton();
+        if(!state.view) fitLayoutToView(); else applyView();
+        render(); save();
+        toast('Import erfolgreich', 'success');
       }
-      save();
-    });
+    }catch{ toast('Ungültige Datei', 'error'); }
+    importInput.value = '';
   });
+  
 
-  // Resizer Side Panel
-  const resizer = document.getElementById('spResize');
-  resizer.onmousedown = (e) => {
+  // ========= PASTE =========
+  
+  window.addEventListener('paste', async (e) => {
+    const active = document.activeElement;
+    if(active && (active.classList.contains('title-text') || active.classList.contains('details'))) return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if(!items || !items.length) return;
+    let imageBlob = null;
+    for(const item of items){
+      if(item.kind === 'file' && item.type && item.type.startsWith('image/')){
+        imageBlob = item.getAsFile(); break;
+      }
+    }
+    if(!imageBlob) return;
     e.preventDefault();
-    const startX = e.clientX;
-    const startW = sidePanel.offsetWidth;
-    document.onmousemove = (me) => {
-      const newW = Math.max(250, Math.min(window.innerWidth * 0.7, startW + (startX - me.clientX)));
-      document.documentElement.style.setProperty('--sp-width', newW + 'px');
-      localStorage.setItem(SP_WIDTH_KEY, newW);
-    };
-    document.onmouseup = () => { document.onmousemove = document.onmouseup = null; };
-  };
+    try{
+      const dataUrl = await blobToDataURL(imageBlob);
+      const { w, h } = await loadImageSize(dataUrl);
+      const scale = Math.min(1, IMG_MAX_SIDE / Math.max(w, h));
+      const cw = Math.round(w * scale), ch = Math.round(h * scale);
+      let pivot;
+      if(lastMouse.over && lastMouse.x!==null) pivot = toBoard(lastMouse.x, lastMouse.y);
+      else { const r = viewport.getBoundingClientRect(); pivot = toBoard(r.left + r.width/2, r.top + r.height/2); }
+      pushUndo();
+      createImageCard({
+        x: Math.max(0, Math.round(pivot.x - cw/2)),
+        y: Math.max(0, Math.round(pivot.y - ch/2)),
+        w: cw, h: ch, image: dataUrl,
+        caption: `Bild ${new Date().toLocaleString()}`,
+      });
+      toast('Bild eingefügt', 'success');
+    }catch(err){ toast('Einfügen fehlgeschlagen', 'error'); }
+  });
+  
+
+  function blobToDataURL(blob){
+    return new Promise((resolve,reject)=>{
+      const fr = new FileReader();
+      fr.onload = ()=>resolve(fr.result); fr.onerror = ()=>reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  }
+  function loadImageSize(src){
+    return new Promise((resolve,reject)=>{
+      const img = new Image();
+      img.onload = ()=>resolve({w:img.naturalWidth||img.width, h:img.naturalHeight||img.height});
+      img.onerror = reject; img.src = src;
+    });
+  }
 
   // ========= CARDS =========
-  function createCard(c){
-    const card = Object.assign({ id: state.nextId++, details:'', notes:'', autoH:true, image:null, caption:'' }, c);
+  function createCard({x,y,color,title='Neue Karte',details='',w,h,autoH=true}){
+    const card = { id: state.nextId++, x, y, color, title, details, w:w||null, h:h||null, autoH, image:null, caption:'', fontScale:1 };
+    state.cards.push(card); renderCard(card);
+    updateLinks(); renderMinimap(); save();
+    return card;
+  }
+  function createImageCard({x,y,w,h,image,caption=''}){
+    const card = { id: state.nextId++, x, y, color: '#222', title: '', details: '', w, h, autoH:false, image, caption, fontScale:1 };
     state.cards.push(card); renderCard(card);
     updateLinks(); renderMinimap(); save();
     return card;
@@ -1030,64 +1166,231 @@
   function deleteCard(id){
     state.cards = state.cards.filter(c=>c.id!==id);
     state.links = state.links.filter(l=>l.a!==id && l.b!==id);
+    if(state.sticky && state.sticky.type==='card' && state.sticky.id===id) state.sticky=null;
     render(); save();
   }
+  function deleteLink(l){
+    state.links = state.links.filter(x=>x!==l);
+    if(state.sticky && state.sticky.type==='link' && state.sticky.link===l) state.sticky=null;
+    updateLinks(); renderMinimap(); save();
+  }
 
-  function renderCard(card){
+  function updateCardFontScale(cardEl){
+    const w = cardEl.offsetWidth, h = cardEl.offsetHeight;
+    const s = Math.max(0.5, Math.min(1.6, Math.min(w/CARD_REF_W, h/CARD_REF_H)));
+    cardEl.style.setProperty('--card-font-scale', s.toFixed(3));
+  }
+  function autoResizeCard(card, cardEl){
+    if(card.image) return;
+    if(!card.autoH) return;
+    cardEl.classList.add('autoH');
+    cardEl.style.height = 'auto';
+    card.h = cardEl.offsetHeight;
+    updateCardFontScale(cardEl);
+  }
+
+function readEditableText(el){
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+  clone.querySelectorAll('div, p').forEach((block, i) => {
+    if(i > 0) block.prepend('\n');
+  });
+  return clone.textContent;
+}
+
+   function renderCard(card){
     const el = document.createElement('div');
     el.className = 'card' + (card.image ? ' image-card' : '');
     el.dataset.id = card.id;
     el.style.left = card.x+'px'; el.style.top = card.y+'px';
     if(card.w) el.style.width = card.w+'px';
+    el.style.setProperty('--card-font-manual', (card.fontScale || 1).toFixed(3));
 
     if(card.image){
       el.style.height = (card.h || 200) + 'px';
       const wrap = document.createElement('div');
       wrap.className = 'image-wrap';
-      const img = document.createElement('img'); img.src = card.image;
+      const img = document.createElement('img');
+      img.src = card.image; img.alt = card.caption || '';
       wrap.appendChild(img);
+      if(card.caption){
+        const cap = document.createElement('div');
+        cap.className = 'img-caption'; cap.textContent = card.caption;
+        wrap.appendChild(cap);
+      }
+      
       wrap.addEventListener('mousedown', (e)=>onCardDragStart(e, el, card));
+      
       el.appendChild(wrap);
     } else {
       if(card.autoH){ el.classList.add('autoH'); el.style.height = 'auto'; }
+      else if(card.h){ el.style.height = card.h+'px'; }
+
       const title = document.createElement('div');
-      title.className = 'title'; title.style.background = card.color;
+      title.className = 'title';
+      title.style.background = card.color;
+      title.title = 'Ziehen zum Verschieben · Doppelklick zum Bearbeiten';
+
       const titleText = document.createElement('span');
-      titleText.className = 'title-text'; titleText.textContent = card.title;
+      titleText.className = 'title-text';
+      titleText.textContent = card.title;
+      titleText.spellcheck = false;
       title.appendChild(titleText);
 
-      const details = document.createElement('div');
-      details.className = 'details'; details.textContent = card.details;
       
-      title.addEventListener('mousedown', (e)=>onCardDragStart(e, el, card));
-      
-      // Notiz-Indikator
-      if(card.notes && card.notes.replace(/<[^>]*>/g, '').trim().length > 0) {
-        const ind = document.createElement('div');
-        ind.className = 'notes-indicator'; ind.textContent = '📝';
-        el.appendChild(ind);
+      let titleBeforeEdit = null;
+      function enterEdit(){
+        if(title.classList.contains('editing')) return;
+        title.classList.add('editing');
+        titleText.contentEditable = 'true';
+        el.classList.add('editing');
+        titleBeforeEdit = card.title;
+        const range = document.createRange();
+        range.selectNodeContents(titleText); range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(range);
+        titleText.focus();
       }
+      function exitEdit(){
+        if(!title.classList.contains('editing')) return;
+        title.classList.remove('editing');
+        titleText.contentEditable = 'false';
+        el.classList.remove('editing');
+        const newTitle = titleText.textContent;
+        if(titleBeforeEdit !== null && newTitle !== titleBeforeEdit){
+          card.title = titleBeforeEdit;
+          pushUndo();
+          card.title = newTitle;
+        }
+        titleBeforeEdit = null;
+        autoResizeCard(card, el);
+        updateLinks();
+        if(!state.sticky) clearHighlight(); else applyStickyVisual();
+        save();
+      }
+      titleText.addEventListener('dblclick', (e)=>{ e.stopPropagation(); enterEdit(); });
+      titleText.addEventListener('blur', exitEdit);
+      titleText.addEventListener('input', ()=>{ card.title = titleText.textContent; autoResizeCard(card, el); updateLinks(); });
+      titleText.addEventListener('keydown', (e)=>{
+        if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); titleText.blur(); }
+        if(e.key==='Escape'){ titleText.textContent = titleBeforeEdit ?? card.title; titleText.blur(); }
+        e.stopPropagation();
+      });
+      titleText.addEventListener('mousedown', (e)=>{
+        if(title.classList.contains('editing')){ e.stopPropagation(); return; }
+        onCardDragStart(e, el, card);
+      });
+      title.addEventListener('mousedown', (e)=>{
+        if(title.classList.contains('editing')) return;
+        if(e.target !== title) return;
+        onCardDragStart(e, el, card);
+      });
+      
+
+      const details = document.createElement('div');
+      details.className = 'details';
+      details.contentEditable = 'true';
+      details.spellcheck = false;
+      details.textContent = card.details;
+      details.setAttribute('data-placeholder','Details...');
+
+      
+      let detailsBeforeEdit = null;
+      details.addEventListener('focus', ()=>{
+        el.classList.add('editing');
+        detailsBeforeEdit = card.details;
+      });
+      details.addEventListener('blur', ()=>{
+        el.classList.remove('editing');
+	const newDetails = readEditableText(details);
+        if(detailsBeforeEdit !== null && newDetails !== detailsBeforeEdit){
+          card.details = detailsBeforeEdit;
+          pushUndo();
+          card.details = newDetails;
+        }
+        detailsBeforeEdit = null;
+        autoResizeCard(card, el);
+        updateLinks();
+        if(!state.sticky) clearHighlight(); else applyStickyVisual();
+        save();
+      });
+      details.addEventListener('input', ()=>{
+        card.details = readEditableText(details);
+        autoResizeCard(card, el);
+        updateLinks();
+      });
+      details.addEventListener('mousedown', (e)=>e.stopPropagation());
+      details.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    document.execCommand('insertLineBreak');
+  }
+  e.stopPropagation();
+});
+      
 
       el.appendChild(title);
       el.appendChild(details);
     }
 
-    el.onclick = (e) => {
-      if(e.target.closest('.actions') || e.target.closest('.resize-h') || e.target.closest('.anchor')) return;
-      openPanelForCard(card);
-      setStickyCard(card.id);
-    };
-
-    const actions = document.createElement('div');
+    
+     const actions = document.createElement('div');
     actions.className = 'actions';
+    if(!card.image){
+      const fontUpBtn = document.createElement('button');
+      fontUpBtn.textContent = '⌃'; fontUpBtn.title='Schrift vergrössern';
+      fontUpBtn.style.fontSize = '14px';
+      fontUpBtn.style.lineHeight = '1';
+      fontUpBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        pushUndo();
+        const current = card.fontScale || 1;
+        card.fontScale = Math.min(2.5, current + 0.15);
+        el.style.setProperty('--card-font-manual', card.fontScale.toFixed(3));
+        save();
+      });
+      actions.appendChild(fontUpBtn);
+
+      const fontDownBtn = document.createElement('button');
+      fontDownBtn.textContent = '⌄'; fontDownBtn.title='Schrift verkleinern';
+      fontDownBtn.style.fontSize = '14px';
+      fontDownBtn.style.lineHeight = '1';
+      fontDownBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        pushUndo();
+        const current = card.fontScale || 1;
+        card.fontScale = Math.max(0.5, current - 0.15);
+        el.style.setProperty('--card-font-manual', card.fontScale.toFixed(3));
+        save();
+      });
+      actions.appendChild(fontDownBtn);
+
+      const colorBtn = document.createElement('button');
+      colorBtn.textContent = '🎨'; colorBtn.title='Farbe ändern';
+      colorBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        pushUndo();
+        const idx = COLORS.findIndex(c=>c.bg===card.color);
+        card.color = COLORS[(idx+1)%COLORS.length].bg;
+        const titleEl = el.querySelector('.title');
+        if(titleEl) titleEl.style.background = card.color;
+        renderMinimap(); save();
+      });
+      actions.appendChild(colorBtn);
+    }
     const delBtn = document.createElement('button');
-    delBtn.textContent = '✕'; delBtn.onclick = (e)=>{ e.stopPropagation(); deleteCard(card.id); };
+    delBtn.textContent = '✕'; delBtn.title='Löschen';
+    delBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      confirmDeleteCard(card);
+    });
     actions.appendChild(delBtn);
     el.appendChild(actions);
 
     ['top','right','bottom','left'].forEach(side=>{
       const a = document.createElement('div');
       a.className = 'anchor '+side;
+      a.dataset.side = side;
       a.addEventListener('mousedown', (e)=>onAnchorDragStart(e, card, side, a));
       el.appendChild(a);
     });
@@ -1098,158 +1401,2152 @@
       h.addEventListener('mousedown', (e)=>onResizeStart(e, card, el, dir));
       el.appendChild(h);
     });
+    
+
+    el.addEventListener('mouseenter', ()=>{
+      if(connectDrag || endpointDrag || state.sticky) return;
+      highlightCard(card.id, false);
+    });
+    el.addEventListener('mouseleave', ()=>{
+      if(connectDrag || endpointDrag || state.sticky) return;
+      clearHighlight();
+    });
+el.addEventListener('click', (e)=>{
+  if(e.target.closest('.actions') || e.target.closest('.resize-h') || e.target.closest('.anchor')) return;
+  if(e.target.closest('.title.editing') || e.target.closest('.details')) return;
+  // Bildkarten: alte Sticky-Logik beibehalten
+  if(card.image){
+    if(state.sticky && state.sticky.type==='card' && state.sticky.id===card.id) clearSticky();
+    else setStickyCard(card.id);
+    return;
+  }
+  // Textkarten: Side-Panel öffnen (oder Karte wechseln)
+  if(activePanelCard && activePanelCard.id === card.id){
+    closePanel();
+  } else {
+    openPanelForCard(card);
+  }
+});
+    
+    el.addEventListener('contextmenu', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      showCardMenu(e.clientX, e.clientY, card);
+    });
+    
 
     board.appendChild(el);
+    if(!card.image){ autoResizeCard(card, el); updateCardFontScale(el); }
+    else updateCardFontScale(el);
   }
 
-  // ========= CARD DRAG & RESIZE =========
+  // ========= CARD DRAG =========
   let cardDrag = null;
   function onCardDragStart(e, cardEl, card){
+    
     if(e.button!==0) return;
     const start = toBoard(e.clientX, e.clientY);
-    cardDrag = { card, cardEl, offX:start.x-card.x, offY:start.y-card.y, moved:false };
+    cardDrag = { card, cardEl, offX:start.x-card.x, offY:start.y-card.y, moved:false, sx:e.clientX, sy:e.clientY,
+                 origX: card.x, origY: card.y, snapshotTaken:false };
     e.preventDefault(); e.stopPropagation();
   }
   window.addEventListener('mousemove', (e)=>{
     if(!cardDrag) return;
-    cardDrag.moved = true;
+    if(!cardDrag.moved){
+      if(Math.abs(e.clientX-cardDrag.sx) < CLICK_MOVE_THRESHOLD && Math.abs(e.clientY-cardDrag.sy) < CLICK_MOVE_THRESHOLD) return;
+      cardDrag.moved = true;
+      if(!cardDrag.snapshotTaken){
+        const tmpX = cardDrag.card.x, tmpY = cardDrag.card.y;
+        cardDrag.card.x = cardDrag.origX; cardDrag.card.y = cardDrag.origY;
+        pushUndo();
+        cardDrag.card.x = tmpX; cardDrag.card.y = tmpY;
+        cardDrag.snapshotTaken = true;
+      }
+      cardDrag.cardEl.classList.add('dragging');
+    }
     const p = toBoard(e.clientX, e.clientY);
-    cardDrag.card.x = p.x - cardDrag.offX;
-    cardDrag.card.y = p.y - cardDrag.offY;
+    cardDrag.card.x = Math.max(0, p.x - cardDrag.offX);
+    cardDrag.card.y = Math.max(0, p.y - cardDrag.offY);
     cardDrag.cardEl.style.left = cardDrag.card.x+'px';
     cardDrag.cardEl.style.top  = cardDrag.card.y+'px';
     updateLinks(); renderMinimap();
   });
-  window.addEventListener('mouseup', ()=>{ if(cardDrag){ if(cardDrag.moved) save(); cardDrag=null; } });
+  window.addEventListener('mouseup', ()=>{
+    if(cardDrag){ if(cardDrag.moved){ cardDrag.cardEl.classList.remove('dragging'); save(); } cardDrag=null; }
+  });
 
+  // ========= RESIZE =========
   let resizeDrag = null;
   function onResizeStart(e, card, cardEl, dir){
+    
     if(e.button!==0) return;
     e.preventDefault(); e.stopPropagation();
-    pushUndo(); card.autoH = false;
-    resizeDrag = { card, cardEl, dir, startW: cardEl.offsetWidth, startH: cardEl.offsetHeight, startX: card.x, startY: card.y, sx: e.clientX, sy: e.clientY };
+    pushUndo();
+    card.autoH = false;
+    cardEl.classList.remove('autoH');
+    resizeDrag = {
+      card, cardEl, dir,
+      startW: cardEl.offsetWidth, startH: cardEl.offsetHeight,
+      startX: card.x, startY: card.y,
+      sx: e.clientX, sy: e.clientY,
+    };
   }
   window.addEventListener('mousemove', (e)=>{
     if(!resizeDrag) return;
-    const dx = (e.clientX - resizeDrag.sx)/state.view.scale;
-    const dy = (e.clientY - resizeDrag.sy)/state.view.scale;
-    if(resizeDrag.dir.includes('e')) resizeDrag.card.w = resizeDrag.startW + dx;
-    if(resizeDrag.dir.includes('s')) resizeDrag.card.h = resizeDrag.startH + dy;
+    const scale = state.view.scale;
+    const dx = (e.clientX - resizeDrag.sx)/scale;
+    const dy = (e.clientY - resizeDrag.sy)/scale;
+    let nw = resizeDrag.startW, nh = resizeDrag.startH;
+    let nx = resizeDrag.startX, ny = resizeDrag.startY;
+    const d = resizeDrag.dir;
+    if(d.includes('e')) nw = resizeDrag.startW + dx;
+    if(d.includes('s')) nh = resizeDrag.startH + dy;
+    if(d.includes('w')){ nw = resizeDrag.startW - dx; nx = resizeDrag.startX + dx; }
+    if(d.includes('n')){ nh = resizeDrag.startH - dy; ny = resizeDrag.startY + dy; }
+    if(nw < CARD_MIN_W){ if(d.includes('w')) nx -= (CARD_MIN_W - nw); nw = CARD_MIN_W; }
+    if(nw > CARD_MAX_W) nw = CARD_MAX_W;
+    if(nh < CARD_MIN_H){ if(d.includes('n')) ny -= (CARD_MIN_H - nh); nh = CARD_MIN_H; }
+    if(nh > CARD_MAX_H) nh = CARD_MAX_H;
+    resizeDrag.card.w = Math.round(nw); resizeDrag.card.h = Math.round(nh);
+    resizeDrag.card.x = Math.max(0, Math.round(nx));
+    resizeDrag.card.y = Math.max(0, Math.round(ny));
     resizeDrag.cardEl.style.width = resizeDrag.card.w + 'px';
     resizeDrag.cardEl.style.height = resizeDrag.card.h + 'px';
+    resizeDrag.cardEl.style.left = resizeDrag.card.x + 'px';
+    resizeDrag.cardEl.style.top = resizeDrag.card.y + 'px';
+    updateCardFontScale(resizeDrag.cardEl);
     updateLinks(); renderMinimap();
   });
   window.addEventListener('mouseup', ()=>{ if(resizeDrag){ resizeDrag=null; save(); } });
 
-  // ========= ANCHORS & LINKS =========
-  let connectDrag = null, ghostPath = null;
+  // ========= ANCHOR (NEW LINK) =========
+  let connectDrag = null;
+  let ghostPath = null;
+  let hoverTarget = null;
+  let hoverAnchorEl = null;
+  let hoverAnchorSide = null;
+
+  function cleanupConnectDrag(){
+    if(ghostPath){ ghostPath.remove(); ghostPath=null; }
+    if(connectDrag){
+      if(connectDrag.fromEl) connectDrag.fromEl.classList.remove('show-anchors');
+      if(connectDrag.fromAnchor) connectDrag.fromAnchor.classList.remove('active');
+    }
+    if(hoverTarget) hoverTarget.classList.remove('drop-target');
+    if(hoverAnchorEl) hoverAnchorEl.classList.remove('active');
+    hoverAnchorEl=null; hoverAnchorSide=null; hoverTarget=null; connectDrag=null;
+    applyStickyVisual();
+  }
+
   function onAnchorDragStart(e, card, side, anchorEl){
+    
     if(e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
-    connectDrag = { fromId: card.id, fromSide: side };
+    clearHighlight();
+    const cardEl = board.querySelector(`.card[data-id="${card.id}"]`);
+    cardEl.classList.add('show-anchors');
+    anchorEl.classList.add('active');
+    connectDrag = { fromId: card.id, fromSide: side, fromEl: cardEl, fromAnchor: anchorEl };
     ghostPath = document.createElementNS('http://www.w3.org/2000/svg','path');
     ghostPath.setAttribute('class','ghost');
     svg.appendChild(ghostPath);
+    updateGhost(e.clientX, e.clientY);
   }
-  window.addEventListener('mousemove', (e)=>{
+
+  function nearestSide(card, point){
+    const r = cardRect(card);
+    const sides = {
+      top:{x:r.cx,y:r.y}, right:{x:r.x+r.w,y:r.cy},
+      bottom:{x:r.cx,y:r.y+r.h}, left:{x:r.x,y:r.cy},
+    };
+    let best='right', bestD=Infinity;
+    for(const s in sides){
+      const dx=sides[s].x-point.x, dy=sides[s].y-point.y;
+      const d=dx*dx+dy*dy;
+      if(d<bestD){bestD=d; best=s;}
+    }
+    return best;
+  }
+
+  function updateGhost(clientX, clientY){
     if(!connectDrag) return;
     const from = state.cards.find(c=>c.id===connectDrag.fromId);
     const pA = sideAnchorPoint(from, connectDrag.fromSide);
-    const pB = toBoard(e.clientX, e.clientY);
-    ghostPath.setAttribute('d', `M ${pA.x} ${pA.y} L ${pB.x} ${pB.y}`);
-  });
-  window.addEventListener('mouseup', (e)=>{
-    if(!connectDrag) return;
-    const el = document.elementFromPoint(e.clientX, e.clientY);
+    let pB = toBoard(clientX, clientY);
+    const el = document.elementFromPoint(clientX, clientY);
     const cardEl = el && el.closest('.card');
-    if(cardEl){
-      const toId = +cardEl.dataset.id;
-      if(toId !== connectDrag.fromId){
-        pushUndo(); state.links.push({a:connectDrag.fromId, b:toId, sideA:connectDrag.fromSide});
-        updateLinks(); save();
+    const newTarget = (cardEl && +cardEl.dataset.id !== connectDrag.fromId) ? cardEl : null;
+    if(newTarget !== hoverTarget){
+      if(hoverTarget){
+        hoverTarget.classList.remove('drop-target');
+        if(hoverAnchorEl){ hoverAnchorEl.classList.remove('active'); hoverAnchorEl=null; }
       }
+      if(newTarget) newTarget.classList.add('drop-target');
+      hoverTarget = newTarget;
     }
-    ghostPath.remove(); connectDrag = null;
-  });
+    if(hoverTarget){
+      const targetCard = state.cards.find(c=>c.id === +hoverTarget.dataset.id);
+      const side = nearestSide(targetCard, pB);
+      pB = sideAnchorPoint(targetCard, side);
+      const newAnchorEl = hoverTarget.querySelector('.anchor.'+side);
+      if(newAnchorEl !== hoverAnchorEl){
+        if(hoverAnchorEl) hoverAnchorEl.classList.remove('active');
+        hoverAnchorEl = newAnchorEl; hoverAnchorSide = side;
+        if(hoverAnchorEl) hoverAnchorEl.classList.add('active');
+      }
+    }else if(hoverAnchorEl){
+      hoverAnchorEl.classList.remove('active'); hoverAnchorEl=null; hoverAnchorSide=null;
+    }
+    ghostPath.setAttribute('d', bezierPathDirected(pA, connectDrag.fromSide, pB, hoverAnchorSide));
+  }
 
+  window.addEventListener('mousemove', (e)=>{ if(connectDrag) updateGhost(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', ()=>{
+    if(!connectDrag) return;
+    if(hoverTarget && hoverAnchorSide){
+      const toId = +hoverTarget.dataset.id;
+      addLink(connectDrag.fromId, connectDrag.fromSide, toId, hoverAnchorSide);
+    }
+    cleanupConnectDrag();
+  });
+  window.addEventListener('mouseleave', ()=>{ if(connectDrag) cleanupConnectDrag(); });
+  window.addEventListener('blur', ()=>{ if(connectDrag) cleanupConnectDrag(); });
+
+  function addLink(a, sideA, b, sideB){
+    if(a===b) return;
+    if(state.links.some(l => (l.a===a&&l.b===b)||(l.a===b&&l.b===a))) return;
+    pushUndo();
+    state.links.push({a, b, sideA, sideB});
+    updateLinks(); renderMinimap(); save();
+  }
+
+  // ========= ENDPOINT DRAG =========
+  let endpointDrag = null;
+  function onEndpointDragStart(e, link, which, circleEl){
+    
+    if(e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    setStickyLink(link);
+    endpointDrag = { link, which, ghost:null, circleEl, willDelete:false, snapshotTaken:false };
+    if(circleEl) circleEl.classList.add('dragging');
+    const ghost = document.createElementNS('http://www.w3.org/2000/svg','path');
+    ghost.setAttribute('class','ghost');
+    svg.appendChild(ghost);
+    endpointDrag.ghost = ghost;
+    updateEndpointGhost(e.clientX, e.clientY);
+  }
+  function updateEndpointGhost(clientX, clientY){
+    if(!endpointDrag) return;
+    const { link, which, ghost } = endpointDrag;
+    const other = which === 'a' ? 'b' : 'a';
+    const fixedCard = state.cards.find(c=>c.id === link[other]);
+    const fixedSide = link[other === 'a' ? 'sideA' : 'sideB'];
+    const pFixed = fixedSide ? sideAnchorPoint(fixedCard, fixedSide) : cardEdgeAnchor(fixedCard, toBoard(clientX,clientY));
+
+    let pDrag = toBoard(clientX, clientY);
+    const el = document.elementFromPoint(clientX, clientY);
+    const cardEl = el && el.closest('.card');
+    const candidateId = cardEl ? +cardEl.dataset.id : null;
+
+    document.querySelectorAll('.card.drop-target').forEach(c=>c.classList.remove('drop-target'));
+    let targetSide = null;
+
+    if(candidateId && candidateId !== link[other]){
+      const targetCard = state.cards.find(c=>c.id===candidateId);
+      targetSide = nearestSide(targetCard, pDrag);
+      pDrag = sideAnchorPoint(targetCard, targetSide);
+      cardEl.classList.add('drop-target');
+      endpointDrag.targetId = candidateId;
+      endpointDrag.targetSide = targetSide;
+      endpointDrag.willDelete = false;
+      ghost.classList.remove('delete');
+    } else {
+      endpointDrag.targetId = null;
+      endpointDrag.targetSide = null;
+      endpointDrag.willDelete = true;
+      ghost.classList.add('delete');
+    }
+
+    let pA, sideA, pB, sideB;
+    if(which === 'a'){ pA = pDrag; sideA = targetSide; pB = pFixed; sideB = fixedSide; }
+    else { pA = pFixed; sideA = fixedSide; pB = pDrag; sideB = targetSide; }
+    ghost.setAttribute('d', bezierPathDirected(pA, sideA, pB, sideB));
+  }
+  function cleanupEndpointDrag(){
+    if(!endpointDrag) return;
+    if(endpointDrag.ghost) endpointDrag.ghost.remove();
+    if(endpointDrag.circleEl) endpointDrag.circleEl.classList.remove('dragging');
+    document.querySelectorAll('.card.drop-target').forEach(c=>c.classList.remove('drop-target'));
+    endpointDrag = null;
+    applyStickyVisual();
+  }
+  window.addEventListener('mousemove', (e)=>{ if(endpointDrag) updateEndpointGhost(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', ()=>{
+    if(!endpointDrag) return;
+    const { link, which, targetId, targetSide, willDelete } = endpointDrag;
+    if(targetId && targetSide){
+      const other = which === 'a' ? 'b' : 'a';
+      const dup = state.links.some(l => l !== link &&
+        ((l.a === targetId && l.b === link[other]) || (l.b === targetId && l.a === link[other])));
+      if(!dup && targetId !== link[other]){
+        pushUndo();
+        if(which === 'a'){ link.a = targetId; link.sideA = targetSide; }
+        else { link.b = targetId; link.sideB = targetSide; }
+        updateLinks(); renderMinimap(); save();
+      }
+    } else if(willDelete){
+      pushUndo();
+               deleteLink(link);
+               toast('Verbindung gelöscht');
+    }
+    cleanupEndpointDrag();
+  });
+  window.addEventListener('blur', ()=>{ if(endpointDrag) cleanupEndpointDrag(); });
+
+  // ========= GEOMETRY =========
+  function cardRect(card){
+    const el = board.querySelector(`.card[data-id="${card.id}"]`);
+    const w = el ? el.offsetWidth  : (card.w || CARD_DEFAULT_W);
+    const h = el ? el.offsetHeight : (card.h || 120);
+    return {x:card.x, y:card.y, w, h, cx:card.x+w/2, cy:card.y+h/2};
+  }
   function sideAnchorPoint(card, side){
-    const el = document.querySelector(`.card[data-id="${card.id}"]`);
-    const w = el ? el.offsetWidth : 170, h = el ? el.offsetHeight : 120;
-    if(side==='top') return {x:card.x+w/2, y:card.y};
-    if(side==='right') return {x:card.x+w, y:card.y+h/2};
-    if(side==='bottom') return {x:card.x+w/2, y:card.y+h};
-    return {x:card.x, y:card.y+h/2};
+    const r = cardRect(card);
+    switch(side){
+      case 'top':    return {x:r.cx, y:r.y};
+      case 'right':  return {x:r.x+r.w, y:r.cy};
+      case 'bottom': return {x:r.cx, y:r.y+r.h};
+      case 'left':   return {x:r.x, y:r.cy};
+    }
+    return {x:r.cx, y:r.cy};
+  }
+  function cardEdgeAnchor(card, toward){
+    const r = cardRect(card);
+    const dx = toward.x - r.cx, dy = toward.y - r.cy;
+    if(dx===0 && dy===0) return {x:r.cx, y:r.cy};
+    const scale = 1 / Math.max(Math.abs(dx)/(r.w/2), Math.abs(dy)/(r.h/2));
+    return { x:r.cx + dx*scale, y:r.cy + dy*scale };
+  }
+  function dirForSide(side){
+    switch(side){ case 'top':return {x:0,y:-1}; case 'right':return {x:1,y:0}; case 'bottom':return {x:0,y:1}; case 'left':return {x:-1,y:0}; }
+    return null;
+  }
+  function bezierPathDirected(pA, sideA, pB, sideB){
+    const dist = Math.hypot(pB.x-pA.x, pB.y-pA.y);
+    const curve = Math.min(260, Math.max(60, dist*0.45));
+    let dA = dirForSide(sideA), dB = sideB ? dirForSide(sideB) : null;
+    if(!dA){ const dx=pB.x-pA.x, dy=pB.y-pA.y; dA = Math.abs(dx)>=Math.abs(dy) ? {x:Math.sign(dx)||1,y:0} : {x:0,y:Math.sign(dy)||1}; }
+    if(!dB){ const dx=pA.x-pB.x, dy=pA.y-pB.y; dB = Math.abs(dx)>=Math.abs(dy) ? {x:Math.sign(dx)||1,y:0} : {x:0,y:Math.sign(dy)||1}; }
+    const c1 = { x: pA.x + dA.x*curve, y: pA.y + dA.y*curve };
+    const c2 = { x: pB.x + dB.x*curve, y: pB.y + dB.y*curve };
+    return `M ${pA.x} ${pA.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${pB.x} ${pB.y}`;
   }
 
   function updateLinks(){
-    [...svg.querySelectorAll('path.link')].forEach(n=>n.remove());
-    state.links.forEach(l=>{
-      const a = state.cards.find(c=>c.id===l.a), b = state.cards.find(c=>c.id===l.b);
+    [...svg.querySelectorAll('g.link-group')].forEach(n=>n.remove());
+    state.links.forEach((l) => {
+      const a = state.cards.find(c=>c.id===l.a);
+      const b = state.cards.find(c=>c.id===l.b);
       if(!a || !b) return;
-      const pA = sideAnchorPoint(a, l.sideA || 'right'), pB = sideAnchorPoint(b, l.sideB || 'left');
-      const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-      p.setAttribute('class','link'); p.setAttribute('d', `M ${pA.x} ${pA.y} L ${pB.x} ${pB.y}`);
-      svg.appendChild(p);
+      let pA, pB;
+      if(l.sideA) pA = sideAnchorPoint(a, l.sideA);
+      else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
+      if(l.sideB) pB = sideAnchorPoint(b, l.sideB);
+      else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
+      const d = bezierPathDirected(pA, l.sideA, pB, l.sideB);
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('class','link-group');
+      const hit = document.createElementNS('http://www.w3.org/2000/svg','path');
+      hit.setAttribute('class','link-hit'); hit.setAttribute('d', d);
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','link'); path.setAttribute('d', d);
+      path.dataset.a = l.a; path.dataset.b = l.b;
+
+      const epA = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      epA.setAttribute('class','endpoint');
+      epA.setAttribute('cx', pA.x); epA.setAttribute('cy', pA.y); epA.setAttribute('r', 8);
+      epA.style.display = 'none';
+      epA.addEventListener('mousedown', (e)=>onEndpointDragStart(e, l, 'a', epA));
+
+      const epB = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      epB.setAttribute('class','endpoint');
+      epB.setAttribute('cx', pB.x); epB.setAttribute('cy', pB.y); epB.setAttribute('r', 8);
+      epB.style.display = 'none';
+      epB.addEventListener('mousedown', (e)=>onEndpointDragStart(e, l, 'b', epB));
+
+      hit.addEventListener('mouseenter', ()=>{
+        if(connectDrag || endpointDrag) return;
+        if(!state.sticky) highlightLink(l, false);
+        epA.style.display = ''; epB.style.display = '';
+      });
+      hit.addEventListener('mouseleave', ()=>{
+        if(connectDrag || endpointDrag) return;
+        if(!state.sticky) clearHighlight();
+        if(!(state.sticky && state.sticky.type==='link' && state.sticky.link===l)){
+          epA.style.display='none'; epB.style.display='none';
+        }
+      });
+      hit.addEventListener('click', ()=>{
+        if(connectDrag || endpointDrag) return;
+        if(state.sticky && state.sticky.type==='link' && state.sticky.link===l) clearSticky();
+        else setStickyLink(l);
+      });
+      
+      hit.addEventListener('contextmenu', (e)=>{
+        e.preventDefault(); e.stopPropagation();
+        showLinkMenu(e.clientX, e.clientY, l);
+      });
+      
+
+      g.appendChild(hit); g.appendChild(path); g.appendChild(epA); g.appendChild(epB);
+      g._link = l; g._epA = epA; g._epB = epB;
+      svg.appendChild(g);
+    });
+    applyStickyVisual();
+  }
+
+  // ========= HIGHLIGHT / STICKY =========
+  function deactivateAllCards(){
+    const active = document.activeElement;
+    if(active && (active.classList.contains('title-text') || active.classList.contains('details'))) active.blur();
+    document.querySelectorAll('.card').forEach(el=>{
+      el.classList.remove('editing','hi','sticky','dim','show-anchors');
+      const title = el.querySelector('.title');
+      const titleText = el.querySelector('.title-text');
+      if(title && title.classList.contains('editing')){
+        title.classList.remove('editing');
+        if(titleText) titleText.contentEditable = 'false';
+      }
+    });
+    svg.querySelectorAll('path.link').forEach(p=>p.classList.remove('hi','dim'));
+    svg.querySelectorAll('circle.endpoint').forEach(c=>c.style.display='none');
+  }
+
+  function highlightCard(id, isSticky){
+    if(connectDrag || endpointDrag) return;
+    const connected = new Set([id]);
+    state.links.forEach(l=>{
+      if(l.a===id) connected.add(l.b);
+      if(l.b===id) connected.add(l.a);
+    });
+    document.querySelectorAll('.card').forEach(el=>{
+      const cid = +el.dataset.id;
+      const isConnected = connected.has(cid);
+      const isEditing = el.classList.contains('editing');
+      el.classList.toggle('hi', isConnected && !isSticky);
+      el.classList.toggle('sticky', isConnected && isSticky);
+      el.classList.toggle('dim', !isConnected && !isEditing);
+    });
+    svg.querySelectorAll('path.link').forEach(p=>{
+      const touches = +p.dataset.a===id || +p.dataset.b===id;
+      p.classList.toggle('hi', touches);
+      p.classList.toggle('dim', !touches);
+    });
+    svg.querySelectorAll('circle.endpoint').forEach(c=>c.style.display='none');
+  }
+  function highlightLink(l, isSticky){
+    if(connectDrag || endpointDrag) return;
+    document.querySelectorAll('.card').forEach(el=>{
+      const cid = +el.dataset.id;
+      const on = cid===l.a || cid===l.b;
+      const isEditing = el.classList.contains('editing');
+      el.classList.toggle('hi', on && !isSticky);
+      el.classList.toggle('sticky', on && isSticky);
+      el.classList.toggle('dim', !on && !isEditing);
+    });
+    svg.querySelectorAll('path.link').forEach(p=>{
+      const on = (+p.dataset.a===l.a && +p.dataset.b===l.b);
+      p.classList.toggle('hi', on);
+      p.classList.toggle('dim', !on);
+    });
+    svg.querySelectorAll('g.link-group').forEach(g=>{
+      if(g._link === l){ g._epA.style.display=''; g._epB.style.display=''; }
+      else { g._epA.style.display='none'; g._epB.style.display='none'; }
+    });
+  }
+  
+  function clearHighlight(){
+    document.body.classList.remove('link-selected');
+    document.querySelectorAll('.card').forEach(el=>el.classList.remove('hi','dim','sticky'));
+    svg.querySelectorAll('path.link').forEach(p=>p.classList.remove('hi','dim'));
+    svg.querySelectorAll('circle.endpoint').forEach(c=>c.style.display='none');
+  }
+
+  function setStickyCard(id){ state.sticky = { type:'card', id }; applyStickyVisual(); save(); }
+  function setStickyLink(l){ state.sticky = { type:'link', link:l }; applyStickyVisual(); save(); }
+  function clearSticky(){ state.sticky = null; deactivateAllCards(); save(); }
+   function applyStickyVisual(){
+    const isLinkSticky = !!(state.sticky && state.sticky.type === 'link');
+    document.body.classList.toggle('link-selected', isLinkSticky);
+
+    if(!state.sticky){ clearHighlight(); return; }
+    if(state.sticky.type==='card'){
+      if(!state.cards.some(c=>c.id===state.sticky.id)){ state.sticky=null; clearHighlight(); return; }
+      highlightCard(state.sticky.id, true);
+    } else if(state.sticky.type==='link'){
+      if(!state.links.includes(state.sticky.link)){ state.sticky=null; clearHighlight(); return; }
+      highlightLink(state.sticky.link, true);
+    }
+  }
+
+// ========= SIDE PANEL =========
+let activePanelCard = null;
+let panelSnapshotTaken = false;
+
+// Breite wiederherstellen
+try{
+  const savedW = parseInt(localStorage.getItem(SP_WIDTH_KEY), 10);
+  if(savedW && savedW >= 320) sidePanel.style.width = savedW + 'px';
+}catch{}
+
+function openPanelForCard(card){
+  if(card.image) return; // Bildkarten nicht im Panel
+  activePanelCard = card;
+  panelSnapshotTaken = false;
+
+  // Header
+  spColorDot.style.background = card.color;
+  const r = cardRect(card);
+  const zoneKey = detectZone({x:r.cx, y:r.cy});
+  spZone.textContent = ZONE_LABELS[zoneKey] || 'Karte';
+
+  // Inhalte laden
+  spTitle.value = card.title || '';
+  // Details: Wenn HTML enthalten, als HTML setzen, sonst als Text
+  if(/<[a-z][\s\S]*>/i.test(card.details || '')){
+    spDetails.innerHTML = card.details || '';
+  } else {
+    spDetails.innerHTML = '';
+    spDetails.textContent = card.details || '';
+  }
+
+  sidePanel.classList.add('open');
+  sidePanel.setAttribute('aria-hidden', 'false');
+
+  // Sticky-Highlight setzen, damit Kachel + Verbindungen markiert bleiben
+  setStickyCard(card.id);
+
+  setTimeout(()=> spTitle.focus(), 50);
+  spStatusText('Geöffnet');
+}
+
+function closePanel(){
+  if(!sidePanel.classList.contains('open')) return;
+  sidePanel.classList.remove('open');
+  sidePanel.setAttribute('aria-hidden', 'true');
+  activePanelCard = null;
+  panelSnapshotTaken = false;
+  // Sticky lösen, damit normales Hover-Verhalten zurückkommt
+  state.sticky = null;
+  applyStickyVisual();
+  save();
+}
+
+function spStatusText(t){
+  spStatus.textContent = t;
+}
+
+function ensurePanelSnapshot(){
+  if(!panelSnapshotTaken){
+    pushUndo();
+    panelSnapshotTaken = true;
+  }
+}
+
+// Title sync
+spTitle.addEventListener('input', ()=>{
+  if(!activePanelCard) return;
+  ensurePanelSnapshot();
+  activePanelCard.title = spTitle.value;
+  // Inline-Karte aktualisieren
+  const cardEl = board.querySelector(`.card[data-id="${activePanelCard.id}"]`);
+  if(cardEl){
+    const tt = cardEl.querySelector('.title-text');
+    if(tt) tt.textContent = activePanelCard.title;
+    autoResizeCard(activePanelCard, cardEl);
+    updateLinks();
+  }
+  spStatusText('Speichere...');
+  save();
+  setTimeout(()=> spStatusText('Automatisch gespeichert'), 400);
+});
+
+spTitle.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); spDetails.focus(); }
+});
+
+// Details sync (HTML, weil bold/font-size möglich)
+spDetails.addEventListener('input', ()=>{
+  if(!activePanelCard) return;
+  ensurePanelSnapshot();
+  activePanelCard.details = spDetails.innerHTML;
+  // Inline-Karte aktualisieren (HTML rendern)
+  const cardEl = board.querySelector(`.card[data-id="${activePanelCard.id}"]`);
+  if(cardEl){
+    const det = cardEl.querySelector('.details');
+    if(det){
+      det.innerHTML = activePanelCard.details;
+    }
+    autoResizeCard(activePanelCard, cardEl);
+    updateLinks();
+  }
+  spStatusText('Speichere...');
+  save();
+  setTimeout(()=> spStatusText('Automatisch gespeichert'), 400);
+});
+
+// Formatting buttons
+function execFmt(cmd, value){
+  spDetails.focus();
+  document.execCommand(cmd, false, value || null);
+  // Trigger save
+  spDetails.dispatchEvent(new Event('input', {bubbles:true}));
+  updateFormatButtons();
+}
+
+spBold.addEventListener('click', ()=> execFmt('bold'));
+spItalic.addEventListener('click', ()=> execFmt('italic'));
+spUnderline.addEventListener('click', ()=> execFmt('underline'));
+spClearFmt.addEventListener('click', ()=> execFmt('removeFormat'));
+
+spFontSize.addEventListener('change', ()=>{
+  const size = spFontSize.value;
+  if(!size){ spFontSize.value=''; return; }
+  spDetails.focus();
+  // Wir nutzen einen Workaround: execCommand fontSize akzeptiert nur 1-7,
+  // also nutzen wir CSS via styleWithCSS
+  document.execCommand('styleWithCSS', false, true);
+  document.execCommand('fontSize', false, '7'); // dummy
+  // Alle font-Tags mit size=7 auf gewünschte px ändern
+  const fonts = spDetails.querySelectorAll('font[size="7"]');
+  fonts.forEach(f => {
+    const span = document.createElement('span');
+    span.style.fontSize = size + 'px';
+    span.innerHTML = f.innerHTML;
+    f.replaceWith(span);
+  });
+  // Falls execCommand den span direkt als style gesetzt hat (modernere Browser)
+  spDetails.querySelectorAll('span[style*="font-size"]').forEach(s=>{
+    if(s.style.fontSize.includes('xxx-large') || s.style.fontSize === ''){
+      s.style.fontSize = size + 'px';
+    }
+  });
+  spDetails.dispatchEvent(new Event('input', {bubbles:true}));
+  spFontSize.value = '';
+});
+
+function updateFormatButtons(){
+  try{
+    spBold.classList.toggle('active', document.queryCommandState('bold'));
+    spItalic.classList.toggle('active', document.queryCommandState('italic'));
+    spUnderline.classList.toggle('active', document.queryCommandState('underline'));
+  }catch{}
+}
+spDetails.addEventListener('keyup', updateFormatButtons);
+spDetails.addEventListener('mouseup', updateFormatButtons);
+
+// Tastatur-Shortcuts im Details-Feld
+spDetails.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey || e.metaKey) && (e.key==='b' || e.key==='B')){
+    e.preventDefault(); execFmt('bold');
+  }
+  if((e.ctrlKey || e.metaKey) && (e.key==='i' || e.key==='I')){
+    e.preventDefault(); execFmt('italic');
+  }
+  if((e.ctrlKey || e.metaKey) && (e.key==='u' || e.key==='U')){
+    e.preventDefault(); execFmt('underline');
+  }
+});
+
+// Schließen
+spClose.addEventListener('click', closePanel);
+
+// Resize
+let spResizeDrag = null;
+spResize.addEventListener('mousedown', (e)=>{
+  e.preventDefault(); e.stopPropagation();
+  spResizeDrag = { sx: e.clientX, sw: sidePanel.offsetWidth };
+  sidePanel.classList.add('resizing');
+  document.body.style.cursor = 'ew-resize';
+});
+window.addEventListener('mousemove', (e)=>{
+  if(!spResizeDrag) return;
+  const dx = spResizeDrag.sx - e.clientX;
+  let nw = spResizeDrag.sw + dx;
+  const maxW = window.innerWidth * 0.8;
+  if(nw < 320) nw = 320;
+  if(nw > maxW) nw = maxW;
+  sidePanel.style.width = nw + 'px';
+});
+window.addEventListener('mouseup', ()=>{
+  if(spResizeDrag){
+    spResizeDrag = null;
+    sidePanel.classList.remove('resizing');
+    document.body.style.cursor = '';
+    try{ localStorage.setItem(SP_WIDTH_KEY, sidePanel.offsetWidth+''); }catch{}
+  }
+});
+
+// Outside-Click schließt Panel (aber NICHT beim Pannen oder Resize)
+viewport.addEventListener('mousedown', (e)=>{
+  // wird nur ausgewertet wenn Panel offen
+  if(!sidePanel.classList.contains('open')) return;
+  // Wenn auf eine Karte geklickt: nicht schließen (Karten-Click-Handler regelt Wechsel)
+  if(e.target.closest('.card')) return;
+  // Wenn auf Link/Anchor/Resize: nicht schließen
+  if(e.target.closest('.link-hit') || e.target.closest('circle.endpoint') || e.target.closest('.anchor') || e.target.closest('.resize-h')) return;
+  // Pan-Detection: wir merken uns Start, schließen erst nach mouseup wenn KEIN Pan
+  panClickStart = { x: e.clientX, y: e.clientY, panel: true };
+}, true);
+
+let panClickStart = null;
+window.addEventListener('mouseup', (e)=>{
+  if(!panClickStart || !panClickStart.panel){ panClickStart = null; return; }
+  const moved = Math.abs(e.clientX - panClickStart.x) > CLICK_MOVE_THRESHOLD ||
+                Math.abs(e.clientY - panClickStart.y) > CLICK_MOVE_THRESHOLD;
+  panClickStart = null;
+  if(moved) return; // war ein Pan, Panel offen lassen
+  // Kein Pan, kein Card-Klick: schließen
+  if(sidePanel.classList.contains('open')){
+    if(e.target.closest('.side-panel')) return;
+    if(e.target.closest('.ctx-menu') || e.target.closest('.modal-backdrop')) return;
+    if(e.target.closest('.toolbar') || e.target.closest('.minimap')) return;
+    closePanel();
+  }
+});
+
+// ESC schließt Panel
+window.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && sidePanel.classList.contains('open')){
+    // Nur schließen wenn nicht im Editable (sonst ESC nur fokus-loss)
+    const ae = document.activeElement;
+    if(ae === spTitle || ae === spDetails){
+      ae.blur();
+      return;
+    }
+    closePanel();
+  }
+});
+	  
+  // ========= CONFIRM MODAL (Single-Step) =========
+  function confirmSimple(title, warnHtml, destructiveLabel, onConfirm){
+    showModal(title, (body)=>{
+      body.innerHTML = `<div class="confirm-warn">${warnHtml}</div>`;
+    }, destructiveLabel, ()=>{
+      closeModal();
+      onConfirm();
     });
   }
 
-  // ========= UI HELPERS =========
-  function setStickyCard(id){
-    state.sticky = {type:'card', id};
-    document.querySelectorAll('.card').forEach(el=>el.classList.toggle('sticky', +el.dataset.id===id));
+  function confirmDeleteCard(card){
+    const name = card.image ? 'diese Bildkarte' : `die Karte "${card.title || 'Unbenannt'}"`;
+    const linkCount = state.links.filter(l=>l.a===card.id||l.b===card.id).length;
+    const extra = linkCount ? ` Zusätzlich werden <b>${linkCount}</b> Verbindung(en) entfernt.` : '';
+    confirmSimple(
+      'Karte löschen?',
+      `Möchtest du ${name} wirklich löschen?${extra}`,
+      'Löschen',
+      ()=>{
+        pushUndo();
+        deleteCard(card.id);
+        toast('Karte gelöscht');
+      }
+    );
   }
-  function clearSticky(){
-    state.sticky = null; closePanel();
-    document.querySelectorAll('.card').forEach(el=>el.classList.remove('sticky'));
+  function confirmDeleteLink(link){
+    confirmSimple(
+      'Verbindung löschen?',
+      'Möchtest du diese Verbindung wirklich entfernen?',
+      'Löschen',
+      ()=>{
+        pushUndo();
+        deleteLink(link);
+        toast('Verbindung gelöscht');
+      }
+    );
   }
 
+  // ========= CONTEXT MENU =========
   function hideContextMenu(){ if(ctxMenuEl){ ctxMenuEl.remove(); ctxMenuEl=null; } }
-
-  function renderMinimap(){
-    if(!state.showMm) return;
-    let html = '';
-    state.cards.forEach(c => {
-      html += `<rect x="${c.x}" y="${c.y}" width="${c.w||170}" height="${c.h||120}" fill="${c.color}" opacity="0.6"/>`;
+   function showContextMenu(x, y, items){
+    hideContextMenu();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    items.forEach(it=>{
+      if(it.sep){ const s=document.createElement('div'); s.className='sep'; menu.appendChild(s); return; }
+      if(it.head){ const h=document.createElement('div'); h.className='head'; h.textContent=it.head; menu.appendChild(h); return; }
+      if(it.info){ const i=document.createElement('div'); i.className='info'; i.textContent=it.info; menu.appendChild(i); return; }
+      const btn = document.createElement('button');
+      if(it.danger) btn.classList.add('danger');
+      if(it.current) btn.classList.add('current');
+      btn.innerHTML = `<span>${it.icon||''}</span><span>${it.label}</span>`;
+      btn.addEventListener('click', ()=>{ hideContextMenu(); it.action && it.action(); });
+      menu.appendChild(btn);
     });
-    minimapSvg.innerHTML = html;
+    document.body.appendChild(menu);
+    const mw=menu.offsetWidth, mh=menu.offsetHeight;
+    
+    // ANGEPASST: Math.max hinzugefügt, damit das Menü nicht links/oben rausfällt
+    const left = Math.max(4, Math.min(x, window.innerWidth - mw - 4));
+    const top  = Math.max(4, Math.min(y, window.innerHeight - mh - 4));
+    
+    menu.style.left = left + 'px';
+    menu.style.top  = top + 'px';
+    ctxMenuEl = menu;
+  }
+  function showLinkMenu(x, y, link){
+    const cardA = state.cards.find(c=>c.id===link.a);
+    const cardB = state.cards.find(c=>c.id===link.b);
+    const nameA = cardA ? (cardA.title || (cardA.image ? 'Bild '+link.a : 'Karte '+link.a)) : ('Karte '+link.a);
+    const nameB = cardB ? (cardB.title || (cardB.image ? 'Bild '+link.b : 'Karte '+link.b)) : ('Karte '+link.b);
+    const sides = ['top','right','bottom','left'];
+    const sideLabels = {top:'oben', right:'rechts', bottom:'unten', left:'links'};
+    showContextMenu(x, y, [
+      { head:'Verbindung bearbeiten' },
+      { icon:'↺', label:'Richtung tauschen', action:()=>{
+          pushUndo();
+          const oldSideA = link.sideA, oldSideB = link.sideB;
+          const oldA = link.a;
+          link.a = link.b; link.b = oldA;
+          link.sideA = oldSideB; link.sideB = oldSideA;
+          updateLinks(); renderMinimap(); save();
+        }},
+      { head:`Startpunkt: ${nameA}` },
+      ...sides.map(s => ({ icon: link.sideA===s ? '●' : '○', label: 'Seite '+sideLabels[s],
+        action: ()=>{ pushUndo(); link.sideA = s; updateLinks(); renderMinimap(); save(); } })),
+      { head:`Endpunkt: ${nameB}` },
+      ...sides.map(s => ({ icon: link.sideB===s ? '●' : '○', label: 'Seite '+sideLabels[s],
+        action: ()=>{ pushUndo(); link.sideB = s; updateLinks(); renderMinimap(); save(); } })),
+      { sep:true },
+      { icon:'🗑', label:'Verbindung löschen', danger:true, action:()=>{
+                    pushUndo();
+  		   deleteLink(link);
+    		  toast('Verbindung gelöscht');
+ 		  }}
+    ]);
+  }
+  function showCardMenu(x, y, card){
+    const linkCount = state.links.filter(l=>l.a===card.id||l.b===card.id).length;
+    const items = [];
+    if(card.image){
+      items.push(
+        { head:'Bildkarte' },
+        { icon:'✎', label:'Beschriftung bearbeiten', action:()=>{
+            const cap = prompt('Beschriftung:', card.caption || '');
+            if(cap !== null){ pushUndo(); card.caption = cap; render(); save(); }
+          }},
+        { icon:'📝', label:'In Textkarte umwandeln', action:()=>{
+            pushUndo();
+            card.image = null; card.caption=''; card.title = 'Neue Karte'; card.details=''; card.autoH=true;
+            const r = cardRect(card);
+            card.color = colorForPoint({x:r.cx, y:r.cy});
+            render(); save();
+          }},
+      );
+    } else {
+      items.push(
+        { icon:'✎', label:'Titel bearbeiten', action:()=>{
+            const tt = board.querySelector(`.card[data-id="${card.id}"] .title-text`);
+            if(tt) tt.dispatchEvent(new MouseEvent('dblclick', {bubbles:true}));
+          }},
+        { icon:'🎨', label:'Farbe wechseln', action:()=>{
+            pushUndo();
+            const idx = COLORS.findIndex(c=>c.bg===card.color);
+            card.color = COLORS[(idx+1)%COLORS.length].bg;
+            const el = board.querySelector(`.card[data-id="${card.id}"] .title`);
+            if(el) el.style.background = card.color;
+            renderMinimap(); save();
+          }},
+        { icon:'🎯', label:'Auf Zonenfarbe zurücksetzen', action:()=>{
+            pushUndo();
+            const r = cardRect(card);
+            card.color = colorForPoint({x:r.cx, y:r.cy});
+            const el = board.querySelector(`.card[data-id="${card.id}"] .title`);
+            if(el) el.style.background = card.color;
+            renderMinimap(); save();
+          }},
+        { icon: card.autoH ? '☑' : '☐', label:'Auto-Höhe (nach Text)', action:()=>{
+            pushUndo();
+            card.autoH = !card.autoH;
+            const el = board.querySelector(`.card[data-id="${card.id}"]`);
+            if(card.autoH){ el.classList.add('autoH'); el.style.height='auto'; autoResizeCard(card, el); }
+            else{ el.classList.remove('autoH'); card.h = el.offsetHeight; el.style.height=card.h+'px'; }
+            updateLinks(); save();
+          }},
+      );
+    }
+    items.push(
+      { icon:'🔗', label:`Alle Verbindungen entfernen (${linkCount})`, action:()=>{
+          if(!linkCount){ toast('Keine Verbindungen vorhanden'); return; }
+          pushUndo();
+          state.links = state.links.filter(l=>l.a!==card.id && l.b!==card.id);
+          updateLinks(); renderMinimap(); save();
+        }},
+      { sep:true },
+      { icon:'🗑', label:'Karte löschen...', danger:true, action:()=>confirmDeleteCard(card) }
+    );
+    showContextMenu(x, y, items);
   }
 
-  function render(){
-    board.querySelectorAll('.card').forEach(n=>n.remove());
-    state.cards.forEach(renderCard);
-    updateLinks(); renderMinimap();
+  // ========= BOARD SWITCHER =========
+  
+  boardNameEl.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    showBoardSwitcher();
+  });
+  boardMenuBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    showBoardMenu();
+  });
+  updateBoardSwitcherUI();
+  
+
+  function showBoardSwitcher(){
+    const rect = boardSwitcher.getBoundingClientRect();
+    const items = [
+      { head:'Boards wechseln' }
+    ];
+    boardsIndex.boards.forEach(b => {
+      items.push({
+        icon: b.id === boardsIndex.activeId ? '✓' : '  ',
+        label: b.name,
+        current: b.id === boardsIndex.activeId,
+        action: ()=>{
+          if(b.id !== boardsIndex.activeId) switchBoard(b.id);
+        }
+      });
+    });
+    items.push(
+      { sep:true },
+      { icon:'+', label:'Neues Board...', action: ()=> createNewBoardDialog() },
+      { icon:'🗂', label:'Alle Boards verwalten...', action: ()=> showBoardManager() },
+    );
+    showContextMenu(rect.left, rect.bottom + 4, items);
+  }
+
+    function showBoardMenu(){
+    const rect = boardSwitcher.getBoundingClientRect();
+    const b = getActiveBoard();
+    if(!b) return;
+    const items = [
+      { head: b.name },
+      { icon:'✎', label:'Umbenennen...', action: ()=> renameBoardDialog(b.id) },
+      { icon:'⧉', label:'Duplizieren', action: ()=> duplicateBoard(b.id) },
+      { sep:true },
+      { icon: '✉', label: 'Teilen & Einladen...', action: ()=> openInviteDialog() },
+      { sep:true },
+      { icon:'+', label:'Neues Board...', action: ()=> createNewBoardDialog() },
+    ];
+    if(boardsIndex.boards.length > 1){
+      items.push({ icon:'🗑', label:'Dieses Board löschen...', danger:true, action: ()=> confirmDeleteBoard(b.id) });
+    }
+    // ANGEPASST: rect.left statt rect.right - 220
+    showContextMenu(rect.left, rect.bottom + 4, items);
+  }
+
+  function suggestBoardName(){
+    const existing = new Set(boardsIndex.boards.map(b => b.name));
+    let i = boardsIndex.boards.length + 1;
+    while(existing.has('Board ' + i)) i++;
+    return 'Board ' + i;
+  }
+
+  function createNewBoardDialog(){
+    if(boardsIndex.boards.length >= BOARD_WARN_LIMIT){
+      if(!confirm(`Du hast bereits ${boardsIndex.boards.length} Boards. Weiteres anlegen?`)) return;
+    }
+    const defaultName = suggestBoardName();
+    showModal('Neues Board', (body)=>{
+      body.innerHTML = `
+        <p>Neues Board mit Zonen-Vorlage (Value Proposition, Market Risk, Customer, Competitor, Influencer) erstellen.</p>
+        <p><b>Name</b></p>
+        <input type="text" id="newBoardName" value="${escapeAttr(defaultName)}" autofocus />
+      `;
+      setTimeout(()=>{
+        const input = body.querySelector('#newBoardName');
+        input.focus(); input.select();
+        input.addEventListener('keydown', e=>{
+          if(e.key==='Enter'){ e.preventDefault(); body.closest('.modal').querySelector('.primary').click(); }
+        });
+      },50);
+    }, 'Erstellen', (box)=>{
+      const name = box.querySelector('#newBoardName').value.trim() || defaultName;
+      createNewBoard(name);
+      closeModal();
+    });
+  }
+
+function createNewBoard(name){
+  const id = newBoardId();
+  const b = { id, name, gistId:null, publicGistId:null, createdAt:Date.now() };
+  boardsIndex.boards.push(b);
+  boardsIndex.activeId = id;
+  saveBoardsIndex();
+  state = defaultState();
+  initZoneTemplate();
+  state.lastModified = Date.now(); // BUGFIX: Neues lokales Board bekommt echten Zeitstempel
+  saveImmediate();
+  undoStack = []; redoStack = []; updateUndoButtons();
+  boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+  updateBoardSwitcherUI();
+  fitLayoutToView();
+  render();
+  toast('Board "'+name+'" erstellt', 'success');
+  if(syncConfig.enabled){
+    scheduleSync();
+    scheduleIndexPush();
+  }
+}
+
+  function switchBoard(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    // aktuellen Sync abschließen (falls pending)
+    if(syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
+    boardsIndex.activeId = id;
+    saveBoardsIndex();
+    state = loadActiveBoardState();
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+    state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
     bgLayout.style.display = state.showBg ? '' : 'none';
-    minimap.style.display = state.showMm ? '' : 'none';
+    minimap.style.display = state.showMm === false ? 'none' : '';
+    updateAutoColorButton();
+    if(!state.view) fitLayoutToView(); else applyView();
+    undoStack = []; redoStack = []; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     updateBoardSwitcherUI();
+    render();
+    toast('Gewechselt zu "'+b.name+'"');
+    if(syncConfig.enabled){
+      setSyncStatus('syncing','Verbinde...');
+      initialSyncForActive();
+    } else {
+      setSyncStatus('off','Offline (Sync aus)');
+    }
   }
 
-  // ========= SYNC LOGIC (Stark vereinfacht für Struktur) =========
-  async function githubRequest(path, method, body){
-    if(!syncConfig.token) return;
-    return fetch('https://api.github.com'+path, {
-      method, headers: { 'Authorization':'Bearer '+syncConfig.token, 'Content-Type':'application/json' },
-      body: body ? JSON.stringify(body) : undefined
-    }).then(r=>r.json());
+  function renameBoardDialog(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    showModal('Board umbenennen', (body)=>{
+      body.innerHTML = `
+        <p>Neuer Name für das Board:</p>
+        <input type="text" id="renameInput" value="${escapeAttr(b.name)}" autofocus />
+      `;
+      setTimeout(()=>{
+        const input = body.querySelector('#renameInput');
+        input.focus(); input.select();
+        input.addEventListener('keydown', e=>{
+          if(e.key==='Enter'){ e.preventDefault(); body.closest('.modal').querySelector('.primary').click(); }
+        });
+      },50);
+    }, 'Speichern', (box)=>{
+      const name = box.querySelector('#renameInput').value.trim();
+      if(!name) return;
+      b.name = name;
+      saveBoardsIndex();
+      updateBoardSwitcherUI();
+      closeModal();
+      toast('Umbenannt zu "'+name+'"');
+if(syncConfig.enabled){
+  scheduleIndexPush();
+  if(b.id === boardsIndex.activeId) scheduleSync();
+      }
+    });
   }
-  function scheduleSync(){
-    if(syncTimer) clearTimeout(syncTimer);
-    syncTimer = setTimeout(async ()=>{
-      if(!getActiveBoard().gistId) return;
-      setSyncStatus('syncing', 'Sende...');
-      await githubRequest('/gists/'+getActiveBoard().gistId, 'PATCH', { files: { 'whiteboard.json': { content: JSON.stringify(state) } } });
-      setSyncStatus('ok', 'Synchronisiert');
-    }, SYNC_DEBOUNCE);
+
+   function duplicateBoard(id){
+    const srcBoard = boardsIndex.boards.find(x => x.id === id);
+    if(!srcBoard) return;
+    const srcKey = BOARD_PREFIX + id;
+    const data = localStorage.getItem(srcKey);
+    const newId = newBoardId();
+    const newName = srcBoard.name + ' (Kopie)';
+    try{
+      if(data) localStorage.setItem(BOARD_PREFIX + newId, data);
+    }catch(err){ toast('Speicher voll', 'error'); return; }
+    const newB = { id:newId, name:newName, gistId:null, publicGistId:null, createdAt:Date.now() };
+    boardsIndex.boards.push(newB);
+    boardsIndex.activeId = newId;
+    saveBoardsIndex();
+    state = loadActiveBoardState();
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+    undoStack=[]; redoStack=[]; updateUndoButtons();
+    boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
+    updateBoardSwitcherUI();
+    if(!state.view) fitLayoutToView(); else applyView();
+    render();
+    toast('Board dupliziert');
+    if(syncConfig.enabled){
+      scheduleSync();
+      scheduleIndexPush();
+    }
   }
+
+  function confirmDeleteBoard(id){
+    const b = boardsIndex.boards.find(x => x.id === id);
+    if(!b) return;
+    if(boardsIndex.boards.length <= 1){
+      toast('Letztes Board kann nicht gelöscht werden', 'error');
+      return;
+    }
+    const syncWarn = b.gistId ? '<br><b>Hinweis:</b> Der Secret Gist in der Cloud wird <u>nicht</u> automatisch gelöscht.' : '';
+    confirmSimple(
+      'Board löschen?',
+      `Das Board <b>"${escapeHtml(b.name)}"</b> inkl. aller Karten und Verbindungen wird lokal gelöscht.${syncWarn}`,
+      'Löschen',
+      async ( )=>{
+        // Vor lokalem Löschen: Tombstone in Cloud setzen
+        const boardToDelete = boardsIndex.boards.find(x => x.id === id);
+        if(boardToDelete) boardToDelete.deletedAt = Date.now();
+
+        try{
+          localStorage.removeItem(BOARD_PREFIX + id);
+          localStorage.removeItem(BACKUP_PREFIX + id);
+          localStorage.removeItem(HISTORY_PREFIX + id);
+        }catch{}
+
+        // Optional: Board-Gist auch in Cloud löschen
+        if(boardToDelete && boardToDelete.gistId && syncConfig.enabled){
+          try{ await githubRequest('/gists/' + boardToDelete.gistId, 'DELETE'); }
+          catch(err){ console.warn('Board-Gist delete failed', err); }
+        }
+
+        boardsIndex.boards = boardsIndex.boards.filter(x => x.id !== id);
+        if(boardsIndex.activeId === id){
+          boardsIndex.activeId = boardsIndex.boards[0].id;
+        }
+        saveBoardsIndex();
+        if(syncConfig.enabled) await pushIndexToCloud();
+        switchBoard(boardsIndex.activeId);
+        toast('Board gelöscht');
+      }
+    );
+  }
+
+  function showBoardManager(){
+    showModal('Alle Boards verwalten', (body)=>{
+      body.innerHTML = `<p>${boardsIndex.boards.length} Board(s) vorhanden:</p>`;
+      const list = document.createElement('div');
+      list.style.cssText = 'max-height:300px;overflow-y:auto;border:1px solid #e4e6eb;border-radius:6px;margin:8px 0';
+      boardsIndex.boards.forEach(b => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:8px 10px;border-bottom:1px solid #f0f2f5;display:flex;align-items:center;gap:8px';
+        const active = b.id === boardsIndex.activeId ? '<b style="color:var(--success)">●</b> ' : '';
+        const synced = b.gistId ? ' ☁' : '';
+        row.innerHTML = `<div style="flex:1;font-size:13px">${active}${escapeHtml(b.name)}${synced}<div style="font-size:10px;color:#888">${new Date(b.createdAt).toLocaleDateString()}</div></div>`;
+        const btnGo = document.createElement('button');
+        btnGo.textContent = 'Öffnen';
+        btnGo.style.cssText = 'font-size:11px;padding:4px 8px';
+        btnGo.addEventListener('click', ()=>{ closeModal(); if(b.id !== boardsIndex.activeId) switchBoard(b.id); });
+        row.appendChild(btnGo);
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+      body.innerHTML += `<p class="small">● = aktiv · ☁ = cloud-synchronisiert</p>`;
+    }, null, null);
+  }
+
+  // ========= BURGER MENU =========
+  
+  burgerBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const rect = burgerBtn.getBoundingClientRect();
+    const b = getActiveBoard();
+    const items = [
+      { head:'Ansicht' },
+      { icon: state.showBg ? '☑' : '☐', label:'Hintergrund-Layout anzeigen', action:()=>{
+          state.showBg = !state.showBg;
+          bgLayout.style.display = state.showBg ? '' : 'none';
+          renderMinimap(); save();
+        }},
+      { icon: state.showMm !== false ? '☑' : '☐', label:'Mini-Map anzeigen', action:()=>{
+          state.showMm = !(state.showMm !== false);
+          minimap.style.display = state.showMm ? '' : 'none';
+          save();
+        }},
+      { sep:true },
+      { head:'Cloud-Sync' },
+      { icon: syncConfig.enabled ? '☁' : '⊘', label: syncConfig.enabled ? 'Cloud-Sync konfiguriert' : 'Cloud-Sync einrichten...',
+        action:()=> openSyncModal() },
+    ];
+    
+    if(syncConfig.enabled){
+      items.push(
+        { icon:'⟳', label:'Jetzt synchronisieren', action:()=> manualSync() },
+        { icon:'↓', label:'Vom Cloud laden (überschreibt lokal)', action:()=> manualPull() },
+        { icon:'🔄', label:'Board-Liste aktualisieren', action: async ()=> {
+            setSyncStatus('syncing','Lade Index...');
+            try {
+              const changed = await mergeIndexFromCloud();
+              updateBoardSwitcherUI();
+              setSyncStatus('ok', changed ? 'Index aktualisiert' : 'Index aktuell');
+              toast(changed ? 'Board-Liste aktualisiert' : 'Bereits aktuell', 'success');
+            } catch(err) {
+              setSyncStatus('error','Fehler');
+              toast('Index-Pull fehlgeschlagen: '+err.message, 'error');
+            }
+          }},
+      );
+    }
+    items.push(
+      { sep:true },
+        { head:'Teilen' },
+        { icon: '✉', label: 'Teilen & Einladen...', action: ()=> openInviteDialog() },
+      { head:'Versionen' },
+      { icon:'🕒', label:'Versionshistorie...', action:()=> showHistoryMenu() },
+      { sep:true },
+      { head:'Datei' },
+      { icon:'⤓', label:'Export (JSON)', action:()=> exportData() },
+      { icon:'📄', label:'Export (PDF)...', action:()=> exportPDF() },
+      { icon:'⤒', label:'Import (JSON)...', action:()=> importInput.click() },
+      { sep:true },
+      { head:'Zurücksetzen' },
+      { icon:'🗑', label:'Karten löschen...', danger:true, action:()=> confirmClearCards() },
+      { icon:'♻', label:'Kompletter Reset...', danger:true, action:()=> confirmFullReset() },
+    );
+    showContextMenu(rect.right - 240, rect.bottom + 4, items);
+  });
+
+  syncStatusEl.addEventListener('click', ()=> openSyncModal());
+  
+
+  function confirmClearCards(){
+    confirmSimple(
+      'Alle Karten löschen?',
+      `Alle <b>${state.cards.length}</b> Karten und <b>${state.links.length}</b> Verbindungen werden entfernt. Zoom/Position bleiben erhalten.`,
+      'Alles löschen',
+      ()=>{
+        pushUndo();
+        state.cards=[]; state.links=[]; state.nextId=1; state.sticky=null;
+        render(); save();
+        toast('Karten gelöscht');
+      }
+    );
+  }
+  function confirmFullReset(){
+    confirmSimple(
+      'Kompletter Reset?',
+      'ALLE Boards, Verbindungen, Cloud-Konfiguration und Undo-Verlauf werden gelöscht. Die Seite wird neu geladen.',
+      'Komplett zurücksetzen',
+      ()=>{
+        try{
+          // Alle Board-spezifischen Keys entfernen
+          const keysToRemove = [];
+          for(let i=0; i<localStorage.length; i++){
+            const key = localStorage.key(i);
+            if(key && (key.startsWith(BOARD_PREFIX) || key.startsWith(BACKUP_PREFIX) || key.startsWith(HISTORY_PREFIX))){
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          localStorage.removeItem(BOARDS_KEY);
+          localStorage.removeItem(SYNC_KEY);
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          localStorage.removeItem(LEGACY_BACKUP_KEY);
+          localStorage.removeItem(LEGACY_HISTORY_KEY);
+          localStorage.removeItem(LEGACY_SYNC_KEY);
+        }catch{}
+        location.reload();
+      }
+    );
+  }
+
+  function exportData(){
+    const b = getActiveBoard();
+    const name = b ? b.name.replace(/[^\w-]+/g,'_') : 'whiteboard';
+    const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name + '.json'; a.click();
+  }
+
+  // ========= PDF EXPORT =========
+  function exportPDF(){
+    let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
+    let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      if(r.x < minX) minX = r.x;
+      if(r.y < minY) minY = r.y;
+      if(r.x + r.w > maxX) maxX = r.x + r.w;
+      if(r.y + r.h > maxY) maxY = r.y + r.h;
+    });
+    const pad = 60;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+    const bw = maxX - minX, bh = maxY - minY;
+
+    const parts = [];
+    parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${bw} ${bh}" width="100%" style="background:#fff">`);
+
+if(state.showBg){
+  parts.push(`<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})" opacity="0.8">
+    <path d="M 1660 1000 A 828 828 0 0 1 3316 1000" fill="none" stroke="#222" stroke-width="3"/>
+    <line x1="0" y1="1000" x2="${LAYOUT_W}" y2="1000" stroke="#222" stroke-width="3"/>
+    <polyline points="1660,1000 2488,3080 3316,1000" fill="none" stroke="#222" stroke-width="3"/>
+    <text x="2488" y="120" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#222">value proposition</text>
+    <text x="1640" y="985" text-anchor="end" font-size="28" font-family="sans-serif" fill="#222">market risks</text>
+    <text x="1800" y="1030" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#222">competition</text>
+    <text x="2488" y="1030" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#222">customers</text>
+    <text x="3328" y="1030" text-anchor="middle" font-size="28" font-family="sans-serif" fill="#222">influencer</text>
+  </g>`);
+}
+
+    state.links.forEach(l=>{
+      const a = state.cards.find(c=>c.id===l.a);
+      const b = state.cards.find(c=>c.id===l.b);
+      if(!a || !b) return;
+      let pA, pB;
+      if(l.sideA) pA = sideAnchorPoint(a, l.sideA);
+      else { const rB = cardRect(b); pA = cardEdgeAnchor(a, {x:rB.cx, y:rB.cy}); }
+      if(l.sideB) pB = sideAnchorPoint(b, l.sideB);
+      else { const rA = cardRect(a); pB = cardEdgeAnchor(b, {x:rA.cx, y:rA.cy}); }
+      const d = bezierPathDirected(pA, l.sideA, pB, l.sideB);
+      parts.push(`<path d="${d}" fill="none" stroke="#9aa0a6" stroke-width="2.2" opacity="0.85"/>`);
+    });
+
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      if(c.image){
+        parts.push(`<g>
+          <rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="10" fill="#222"/>
+          <image href="${escapeAttr(c.image)}" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" preserveAspectRatio="xMidYMid meet"/>
+        </g>`);
+      } else {
+        const titleH = 40;
+        parts.push(`<g>
+          <rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="10" fill="#fff" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>
+          <path d="M ${r.x+10} ${r.y} H ${r.x+r.w-10} A 10 10 0 0 1 ${r.x+r.w} ${r.y+10} V ${r.y+titleH} H ${r.x} V ${r.y+10} A 10 10 0 0 1 ${r.x+10} ${r.y} Z" fill="${c.color}"/>
+          <foreignObject x="${r.x+8}" y="${r.y+4}" width="${r.w-16}" height="${titleH-4}">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:sans-serif;font-size:13px;font-weight:600;color:#222;line-height:1.25;word-break:break-word;overflow:hidden">${escapeHtml(c.title||'')}</div>
+          </foreignObject>
+          <foreignObject x="${r.x+8}" y="${r.y+titleH+4}" width="${r.w-16}" height="${r.h-titleH-8}">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:sans-serif;font-size:12px;color:#222;line-height:1.35;white-space:pre-wrap;word-break:break-word;overflow:hidden">${escapeHtml(c.details||'')}</div>
+          </foreignObject>
+        </g>`);
+      }
+    });
+
+    parts.push(`</svg>`);
+    const svgStr = parts.join('');
+
+    const w = window.open('', '_blank');
+    if(!w){ toast('Pop-up blockiert. Bitte erlauben.', 'error'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Whiteboard Export</title>
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        html,body{margin:0;padding:0;background:#fff}
+        .wrap{width:100%;height:100vh;display:flex;align-items:center;justify-content:center}
+        svg{max-width:100%;max-height:100%;height:auto}
+        .hint{position:fixed;top:8px;left:8px;background:#2b7fff;color:#fff;padding:6px 10px;border-radius:6px;font-family:sans-serif;font-size:12px}
+        @media print { .hint{display:none} }
+      </style></head><body>
+      <div class="hint">Drucken → Ziel: "Als PDF speichern"</div>
+      <div class="wrap">${svgStr}</div>
+      <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));<\/script>
+      </body></html>`);
+    w.document.close();
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+  function escapeAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+  window.addEventListener('mousedown', (e)=>{ if(ctxMenuEl && !e.target.closest('.ctx-menu')) hideContextMenu(); });
+  window.addEventListener('keydown', (e)=>{
+    const inEditable = document.activeElement && (
+      document.activeElement.classList.contains('title-text') ||
+      document.activeElement.classList.contains('details') ||
+      document.activeElement.tagName === 'INPUT' ||
+      document.activeElement.tagName === 'TEXTAREA'
+    );
+
+    
+    if((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
+      if(inEditable) return;
+      e.preventDefault(); doUndo(); return;
+    }
+    if((e.ctrlKey || e.metaKey) && ((e.key === 'y' || e.key === 'Y') || (e.shiftKey && (e.key === 'z' || e.key === 'Z')))){
+      if(inEditable) return;
+      e.preventDefault(); doRedo(); return;
+    }
+    
+
+    if(e.key==='Escape'){
+      hideContextMenu();
+      state.sticky = null;
+      deactivateAllCards();
+      if(connectDrag) cleanupConnectDrag();
+      if(endpointDrag) cleanupEndpointDrag();
+      closeModal();
+      save();
+    }
+  });
+  viewport.addEventListener('wheel', hideContextMenu);
+  viewport.addEventListener('contextmenu', (e)=>{
+    if(e.target.closest('.card') || e.target.closest('.link-hit')) return;
+    e.preventDefault(); hideContextMenu();
+  });
+
+  // ========= MINI-MAP =========
+  function renderMinimap(){
+    if(minimap.style.display === 'none') return;
+    let minX = LAYOUT_OFFSET_X, minY = LAYOUT_OFFSET_Y;
+    let maxX = LAYOUT_OFFSET_X + LAYOUT_W, maxY = LAYOUT_OFFSET_Y + LAYOUT_H;
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      if(r.x < minX) minX = r.x;
+      if(r.y < minY) minY = r.y;
+      if(r.x + r.w > maxX) maxX = r.x + r.w;
+      if(r.y + r.h > maxY) maxY = r.y + r.h;
+    });
+    const vpRect = viewport.getBoundingClientRect();
+    const {scale,tx,ty} = state.view;
+    const vX = -tx/scale, vY = -ty/scale;
+    const vW = vpRect.width/scale, vH = vpRect.height/scale;
+    minX = Math.min(minX, vX); minY = Math.min(minY, vY);
+    maxX = Math.max(maxX, vX + vW); maxY = Math.max(maxY, vY + vH);
+    const pad = 150;
+    minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+    const bw = maxX - minX, bh = maxY - minY;
+    minimapSvg.setAttribute('viewBox', `${minX} ${minY} ${bw} ${bh}`);
+    let html = '';
+    if(state.showBg){
+html += `<g transform="translate(${LAYOUT_OFFSET_X},${LAYOUT_OFFSET_Y})">
+        <path class="mm-layout" d="M 1660 1000 A 828 828 0 0 1 3316 1000" />
+        <line class="mm-layout" x1="0" y1="1000" x2="${LAYOUT_W}" y2="1000" />
+        <polyline class="mm-layout" points="1660,1000 2488,3080 3316,1000" />
+      </g>`;
+    }
+    state.cards.forEach(c=>{
+      const r = cardRect(c);
+      const fill = c.image ? '#222' : c.color;
+      html += `<rect class="mm-card" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" rx="4" fill="${fill}"/>`;
+    });
+    html += `<rect class="mm-viewport" x="${vX}" y="${vY}" width="${vW}" height="${vH}" rx="2"/>`;
+    minimapSvg.innerHTML = html;
+    minimapSvg.dataset.vb = JSON.stringify({minX,minY,bw,bh});
+  }
+
+  let mmDrag = false;
+  function mmPointToBoard(e){
+    const r = minimap.getBoundingClientRect();
+    const vb = JSON.parse(minimapSvg.dataset.vb||'null'); if(!vb) return null;
+    const fx = (e.clientX - r.left)/r.width, fy = (e.clientY - r.top)/r.height;
+    return { x: vb.minX + fx*vb.bw, y: vb.minY + fy*vb.bh };
+  }
+  function mmCenterOn(p){
+    const vpRect = viewport.getBoundingClientRect();
+    state.view.tx = vpRect.width/2 - p.x*state.view.scale;
+    state.view.ty = vpRect.height/2 - p.y*state.view.scale;
+    applyView(); save();
+  }
+  minimap.addEventListener('mousedown', (e)=>{
+    if(e.target === mmToggleBtn) return;
+    e.preventDefault(); e.stopPropagation();
+    mmDrag = true;
+    const p = mmPointToBoard(e); if(p) mmCenterOn(p);
+  });
+  window.addEventListener('mousemove', (e)=>{ if(mmDrag){ const p = mmPointToBoard(e); if(p) mmCenterOn(p); } });
+  window.addEventListener('mouseup', ()=>{ mmDrag = false; });
+
+  // ========= RENDER =========
+  function render(){
+    [...board.querySelectorAll('.card')].forEach(n=>n.remove());
+    state.cards.forEach(renderCard);
+    updateLinks(); renderMinimap(); applyStickyVisual();
+  }
+
+function initZoneTemplate(){
+  const zones = [
+    { zone:'value_proposition', title:'Value Proposition', x: LAYOUT_OFFSET_X + 2403, y: LAYOUT_OFFSET_Y + 360 },
+    { zone:'market_risks',      title:'Market Risk',       x: LAYOUT_OFFSET_X + 1100, y: LAYOUT_OFFSET_Y + 500 },
+    { zone:'competition',       title:'Competitor',        x: LAYOUT_OFFSET_X + 1100, y: LAYOUT_OFFSET_Y + 1320 },
+    { zone:'customers',         title:'Customer Segment',  x: LAYOUT_OFFSET_X + 2403, y: LAYOUT_OFFSET_Y + 1700 },
+    { zone:'influencer',        title:'Influencer',        x: LAYOUT_OFFSET_X + 3480, y: LAYOUT_OFFSET_Y + 1320 },
+  ];
+    zones.forEach(z => {
+      const card = {
+        id: state.nextId++, x: z.x, y: z.y,
+        color: ZONE_COLORS[z.zone] || COLORS[0].bg,
+        title: z.title, details: '',
+        w: null, h: null, autoH: true, image: null, caption: ''
+      };
+      state.cards.push(card);
+    });
+  }
+
+  function showHistoryMenu(){
+    let hist = [];
+    const histKey = keyForActive(HISTORY_PREFIX);
+    try{ if(histKey){ const raw = localStorage.getItem(histKey); hist = raw ? JSON.parse(raw) : []; } }catch{}
+    if(!Array.isArray(hist) || !hist.length){
+      toast('Noch keine Versionen vorhanden');
+      return;
+    }
+    const items = [{ head:'Versionshistorie (dieses Board)' }];
+    [...hist].reverse().forEach((entry)=>{
+      const d = new Date(entry.timestamp);
+      const label = d.toLocaleString();
+      const cardCount = entry.data.cards ? entry.data.cards.length : 0;
+      items.push({
+        icon:'🕒', label:`${label} (${cardCount} Karten)`,
+        action:()=>{
+          confirmSimple(
+            'Version wiederherstellen?',
+            `Version vom <b>${label}</b> laden? Der aktuelle Stand wird überschrieben (Undo möglich).`,
+            'Wiederherstellen',
+            ()=>{
+              pushUndo();
+              state = Object.assign(defaultState(), entry.data);
+                  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+              bgLayout.style.display = state.showBg ? '' : 'none';
+              minimap.style.display = state.showMm === false ? 'none' : '';
+              updateAutoColorButton();
+              if(!state.view) fitLayoutToView(); else applyView();
+              render(); save();
+              toast('Version wiederhergestellt', 'success');
+            }
+          );
+        }
+      });
+    });
+    const rect = burgerBtn.getBoundingClientRect();
+    showContextMenu(rect.right - 280, rect.bottom + 4, items);
+  }
+
+  // ========= MODAL =========
+  function closeModal(){ if(modalEl){ modalEl.remove(); modalEl = null; } }
+  function showModal(title, bodyFn, primaryLabel, primaryAction, extraButtons){
+    closeModal();
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeModal(); });
+    const box = document.createElement('div');
+    box.className = 'modal';
+    const h = document.createElement('h2'); h.textContent = title; box.appendChild(h);
+    const body = document.createElement('div'); box.appendChild(body);
+    bodyFn(body);
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    if(extraButtons){
+      extraButtons.forEach(btnDef => {
+        const b = document.createElement('button');
+        b.textContent = btnDef.label;
+        if(btnDef.danger) b.classList.add('danger');
+        b.addEventListener('click', ()=> btnDef.action(box));
+        actions.appendChild(b);
+      });
+    }
+    const cancel = document.createElement('button'); cancel.textContent = primaryLabel ? 'Abbrechen' : 'Schließen'; cancel.addEventListener('click', closeModal); actions.appendChild(cancel);
+    if(primaryLabel){
+      const ok = document.createElement('button'); ok.textContent = primaryLabel;
+      ok.classList.add(primaryLabel.toLowerCase().includes('löschen') || primaryLabel.toLowerCase().includes('reset') || primaryLabel.toLowerCase().includes('deaktivieren') || primaryLabel.toLowerCase().includes('widerrufen') ? 'danger' : 'primary');
+      ok.addEventListener('click', ()=> primaryAction(box));
+      actions.appendChild(ok);
+    }
+    box.appendChild(actions);
+    backdrop.appendChild(box);
+    document.body.appendChild(backdrop);
+    modalEl = backdrop;
+  }
+
+  function openSyncModal(){
+    showModal('GitHub Gist Cloud-Sync', (body)=>{
+      body.innerHTML = `
+        <p>Synchronisiert deine Whiteboards über <b>Secret Gists</b> auf GitHub (pro Board ein eigener Gist). Token wird global gespeichert.</p>
+        <p><b>1. Token erstellen:</b> Gehe zu <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens (Fine-grained)</a>, erstelle ein Token mit Permission <code>Gists: Read and write</code>.</p>
+        <p><b>GitHub Token</b></p>
+        <input type="password" id="syncTokenInput" placeholder="github_pat_..." value="${syncConfig.token || ''}" autocomplete="off" />
+        <p class="small">Token wird nur lokal im Browser gespeichert. Pro Board wird automatisch ein eigener Secret Gist erstellt.</p>
+        ${syncConfig.enabled ? `<p class="small">✓ Aktuell aktiv. ${boardsIndex.boards.filter(b=>b.gistId).length} von ${boardsIndex.boards.length} Boards synchronisiert.</p>` : ''}
+      `;
+    }, 'Speichern & Aktivieren', async (box)=>{
+  const token = box.querySelector('#syncTokenInput').value.trim();
+  if(!token){ alert('Bitte Token eingeben'); return; }
+  syncConfig.token = token;
+  syncConfig.enabled = true;
+  saveSyncConfig();
+  closeModal();
+  toast('Sync aktiviert, prüfe Verbindung...');
+  setSyncStatus('syncing', 'Initialisiere Index...');
+  try {
+    await mergeIndexFromCloud(); // BUGFIX
+    updateBoardSwitcherUI();
+    const ok = await initialSyncForActive();
+    if(ok) toast('Sync eingerichtet', 'success');
+  } catch(err) {
+    setSyncStatus('error', 'Index-Fehler');
+    toast('Sync-Fehler: '+err.message, 'error');
+  }
+	}
+    , syncConfig.enabled ? [
+      { label:'Sync deaktivieren', danger:true, action:()=>{
+          confirmSimple('Sync deaktivieren?',
+            'Cloud-Sync deaktivieren? Lokale Daten bleiben erhalten. Token wird gelöscht.',
+            'Deaktivieren',
+            ()=>{
+              syncConfig = { token:null, enabled:false };
+              saveSyncConfig();
+              setSyncStatus('off', 'Offline');
+              toast('Sync deaktiviert');
+            });
+        }}
+    ] : null);
+  }
+
+  // ========= SHARE & INVITE DIALOG =========
+  function openInviteDialog(){
+    const b = getActiveBoard();
+    if(!b) return;
+    
+    if(!syncConfig.enabled || !syncConfig.token || !b.gistId){
+      showModal('Teilen benötigt Cloud-Sync', (body)=>{
+        body.innerHTML = `<p>Damit das Board geteilt werden kann, muss es zuerst mit der Cloud synchronisiert werden.</p>`;
+      }, 'Sync einrichten...', ()=>{ closeModal(); openSyncModal(); });
+      return;
+    }
+
+    const baseUrl = window.location.href.split('?')[0].replace(/[^/]*$/, '');
+    const viewerUrl = baseUrl + 'viewer.html?token=' + b.gistId;
+
+    showModal('Board teilen & einladen', (body)=>{
+      body.innerHTML = `
+        <div class="share-box" style="background:#e3f2fd; border-color:#90caf9;">
+          <b>🔗 Privater Lese-Link</b><br>
+          <span class="small">Jeder mit diesem Link kann das Board lesen. Es ist keine Anmeldung nötig.</span>
+          <div class="share-link">
+            <input type="text" id="shareLinkInput" value="${escapeAttr(viewerUrl)}" readonly />
+            <button type="button" id="copyShareBtn">Kopieren</button>
+          </div>
+        </div>
+        
+        <div style="margin-top: 16px; padding: 12px; border: 1px solid #d0d4da; border-radius: 6px; background: #fff;">
+          <b>✉️ Per Outlook / E-Mail einladen</b>
+          <p class="small" style="margin-bottom: 8px;">Öffnet dein E-Mail-Programm mit einem fertigen Entwurf inklusive Zugriffslink.</p>
+          <input type="email" id="inviteEmail" placeholder="E-Mail-Adresse des Empfängers (optional)" style="width:100%; margin-bottom: 8px;" />
+          <button type="button" id="sendMailBtn" style="width:100%; justify-content:center;" class="primary">E-Mail-Entwurf öffnen</button>
+        </div>
+      `;
+      setTimeout(()=>{
+        const copyBtn = body.querySelector('#copyShareBtn');
+        const input = body.querySelector('#shareLinkInput');
+        copyBtn.addEventListener('click', ()=>{
+          navigator.clipboard.writeText(viewerUrl).then(()=>{
+            copyBtn.textContent = '✓ Kopiert';
+            setTimeout(()=>{ copyBtn.textContent = 'Kopieren'; }, 1500);
+          });
+        });
+        input.addEventListener('click', ()=> input.select());
+
+        const mailBtn = body.querySelector('#sendMailBtn');
+        mailBtn.addEventListener('click', ()=>{
+          const email = body.querySelector('#inviteEmail').value.trim();
+          const subject = encodeURIComponent(`Einladung zum Whiteboard: ${b.name}`);
+          const bodyText = encodeURIComponent(`Hallo,\n\nich möchte das Whiteboard "${b.name}" mit dir teilen.\n\nDu kannst es dir hier schreibgeschützt ansehen:\n${viewerUrl}\n\nViele Grüße`);
+          window.location.href = `mailto:${email}?subject=${subject}&body=${bodyText}`;
+        });
+      }, 50);
+    }, 'Schließen', ()=>{ closeModal(); }, [
+      { label: 'Token erneuern (Zugriff entziehen)', danger: true, action: ()=>{
+          confirmSimple('Zugriffs-Token erneuern?',
+            'Dadurch wird der aktuelle geheime Link <b>sofort ungültig</b>. Personen mit dem alten Link verlieren den Zugriff. Es wird ein neues Token generiert.',
+            'Erneuern & Entziehen',
+            async ()=>{
+              try {
+                closeModal();
+                toast('Lösche alte Freigabe...');
+                await githubRequest('/gists/' + b.gistId, 'DELETE');
+                b.gistId = null;
+                saveBoardsIndex();
+                toast('Erstelle neues Token...');
+                await initialSyncForActive();
+                toast('Token erfolgreich erneuert', 'success');
+                setTimeout(openInviteDialog, 500);
+              } catch(err) {
+                toast('Fehler beim Erneuern: ' + err.message, 'error');
+              }
+            });
+      }}
+    ]);
+  }
+
+  // ========= SYNC LOGIC =========
   function setSyncStatus(kind, text){
-    syncStatusEl.className = 'sync-status ' + kind;
+    syncStatusEl.classList.remove('ok','pending','error','syncing','off');
+    if(kind) syncStatusEl.classList.add(kind);
     syncStatusText.textContent = text;
   }
 
-  // ========= INIT =========
+  async function hashString(str){
+    const enc = new TextEncoder().encode(str);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  async function githubRequest(path, method, body){
+    const headers = {
+      'Accept':'application/vnd.github+json',
+      'Authorization':'Bearer '+syncConfig.token,
+      'X-GitHub-Api-Version':'2022-11-28',
+    };
+    if(body) headers['Content-Type'] = 'application/json';
+    const res = await fetch('https://api.github.com'+path, {
+      method, headers, body: body ? JSON.stringify(body) : undefined,
+    });
+    if(method === 'DELETE' && res.ok) return null;
+    if(!res.ok){
+      const text = await res.text().catch(()=>'');
+      throw new Error(`GitHub ${res.status}: ${text.slice(0,200)}`);
+    }
+    return res.json();
+  }
+
+  async function createGist(dataJson, boardName){
+    const gist = await githubRequest('/gists', 'POST', {
+      description: 'Mini Whiteboard Sync: ' + boardName,
+      public: false,
+      files: { 'whiteboard.json': { content: dataJson } }
+    });
+    return gist.id;
+  }
+  async function readGist(gistId){
+    const gist = await githubRequest('/gists/'+gistId, 'GET');
+    const file = gist.files && gist.files['whiteboard.json'];
+    if(!file) return null;
+    let content = file.content;
+    if(file.truncated && file.raw_url){
+      const res = await fetch(file.raw_url);
+      content = await res.text();
+    }
+    return { content, updatedAt: new Date(gist.updated_at).getTime() };
+  }
+  async function writeGist(gistId, dataJson){
+    await githubRequest('/gists/'+gistId, 'PATCH', {
+      files: { 'whiteboard.json': { content: dataJson } }
+    });
+  }
+
+// ========= INDEX GIST SYNC =========
+function serializeBoardsIndex(){
+  return {
+    version: 1,
+    lastModified: Date.now(),
+    boards: boardsIndex.boards.map(b => ({
+      id: b.id,
+      name: b.name,
+      gistId: b.gistId || null,
+      createdAt: b.createdAt || Date.now(),
+      deletedAt: b.deletedAt || null,
+    })),
+  };
+}
+
+async function findOrCreateIndexGist(){
+  // Falls bereits bekannt: zurückgeben
+  if(syncConfig.indexGistId) return syncConfig.indexGistId;
+
+  // Discovery: Eigene Gists durchsuchen
+  try{
+    const gists = await githubRequest('/gists?per_page=100', 'GET');
+    const found = gists.find(g =>
+      g.description === 'Mini Whiteboard Index' &&
+      g.files && g.files[INDEX_FILENAME]
+    );
+    if(found){
+      syncConfig.indexGistId = found.id;
+      saveSyncConfig();
+      return found.id;
+    }
+  }catch(err){
+    console.warn('Gist discovery failed', err);
+  }
+
+  // Neu erstellen
+  const indexData = serializeBoardsIndex();
+  const gist = await githubRequest('/gists', 'POST', {
+    description: 'Mini Whiteboard Index',
+    public: false,
+    files: { [INDEX_FILENAME]: { content: JSON.stringify(indexData, null, 2) } }
+  });
+  syncConfig.indexGistId = gist.id;
+  saveSyncConfig();
+  return gist.id;
+}
+
+async function loadIndexFromCloud(){
+  if(!syncConfig.enabled || !syncConfig.token) return null;
+  try{
+    const indexId = await findOrCreateIndexGist();
+    const gist = await githubRequest('/gists/'+indexId, 'GET');
+    const file = gist.files && gist.files[INDEX_FILENAME];
+    if(!file) return null;
+    let content = file.content;
+    if(file.truncated && file.raw_url){
+      const res = await fetch(file.raw_url);
+      content = await res.text();
+    }
+    return JSON.parse(content);
+  }catch(err){
+    console.warn('Index load failed', err);
+    return null;
+  }
+}
+
+async function pushIndexToCloud(){
+  if(!syncConfig.enabled || !syncConfig.token) return;
+  try{
+    const indexId = await findOrCreateIndexGist();
+    const indexData = serializeBoardsIndex();
+    await githubRequest('/gists/'+indexId, 'PATCH', {
+      files: { [INDEX_FILENAME]: { content: JSON.stringify(indexData, null, 2) } }
+    });
+  }catch(err){
+    console.warn('Index push failed', err);
+    toast('Index-Sync fehlgeschlagen', 'error');
+  }
+}
+
+// Debounced Index-Push
+let indexPushTimer = null;
+function scheduleIndexPush(){
+  if(!syncConfig.enabled) return;
+  if(indexPushTimer) clearTimeout(indexPushTimer);
+  indexPushTimer = setTimeout(pushIndexToCloud, 2000);
+}
+
+// Merge: Cloud-Index mit lokalem mergen
+// Merge: Cloud-Index mit lokalem mergen
+async function mergeIndexFromCloud(){
+  const cloudIndex = await loadIndexFromCloud();
+  if(!cloudIndex || !Array.isArray(cloudIndex.boards)){
+    // Kein Cloud-Index: lokalen hochladen
+    await pushIndexToCloud();
+    return false;
+  }
+
+  const localById = new Map(boardsIndex.boards.map(b => [b.id, b]));
+  const cloudById = new Map(cloudIndex.boards.map(b => [b.id, b]));
+  const mergedById = new Map();
+  let changed = false;
+
+  // 1. Cloud-Boards übernehmen (auch neue, die lokal fehlen)
+  cloudById.forEach((cloudBoard, id) => {
+    if(cloudBoard.deletedAt){
+      // In Cloud gelöscht: lokal nicht hinzufügen, lokale Daten ggf. entfernen
+      if(localById.has(id)){
+        try{
+          localStorage.removeItem(BOARD_PREFIX + id);
+          localStorage.removeItem(BACKUP_PREFIX + id);
+          localStorage.removeItem(HISTORY_PREFIX + id);
+        }catch{}
+        changed = true;
+      }
+      return;
+    }
+    const local = localById.get(id);
+    if(!local){
+      // Neu aus Cloud: hinzufügen
+      mergedById.set(id, {
+        id: cloudBoard.id,
+        name: cloudBoard.name,
+        gistId: cloudBoard.gistId || null,
+        publicGistId: null,
+        createdAt: cloudBoard.createdAt || Date.now(),
+      });
+      changed = true;
+    } else {
+      // Beide kennen das Board: Cloud-Werte für Name/GistId nehmen, falls Cloud neuer ist
+      const merged = Object.assign({}, local);
+      if(cloudBoard.name && cloudBoard.name !== local.name){ merged.name = cloudBoard.name; changed = true; }
+      if(cloudBoard.gistId && cloudBoard.gistId !== local.gistId){ merged.gistId = cloudBoard.gistId; changed = true; }
+      mergedById.set(id, merged);
+    }
+  });
+
+  // 2. Lokale Boards, die nicht in Cloud sind: behalten und nach oben pushen
+  localById.forEach((localBoard, id) => {
+    if(!cloudById.has(id)){
+      // NEU: Verhindert "Geister-Boards" auf neuen Geräten
+      if(cloudById.size > 0 && !localBoard.gistId) {
+        const localDataRaw = localStorage.getItem(BOARD_PREFIX + id);
+        if(localDataRaw) {
+          const localData = JSON.parse(localDataRaw);
+          // Wenn das Board weniger als 6 Karten hat und nie synchronisiert wurde -> verwerfen
+          if(localData.cards && localData.cards.length <= 5 && !localData.lastModified) {
+            try { 
+              localStorage.removeItem(BOARD_PREFIX + id); 
+              localStorage.removeItem(BACKUP_PREFIX + id);
+              localStorage.removeItem(HISTORY_PREFIX + id);
+            } catch(e){}
+            changed = true;
+            return; // Nicht in mergedById übernehmen
+          }
+        }
+      }
+      
+      mergedById.set(id, localBoard);
+      changed = true; // Index muss aktualisiert werden
+    }
+  });
+
+  if(mergedById.size === 0){
+    // Edge case: alles gelöscht. Default-Board anlegen.
+    const fallbackId = newBoardId();
+    mergedById.set(fallbackId, {
+      id: fallbackId, name:'Whiteboard 1', gistId:null, publicGistId:null, createdAt:Date.now()
+    });
+    changed = true;
+  }
+
+  boardsIndex.boards = Array.from(mergedById.values());
+
+  // Aktives Board prüfen
+  if(!boardsIndex.boards.find(b => b.id === boardsIndex.activeId)){
+    boardsIndex.activeId = boardsIndex.boards[0].id;
+    changed = true;
+  }
+
+  saveBoardsIndex();
+  if(changed){
+    await pushIndexToCloud();
+    updateBoardSwitcherUI();
+  }
+  return changed;
+}
+
+  async function initialSyncForActive(){
+if(!syncConfig.enabled) return false;
+    const b = getActiveBoard();
+    if(!b) return false;
+    setSyncStatus('syncing','Verbinde...');
+    try{
+      if(!b.gistId){
+        const dataJson = JSON.stringify(serializeState(), null, 2);
+        const id = await createGist(dataJson, b.name);
+        b.gistId = id;
+        saveBoardsIndex();
+        boardSyncState.lastSyncedAt = Date.now();
+        boardSyncState.lastSyncedHash = await hashString(dataJson);
+        setSyncStatus('ok', 'Synchronisiert');
+        toast('Secret Gist erstellt', 'success');
+        return true;
+      } else {
+        const remote = await readGist(b.gistId);
+        if(!remote){
+          const dataJson = JSON.stringify(serializeState(), null, 2);
+          await writeGist(b.gistId, dataJson);
+          boardSyncState.lastSyncedAt = Date.now();
+          boardSyncState.lastSyncedHash = await hashString(dataJson);
+          setSyncStatus('ok', 'Synchronisiert');
+          return true;
+        }
+        const remoteData = JSON.parse(remote.content);
+        const localModified = state.lastModified || 0;
+        const remoteModified = remoteData.lastModified || remote.updatedAt || 0;
+
+        // NEU: Prüfen, ob dieses Gerät das Board zum ersten Mal synchronisiert
+        const isNewDeviceForThisBoard = !boardSyncState.lastSyncedHash;
+
+        // Wenn es ein neues Gerät ist ODER die Cloud neuer ist, Cloud-Daten priorisieren
+        if(isNewDeviceForThisBoard || remoteModified > localModified + 1000){
+          const applyRemote = isNewDeviceForThisBoard || 
+            (state.cards.length === 0 && state.links.length === 0) ||
+            confirm(`Cloud-Version ist neuer (${new Date(remoteModified).toLocaleString()}). Lokale Daten überschreiben?`);
+          
+          if(applyRemote){
+            state = Object.assign(defaultState(), remoteData);
+               state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+            bgLayout.style.display = state.showBg ? '' : 'none';
+            minimap.style.display = state.showMm === false ? 'none' : '';
+            updateAutoColorButton();
+            if(!state.view) fitLayoutToView(); else applyView();
+            render();
+            saveImmediate();
+            boardSyncState.lastSyncedAt = Date.now();
+            boardSyncState.lastSyncedHash = await hashString(remote.content);
+            setSyncStatus('ok', 'Von Cloud geladen');
+            
+            // Kurzes Feedback, dass automatisch geladen wurde
+            if(isNewDeviceForThisBoard) toast('Board aus der Cloud geladen', 'success');
+            
+            return true;
+          }
+        }
+        
+        const dataJson = JSON.stringify(serializeState(), null, 2);
+        await writeGist(b.gistId, dataJson);
+        boardSyncState.lastSyncedAt = Date.now();
+        boardSyncState.lastSyncedHash = await hashString(dataJson);
+        setSyncStatus('ok', 'Synchronisiert');
+        return true;
+      }
+    }catch(err){
+      console.error(err);
+      setSyncStatus('error', 'Fehler: '+(err.message||'').slice(0,40));
+      toast('Sync-Fehler: '+err.message, 'error');
+      return false;
+    }
+  }
+
+	  
+  function scheduleSync(){
+    if(syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(doSync, SYNC_DEBOUNCE);
+  }
+  async function doSync(){
+    if(!syncConfig.enabled || syncInFlight) return;
+    const b = getActiveBoard();
+    if(!b) return;
+    
+    // WICHTIG: Wenn dieses Gerät noch nie erfolgreich gesynct hat, 
+    // darf es nichts hochladen, sondern muss den Initial-Sync anstoßen!
+    if(!b.gistId || !boardSyncState.lastSyncedHash){
+      return initialSyncForActive();
+    }
+    
+    syncInFlight = true;
+    try{
+      const dataJson = JSON.stringify(serializeState(), null, 2);
+      const hash = await hashString(dataJson);
+      if(hash === boardSyncState.lastSyncedHash){
+        setSyncStatus('ok', 'Aktuell');
+        syncInFlight = false;
+        return;
+      }
+      setSyncStatus('syncing', 'Sende...');
+      await writeGist(b.gistId, dataJson);
+      boardSyncState.lastSyncedAt = Date.now();
+      boardSyncState.lastSyncedHash = hash;
+      setSyncStatus('ok', 'Synchronisiert');
+    }catch(err){
+      console.error(err);
+      setSyncStatus('error', 'Sync-Fehler');
+      toast('Sync fehlgeschlagen: '+err.message, 'error');
+    }finally{
+      syncInFlight = false;
+    }
+  }
+
+  async function manualSync(){
+    if(!syncConfig.enabled){ openSyncModal(); return; }
+    await doSync();
+  }
+  async function manualPull(){
+    if(!syncConfig.enabled){ openSyncModal(); return; }
+    const b = getActiveBoard();
+    if(!b || !b.gistId){ toast('Kein Cloud-Gist für dieses Board', 'error'); return; }
+    confirmSimple('Cloud-Version laden?',
+      'Wirklich Cloud-Version laden? Lokale nicht-synchronisierte Änderungen gehen verloren.',
+      'Laden',
+      async ()=>{
+        setSyncStatus('syncing', 'Lade...');
+        try{
+          const remote = await readGist(b.gistId);
+          if(!remote){ toast('Cloud leer', 'error'); setSyncStatus('error','Leer'); return; }
+          const remoteData = JSON.parse(remote.content);
+          pushUndo();
+          state = Object.assign(defaultState(), remoteData);
+             state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+          bgLayout.style.display = state.showBg ? '' : 'none';
+          minimap.style.display = state.showMm === false ? 'none' : '';
+          updateAutoColorButton();
+          if(!state.view) fitLayoutToView(); else applyView();
+          render();
+          saveImmediate();
+          boardSyncState.lastSyncedAt = Date.now();
+          boardSyncState.lastSyncedHash = await hashString(remote.content);
+          setSyncStatus('ok', 'Von Cloud geladen');
+          toast('Cloud-Version geladen', 'success');
+        }catch(err){
+          setSyncStatus('error','Fehler');
+          toast('Laden fehlgeschlagen: '+err.message, 'error');
+        }
+      });
+  }
+
+  
+  setInterval(()=>{
+    if(syncConfig.enabled && !syncInFlight){
+      const b = getActiveBoard();
+      if(b && b.gistId) doSync();
+    }
+  }, SYNC_INTERVAL);
+  
+
+    // ========= INIT =========
+  state = loadActiveBoardState();
+  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
   if(!state.view) fitLayoutToView(); else applyView();
-  const savedWidth = localStorage.getItem(SP_WIDTH_KEY);
-  if(savedWidth) document.documentElement.style.setProperty('--sp-width', savedWidth + 'px');
-  render();
+
+  // WICHTIG: Template nur erstellen, wenn lokal leer UND das Board nicht mit der Cloud verknüpft ist
+  if(state.cards.length === 0 && !getActiveBoard()?.gistId){
+    initZoneTemplate();
+    render();
+    state.lastModified = Date.now();
+    saveImmediate();
+  } else {
+    render();
+  }
+  updateUndoButtons();
+
+  if(syncConfig.enabled && syncConfig.token){
+    setSyncStatus('syncing', 'Verbinde...');
+    document.body.classList.add('sync-blocked');
+
+    (async () => {
+      try {
+        // HIER WAR DER FEHLER: pullIndexFromCloud hieß falsch! Es muss mergeIndexFromCloud sein.
+        const indexChanged = await mergeIndexFromCloud(); 
+        
+        if(indexChanged){
+          const active = getActiveBoard();
+          if(!active && boardsIndex.boards.length > 0){
+            boardsIndex.activeId = boardsIndex.boards[0].id;
+            saveBoardsIndex();
+          }
+          // Reset Sync-State, damit Cloud priorisiert wird
+          boardSyncState = { lastSyncedAt: 0, lastSyncedHash: null };
+          
+          state = loadActiveBoardState();
+          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+          if(!state.view) fitLayoutToView(); else applyView();
+          render();
+          updateBoardSwitcherUI();
+        }
+        await initialSyncForActive();
+        
+      } catch (err) {
+        console.error('Initialsync fehlgeschlagen', err);
+        setSyncStatus('error', 'Sync-Fehler');
+      } finally {
+        document.body.classList.remove('sync-blocked');
+      }
+    })();
+  } else {
+    setSyncStatus('off', 'Offline (Sync aus)');
+  }
+
+  window.addEventListener('resize', ()=>{ updateLinks(); renderMinimap(); });
+
+  setInterval(async () => {
+    if(!syncConfig.enabled || syncInFlight) return;
+    try {
+      const changed = await mergeIndexFromCloud();
+      if(changed){
+        updateBoardSwitcherUI();
+        toast('Board-Liste aktualisiert');
+      }
+      // Auch periodisch das aktive Board syncen, falls Änderungen ausstehen
+      const b = getActiveBoard();
+      if(b && b.gistId) doSync();
+    } catch(err){ console.warn('periodic index pull failed', err); }
+  }, 60000);
+
+  console.log('Whiteboard v15 Multi-Board initialisiert', {
+    boards: boardsIndex ? boardsIndex.boards.length : 0,
+    sync: syncConfig.enabled,
+  });
 
   } catch (err) {
     console.error('Initialisierungsfehler im Whiteboard:', err);

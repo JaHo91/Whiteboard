@@ -497,10 +497,16 @@ body.sync-blocked {
     <span class="sep"></span>
     <button id="spClearFmt" title="Formatierung entfernen">⌫ Format</button>
   </div>
-  <div class="sp-body">
-    <input type="text" class="sp-title-input" id="spTitle" placeholder="Titel..." />
-       <div class="sp-details" id="spDetails" contenteditable="true" data-placeholder="Notizen... (Strg+B für fett, Schriftgröße im Toolbar)"></div>
-  </div>
+    <div class="sp-body">
+      <label>Titel</label>
+      <input type="text" class="sp-title-input" id="spTitle" />
+      
+      <label>Details (auf Kachel sichtbar)</label>
+      <div class="sp-details" id="spDetails" contenteditable="true" data-placeholder="Details für die Kachel..."></div>
+
+      <label>Interne Notizen (nur im Panel sichtbar)</label>
+      <div class="sp-details" id="spNotes" contenteditable="true" data-placeholder="Ausführliche Notizen..."></div>
+    </div>
   <div class="sp-footer">
     <span id="spStatus">Automatisch gespeichert</span>
     <span>ESC zum Schließen</span>
@@ -595,6 +601,7 @@ const spResize = document.getElementById('spResize');
 const spClose = document.getElementById('spClose');
 const spTitle = document.getElementById('spTitle');
 const spDetails = document.getElementById('spDetails');
+const spNotes = document.getElementById('spNotes');
 const spColorDot = document.getElementById('spColorDot');
 const spZone = document.getElementById('spZone');
 const spStatus = document.getElementById('spStatus');
@@ -1444,6 +1451,16 @@ el.addEventListener('click', (e)=>{
       el.appendChild(ind);
     }
 
+// Notiz-Indikator prüfen und anzeigen
+    const hasNotes = card.notes && card.notes.trim() !== '' && card.notes !== '<br>';
+    if(hasNotes){
+      el.classList.add('has-notes');
+      const ind = document.createElement('div');
+      ind.className = 'notes-indicator';
+      ind.textContent = '📝';
+      el.appendChild(ind);
+    }
+	   
     board.appendChild(el);
     if(!card.image){ autoResizeCard(card, el); updateCardFontScale(el); }
     else updateCardFontScale(el);
@@ -1922,13 +1939,23 @@ function openPanelForCard(card){
 
   // Inhalte laden
   spTitle.value = card.title || '';
-  // Notizen: Wenn HTML enthalten, als HTML setzen, sonst als Text
-  if(/<[a-z][\s\S]*>/i.test(card.notes || '')){
-    spDetails.innerHTML = card.notes || '';
+  
+  // 1. Details (kurz, sichtbar auf der Kachel)
+  if(/<[a-z][\s\S]*>/i.test(card.details || '')){
+    spDetails.innerHTML = card.details || '';
   } else {
     spDetails.innerHTML = '';
-    spDetails.textContent = card.notes || '';
+    spDetails.textContent = card.details || '';
   }
+
+  // 2. Notizen (lang, nur im Side-Panel)
+  if(/<[a-z][\s\S]*>/i.test(card.notes || '')){
+    spNotes.innerHTML = card.notes || '';
+  } else {
+    spNotes.innerHTML = '';
+    spNotes.textContent = card.notes || '';
+  }
+}
 
   sidePanel.classList.add('open');
   sidePanel.setAttribute('aria-hidden', 'false');
@@ -1985,11 +2012,25 @@ spTitle.addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); spDetails.focus(); }
 });
 
-// Notizen sync (HTML, weil bold/font-size möglich)
+// 1. Details sync (auf der Kachel sichtbar)
 spDetails.addEventListener('input', ()=>{
   if(!activePanelCard) return;
   ensurePanelSnapshot();
-  activePanelCard.notes = spDetails.innerHTML;
+  activePanelCard.details = spDetails.innerHTML; // Speichert in .details
+  render(); // Kachel anpassen (Höhe)
+  save();
+  showSpStatus();
+});
+
+// 2. Notizen sync (nur im Side-Panel)
+spNotes.addEventListener('input', ()=>{
+  if(!activePanelCard) return;
+  ensurePanelSnapshot();
+  activePanelCard.notes = spNotes.innerHTML; // Speichert in .notes
+  render(); // Wichtig, falls du das 📝-Icon auf der Kachel anzeigen willst
+  save();
+  showSpStatus();
+});
   
   // Nur Notiz-Indikator auf der Kachel aktualisieren, Inline-Details bleiben unberührt!
   const cardEl = board.querySelector(`.card[data-id="${activePanelCard.id}"]`);

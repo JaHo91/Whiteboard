@@ -329,6 +329,23 @@ body.link-selected .card .anchor{
   pointer-events:none !important;
 }
 
+/* Notiz-Indikator auf Kachel */
+.card.has-notes .notes-indicator {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 11px;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 2;
+}
+.card.image-card.has-notes .notes-indicator {
+  background: rgba(255,255,255,0.85);
+  border-radius: 3px;
+  padding: 1px 4px;
+  opacity: 0.9;
+}
+	
 /* UI-Sperre während dem Initialsync */
 body.sync-blocked {
   pointer-events: none !important;
@@ -482,7 +499,7 @@ body.sync-blocked {
   </div>
   <div class="sp-body">
     <input type="text" class="sp-title-input" id="spTitle" placeholder="Titel..." />
-    <div class="sp-details" id="spDetails" contenteditable="true" data-placeholder="Details... (Strg+B für fett, Schriftgröße im Toolbar)"></div>
+       <div class="sp-details" id="spDetails" contenteditable="true" data-placeholder="Notizen... (Strg+B für fett, Schriftgröße im Toolbar)"></div>
   </div>
   <div class="sp-footer">
     <span id="spStatus">Automatisch gespeichert</span>
@@ -779,7 +796,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
   function applySnapshot(snap){
     suspendSnapshots = true;
     state = Object.assign(defaultState(), snap);
-     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
     if(state.sticky && state.sticky.type==='link' && typeof state.sticky.linkIdx==='number'){
       state.sticky = { type:'link', link: state.links[state.sticky.linkIdx] || null };
       if(!state.sticky.link) state.sticky = null;
@@ -941,7 +958,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
 
   // ========= INIT STATE =========
   state = loadActiveBoardState();
-     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
   if(!Array.isArray(state.links)) state.links = [];
   state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
   bgLayout.style.display = state.showBg ? '' : 'none';
@@ -1070,7 +1087,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
       if(Array.isArray(data.cards) && Array.isArray(data.links)){
         pushUndo();
         state = Object.assign(defaultState(), data);
-           state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+           state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
         bgLayout.style.display = state.showBg ? '' : 'none';
         minimap.style.display = state.showMm === false ? 'none' : '';
         updateAutoColorButton();
@@ -1135,13 +1152,13 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
 
   // ========= CARDS =========
   function createCard({x,y,color,title='Neue Karte',details='',w,h,autoH=true}){
-    const card = { id: state.nextId++, x, y, color, title, details, w:w||null, h:h||null, autoH, image:null, caption:'', fontScale:1 };
+    const card = { id: state.nextId++, x, y, color, title, details, w:w||null, h:h||null, autoH, image:null, caption:'', fontScale:1, notes:'' };
     state.cards.push(card); renderCard(card);
     updateLinks(); renderMinimap(); save();
     return card;
   }
   function createImageCard({x,y,w,h,image,caption=''}){
-    const card = { id: state.nextId++, x, y, color: '#222', title: '', details: '', w, h, autoH:false, image, caption, fontScale:1 };
+    const card = { id: state.nextId++, x, y, color: '#222', title: '', details: '', w, h, autoH:false, image, caption, fontScale:1, notes:'' };
     state.cards.push(card); renderCard(card);
     updateLinks(); renderMinimap(); save();
     return card;
@@ -1416,6 +1433,16 @@ el.addEventListener('click', (e)=>{
       showCardMenu(e.clientX, e.clientY, card);
     });
     
+
+    // Notiz-Indikator initial setzen
+    const hasNotes = card.notes && card.notes.trim() !== '' && card.notes !== '<br>';
+    if(hasNotes){
+      el.classList.add('has-notes');
+      const ind = document.createElement('div');
+      ind.className = 'notes-indicator';
+      ind.textContent = '📝';
+      el.appendChild(ind);
+    }
 
     board.appendChild(el);
     if(!card.image){ autoResizeCard(card, el); updateCardFontScale(el); }
@@ -1895,12 +1922,12 @@ function openPanelForCard(card){
 
   // Inhalte laden
   spTitle.value = card.title || '';
-  // Details: Wenn HTML enthalten, als HTML setzen, sonst als Text
-  if(/<[a-z][\s\S]*>/i.test(card.details || '')){
-    spDetails.innerHTML = card.details || '';
+  // Notizen: Wenn HTML enthalten, als HTML setzen, sonst als Text
+  if(/<[a-z][\s\S]*>/i.test(card.notes || '')){
+    spDetails.innerHTML = card.notes || '';
   } else {
     spDetails.innerHTML = '';
-    spDetails.textContent = card.details || '';
+    spDetails.textContent = card.notes || '';
   }
 
   sidePanel.classList.add('open');
@@ -1958,20 +1985,27 @@ spTitle.addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); spDetails.focus(); }
 });
 
-// Details sync (HTML, weil bold/font-size möglich)
+// Notizen sync (HTML, weil bold/font-size möglich)
 spDetails.addEventListener('input', ()=>{
   if(!activePanelCard) return;
   ensurePanelSnapshot();
-  activePanelCard.details = spDetails.innerHTML;
-  // Inline-Karte aktualisieren (HTML rendern)
+  activePanelCard.notes = spDetails.innerHTML;
+  
+  // Nur Notiz-Indikator auf der Kachel aktualisieren, Inline-Details bleiben unberührt!
   const cardEl = board.querySelector(`.card[data-id="${activePanelCard.id}"]`);
   if(cardEl){
-    const det = cardEl.querySelector('.details');
-    if(det){
-      det.innerHTML = activePanelCard.details;
+    const hasNotes = activePanelCard.notes && activePanelCard.notes.trim() !== '' && activePanelCard.notes !== '<br>';
+    cardEl.classList.toggle('has-notes', hasNotes);
+    
+    let ind = cardEl.querySelector('.notes-indicator');
+    if(hasNotes && !ind){
+      ind = document.createElement('div');
+      ind.className = 'notes-indicator';
+      ind.textContent = '📝';
+      cardEl.appendChild(ind);
+    } else if(!hasNotes && ind){
+      ind.remove();
     }
-    autoResizeCard(activePanelCard, cardEl);
-    updateLinks();
   }
   spStatusText('Speichere...');
   save();
@@ -2389,7 +2423,7 @@ function createNewBoard(name){
     boardsIndex.activeId = id;
     saveBoardsIndex();
     state = loadActiveBoardState();
-    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
     state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
     bgLayout.style.display = state.showBg ? '' : 'none';
     minimap.style.display = state.showMm === false ? 'none' : '';
@@ -2453,7 +2487,7 @@ if(syncConfig.enabled){
     boardsIndex.activeId = newId;
     saveBoardsIndex();
     state = loadActiveBoardState();
-    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
     undoStack=[]; redoStack=[]; updateUndoButtons();
     boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     updateBoardSwitcherUI();
@@ -2882,7 +2916,7 @@ function initZoneTemplate(){
             ()=>{
               pushUndo();
               state = Object.assign(defaultState(), entry.data);
-                  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+                  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
               bgLayout.style.display = state.showBg ? '' : 'none';
               minimap.style.display = state.showMm === false ? 'none' : '';
               updateAutoColorButton();
@@ -3339,7 +3373,7 @@ if(!syncConfig.enabled) return false;
           
           if(applyRemote){
             state = Object.assign(defaultState(), remoteData);
-               state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+               state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
             bgLayout.style.display = state.showBg ? '' : 'none';
             minimap.style.display = state.showMm === false ? 'none' : '';
             updateAutoColorButton();
@@ -3430,7 +3464,7 @@ if(!syncConfig.enabled) return false;
           const remoteData = JSON.parse(remote.content);
           pushUndo();
           state = Object.assign(defaultState(), remoteData);
-             state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+             state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
           bgLayout.style.display = state.showBg ? '' : 'none';
           minimap.style.display = state.showMm === false ? 'none' : '';
           updateAutoColorButton();
@@ -3459,7 +3493,7 @@ if(!syncConfig.enabled) return false;
 
     // ========= INIT =========
   state = loadActiveBoardState();
-  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
   if(!state.view) fitLayoutToView(); else applyView();
 
   // WICHTIG: Template nur erstellen, wenn lokal leer UND das Board nicht mit der Cloud verknüpft ist
@@ -3492,7 +3526,7 @@ if(!syncConfig.enabled) return false;
           boardSyncState = { lastSyncedAt: 0, lastSyncedHash: null };
           
           state = loadActiveBoardState();
-          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:''}, c));
+          state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
           if(!state.view) fitLayoutToView(); else applyView();
           render();
           updateBoardSwitcherUI();

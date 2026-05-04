@@ -1450,17 +1450,7 @@ el.addEventListener('click', (e)=>{
       ind.textContent = '📝';
       el.appendChild(ind);
     }
-
-// Notiz-Indikator prüfen und anzeigen
-    const hasNotes = card.notes && card.notes.trim() !== '' && card.notes !== '<br>';
-    if(hasNotes){
-      el.classList.add('has-notes');
-      const ind = document.createElement('div');
-      ind.className = 'notes-indicator';
-      ind.textContent = '📝';
-      el.appendChild(ind);
-    }
-	   
+  
     board.appendChild(el);
     if(!card.image){ autoResizeCard(card, el); updateCardFontScale(el); }
     else updateCardFontScale(el);

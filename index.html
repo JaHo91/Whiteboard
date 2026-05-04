@@ -1945,7 +1945,6 @@ function openPanelForCard(card){
     spNotes.innerHTML = '';
     spNotes.textContent = card.notes || '';
   }
-}
 
   sidePanel.classList.add('open');
   sidePanel.setAttribute('aria-hidden', 'false');
@@ -1963,7 +1962,6 @@ function closePanel(){
   sidePanel.setAttribute('aria-hidden', 'true');
   activePanelCard = null;
   panelSnapshotTaken = false;
-  // Sticky lösen, damit normales Hover-Verhalten zurückkommt
   state.sticky = null;
   applyStickyVisual();
   save();
@@ -1985,7 +1983,6 @@ spTitle.addEventListener('input', ()=>{
   if(!activePanelCard) return;
   ensurePanelSnapshot();
   activePanelCard.title = spTitle.value;
-  // Inline-Karte aktualisieren
   const cardEl = board.querySelector(`.card[data-id="${activePanelCard.id}"]`);
   if(cardEl){
     const tt = cardEl.querySelector('.title-text');
@@ -1998,31 +1995,29 @@ spTitle.addEventListener('input', ()=>{
   setTimeout(()=> spStatusText('Automatisch gespeichert'), 400);
 });
 
-spTitle.addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){ e.preventDefault(); spDetails.focus(); }
-});
-
 // 1. Details sync (auf der Kachel sichtbar)
 spDetails.addEventListener('input', ()=>{
   if(!activePanelCard) return;
   ensurePanelSnapshot();
-  activePanelCard.details = spDetails.innerHTML; // Speichert in .details
-  render(); // Kachel anpassen (Höhe)
+  activePanelCard.details = spDetails.innerHTML;
+  const cardEl = board.querySelector(`.card[data-id="${activePanelCard.id}"]`);
+  if(cardEl){
+    const detEl = cardEl.querySelector('.details');
+    if(detEl) detEl.innerHTML = activePanelCard.details;
+    autoResizeCard(activePanelCard, cardEl);
+    updateLinks();
+  }
+  spStatusText('Speichere...');
   save();
-  showSpStatus();
+  setTimeout(()=> spStatusText('Automatisch gespeichert'), 400);
 });
 
 // 2. Notizen sync (nur im Side-Panel)
 spNotes.addEventListener('input', ()=>{
   if(!activePanelCard) return;
   ensurePanelSnapshot();
-  activePanelCard.notes = spNotes.innerHTML; // Speichert in .notes
-  render(); // Wichtig, falls du das 📝-Icon auf der Kachel anzeigen willst
-  save();
-  showSpStatus();
-});
+  activePanelCard.notes = spNotes.innerHTML;
   
-  // Nur Notiz-Indikator auf der Kachel aktualisieren, Inline-Details bleiben unberührt!
   const cardEl = board.querySelector(`.card[data-id="${activePanelCard.id}"]`);
   if(cardEl){
     const hasNotes = activePanelCard.notes && activePanelCard.notes.trim() !== '' && activePanelCard.notes !== '<br>';
@@ -2043,13 +2038,12 @@ spNotes.addEventListener('input', ()=>{
   setTimeout(()=> spStatusText('Automatisch gespeichert'), 400);
 });
 
-// Formatting buttons
+// Formatting
 function execFmt(cmd, value){
-  spDetails.focus();
+  const ae = document.activeElement;
+  if(ae !== spDetails && ae !== spNotes) return;
   document.execCommand(cmd, false, value || null);
-  // Trigger save
-  spDetails.dispatchEvent(new Event('input', {bubbles:true}));
-  updateFormatButtons();
+  ae.dispatchEvent(new Event('input', {bubbles:true}));
 }
 
 spBold.addEventListener('click', ()=> execFmt('bold'));
@@ -2059,54 +2053,21 @@ spClearFmt.addEventListener('click', ()=> execFmt('removeFormat'));
 
 spFontSize.addEventListener('change', ()=>{
   const size = spFontSize.value;
-  if(!size){ spFontSize.value=''; return; }
-  spDetails.focus();
-  // Wir nutzen einen Workaround: execCommand fontSize akzeptiert nur 1-7,
-  // also nutzen wir CSS via styleWithCSS
+  if(!size) return;
+  const ae = document.activeElement;
+  if(ae !== spDetails && ae !== spNotes) { spFontSize.value=''; return; }
   document.execCommand('styleWithCSS', false, true);
-  document.execCommand('fontSize', false, '7'); // dummy
-  // Alle font-Tags mit size=7 auf gewünschte px ändern
-  const fonts = spDetails.querySelectorAll('font[size="7"]');
-  fonts.forEach(f => {
+  document.execCommand('fontSize', false, '7');
+  ae.querySelectorAll('font[size="7"]').forEach(f => {
     const span = document.createElement('span');
     span.style.fontSize = size + 'px';
     span.innerHTML = f.innerHTML;
     f.replaceWith(span);
   });
-  // Falls execCommand den span direkt als style gesetzt hat (modernere Browser)
-  spDetails.querySelectorAll('span[style*="font-size"]').forEach(s=>{
-    if(s.style.fontSize.includes('xxx-large') || s.style.fontSize === ''){
-      s.style.fontSize = size + 'px';
-    }
-  });
-  spDetails.dispatchEvent(new Event('input', {bubbles:true}));
+  ae.dispatchEvent(new Event('input', {bubbles:true}));
   spFontSize.value = '';
 });
 
-function updateFormatButtons(){
-  try{
-    spBold.classList.toggle('active', document.queryCommandState('bold'));
-    spItalic.classList.toggle('active', document.queryCommandState('italic'));
-    spUnderline.classList.toggle('active', document.queryCommandState('underline'));
-  }catch{}
-}
-spDetails.addEventListener('keyup', updateFormatButtons);
-spDetails.addEventListener('mouseup', updateFormatButtons);
-
-// Tastatur-Shortcuts im Details-Feld
-spDetails.addEventListener('keydown', (e)=>{
-  if((e.ctrlKey || e.metaKey) && (e.key==='b' || e.key==='B')){
-    e.preventDefault(); execFmt('bold');
-  }
-  if((e.ctrlKey || e.metaKey) && (e.key==='i' || e.key==='I')){
-    e.preventDefault(); execFmt('italic');
-  }
-  if((e.ctrlKey || e.metaKey) && (e.key==='u' || e.key==='U')){
-    e.preventDefault(); execFmt('underline');
-  }
-});
-
-// Schließen
 spClose.addEventListener('click', closePanel);
 
 // Resize

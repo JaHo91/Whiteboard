@@ -410,17 +410,34 @@ body.sync-blocked {
 }
 .side-panel .sp-title-input:focus{border-color:var(--anchor)}
 
-.side-panel .sp-details{
-  flex:1 1 auto;min-height:200px;border:1px solid #e4e6eb;border-radius:6px;
-  padding:12px;font-size:14px;line-height:1.5;outline:none;overflow-y:auto;
-  white-space:pre-wrap;word-break:break-word;
+/* Höhe für Details fixiert auf ca. 3 Zeilen */
+.side-panel .sp-details {
+  flex: 0 0 84px; /* Fixe Höhe: 3 Zeilen à 21px + Padding */
+  border: 1px solid #e4e6eb; border-radius: 6px;
+  padding: 10px 12px; font-size: 14px; line-height: 1.5; outline: none;
+  overflow-y: auto; white-space: pre-wrap; word-break: break-word;
 }
-.side-panel .sp-details:focus{border-color:var(--anchor)}
-.side-panel .sp-details:empty::before{content:attr(data-placeholder);color:#aaa;pointer-events:none}
+.side-panel .sp-details:focus { border-color: var(--anchor); }
+.side-panel .sp-details:empty::before { content: attr(data-placeholder); color: #aaa; pointer-events: none; }
 
-.side-panel .sp-footer{
-  flex:0 0 auto;padding:8px 14px;border-top:1px solid #e4e6eb;
-  font-size:11px;color:#888;display:flex;justify-content:space-between;
+/* Neues Notizfeld füllt den Rest */
+.side-panel .sp-notes {
+  flex: 1 1 auto; /* Nimmt den restlichen Platz ein */
+  border: 1px solid #e4e6eb; border-radius: 6px;
+  padding: 12px; font-size: 14px; line-height: 1.5; outline: none;
+  overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+}
+.side-panel .sp-notes:focus { border-color: var(--anchor); }
+.side-panel .sp-notes:empty::before { content: attr(data-placeholder); color: #aaa; pointer-events: none; }
+
+.side-panel .sp-label {
+  font-size: 10px; color: #888; text-transform: uppercase; 
+  letter-spacing: 0.5px; margin-top: 5px; font-weight: 600;
+}
+
+.side-panel .sp-footer {
+  flex: 0 0 auto; padding: 8px 14px; border-top: 1px solid #e4e6eb;
+  font-size: 11px; color: #888; display: flex; justify-content: space-between;
 }
 	
 </style>
@@ -497,10 +514,13 @@ body.sync-blocked {
     <span class="sep"></span>
     <button id="spClearFmt" title="Formatierung entfernen">⌫ Format</button>
   </div>
-  <div class="sp-body">
-    <input type="text" class="sp-title-input" id="spTitle" placeholder="Titel..." />
-    <div class="sp-details" id="spDetails" contenteditable="true" data-placeholder="Details... (Strg+B für fett, Schriftgröße im Toolbar)"></div>
-  </div>
+<div class="sp-body">
+  <input type="text" class="sp-title-input" id="spTitle" placeholder="Titel..." />
+  <div class="sp-label">Details (auf Kachel sichtbar)</div>
+  <div class="sp-details" id="spDetails" contenteditable="true" data-placeholder="Details..."></div>
+  <div class="sp-label">Interne Notizen</div>
+  <div class="sp-notes" id="spNotes" contenteditable="true" data-placeholder="Längere Notizen hier eingeben (nur im Sidepanel)..."></div>
+</div>
   <div class="sp-footer">
     <span id="spStatus">Automatisch gespeichert</span>
     <span>ESC zum Schließen</span>
@@ -595,6 +615,7 @@ const spResize = document.getElementById('spResize');
 const spClose = document.getElementById('spClose');
 const spTitle = document.getElementById('spTitle');
 const spDetails = document.getElementById('spDetails');
+const spNotes = document.getElementById('spNotes'); // Neue Referenz
 const spColorDot = document.getElementById('spColorDot');
 const spZone = document.getElementById('spZone');
 const spStatus = document.getElementById('spStatus');
@@ -796,7 +817,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
   function applySnapshot(snap){
     suspendSnapshots = true;
     state = Object.assign(defaultState(), snap);
-     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
     if(state.sticky && state.sticky.type==='link' && typeof state.sticky.linkIdx==='number'){
       state.sticky = { type:'link', link: state.links[state.sticky.linkIdx] || null };
       if(!state.sticky.link) state.sticky = null;
@@ -958,7 +979,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
 
   // ========= INIT STATE =========
   state = loadActiveBoardState();
-     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+     state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
   if(!Array.isArray(state.links)) state.links = [];
   state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
   bgLayout.style.display = state.showBg ? '' : 'none';
@@ -1087,7 +1108,7 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
       if(Array.isArray(data.cards) && Array.isArray(data.links)){
         pushUndo();
         state = Object.assign(defaultState(), data);
-           state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+           state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
         bgLayout.style.display = state.showBg ? '' : 'none';
         minimap.style.display = state.showMm === false ? 'none' : '';
         updateAutoColorButton();
@@ -1151,18 +1172,20 @@ let boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
   }
 
   // ========= CARDS =========
-  function createCard({x,y,color,title='Neue Karte',details='',w,h,autoH=true}){
-    const card = { id: state.nextId++, x, y, color, title, details, w:w||null, h:h||null, autoH, image:null, caption:'', fontScale:1 };
-    state.cards.push(card); renderCard(card);
-    updateLinks(); renderMinimap(); save();
-    return card;
-  }
-  function createImageCard({x,y,w,h,image,caption=''}){
-    const card = { id: state.nextId++, x, y, color: '#222', title: '', details: '', w, h, autoH:false, image, caption, fontScale:1 };
-    state.cards.push(card); renderCard(card);
-    updateLinks(); renderMinimap(); save();
-    return card;
-  }
+function createCard({x,y,color,title='Neue Karte',details='',notes='',w,h,autoH=true}){
+  // Hier wurde notes in die Liste oben und in das Objekt unten eingefügt
+  const card = { id: state.nextId++, x, y, color, title, details, notes, w:w||null, h:h||null, autoH, image:null, caption:'', fontScale:1 };
+  state.cards.push(card); renderCard(card);
+  updateLinks(); renderMinimap(); save();
+  return card;
+}
+function createImageCard({x,y,w,h,image,caption=''}){
+  // Hier notes: '' ergänzt
+  const card = { id: state.nextId++, x, y, color: '#222', title: '', details: '', notes: '', w, h, autoH:false, image, caption, fontScale:1 };
+  state.cards.push(card); renderCard(card);
+  updateLinks(); renderMinimap(); save();
+  return card;
+}
   function deleteCard(id){
     state.cards = state.cards.filter(c=>c.id!==id);
     state.links = state.links.filter(l=>l.a!==id && l.b!==id);
@@ -1900,35 +1923,53 @@ try{
 }catch{}
 
 function openPanelForCard(card){
-  if(card.image) return; // Bildkarten nicht im Panel
+  if(card.image) return;
   activePanelCard = card;
   panelSnapshotTaken = false;
 
-  // Header
   spColorDot.style.background = card.color;
   const r = cardRect(card);
   const zoneKey = detectZone({x:r.cx, y:r.cy});
   spZone.textContent = ZONE_LABELS[zoneKey] || 'Karte';
 
-  // Inhalte laden
   spTitle.value = card.title || '';
-  // Details: Wenn HTML enthalten, als HTML setzen, sonst als Text
-  if(/<[a-z][\s\S]*>/i.test(card.details || '')){
-    spDetails.innerHTML = card.details || '';
-  } else {
-    spDetails.innerHTML = '';
-    spDetails.textContent = card.details || '';
-  }
+  // Details laden
+  spDetails.innerHTML = card.details || '';
+  // Notizen laden
+  spNotes.innerHTML = card.notes || '';
 
   sidePanel.classList.add('open');
   sidePanel.setAttribute('aria-hidden', 'false');
-
-  // Sticky-Highlight setzen, damit Kachel + Verbindungen markiert bleiben
   setStickyCard(card.id);
-
   setTimeout(()=> spTitle.focus(), 50);
   spStatusText('Geöffnet');
 }
+
+// Angepasste Toolbar-Funktion: Wirkt auf das Feld, das gerade Fokus hat
+function execFmt(cmd, value){
+  const ae = document.activeElement;
+  // Nur formatieren, wenn eines der beiden Felder aktiv ist
+  if(ae === spDetails || ae === spNotes){
+    document.execCommand(cmd, false, value || null);
+    ae.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+  updateFormatButtons();
+}
+
+// Event-Listener für Notiz-Sync
+spNotes.addEventListener('input', ()=>{
+  if(!activePanelCard) return;
+  ensurePanelSnapshot();
+  activePanelCard.notes = spNotes.innerHTML;
+  
+  // Visueller Indikator auf Kachel (📝)
+  const cardEl = board.querySelector(`.card[data-id="${activePanelCard.id}"]`);
+  if(cardEl) cardEl.classList.toggle('has-notes', !!spNotes.textContent.trim());
+
+  spStatusText('Speichere...');
+  save();
+  setTimeout(()=> spStatusText('Automatisch gespeichert'), 400);
+});
 
 function closePanel(){
   if(!sidePanel.classList.contains('open')) return;
@@ -2406,7 +2447,7 @@ function createNewBoard(name){
     boardsIndex.activeId = id;
     saveBoardsIndex();
     state = loadActiveBoardState();
-    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
     state.links = state.links.map(l => ({a:l.a, b:l.b, sideA:l.sideA||null, sideB:l.sideB||null}));
     bgLayout.style.display = state.showBg ? '' : 'none';
     minimap.style.display = state.showMm === false ? 'none' : '';
@@ -2470,7 +2511,7 @@ if(syncConfig.enabled){
     boardsIndex.activeId = newId;
     saveBoardsIndex();
     state = loadActiveBoardState();
-    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+    state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
     undoStack=[]; redoStack=[]; updateUndoButtons();
     boardSyncState = { lastSyncedAt:0, lastSyncedHash:null };
     updateBoardSwitcherUI();
@@ -2899,7 +2940,7 @@ function initZoneTemplate(){
             ()=>{
               pushUndo();
               state = Object.assign(defaultState(), entry.data);
-                  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+                  state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
               bgLayout.style.display = state.showBg ? '' : 'none';
               minimap.style.display = state.showMm === false ? 'none' : '';
               updateAutoColorButton();
@@ -3356,7 +3397,7 @@ if(!syncConfig.enabled) return false;
           
           if(applyRemote){
             state = Object.assign(defaultState(), remoteData);
-               state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+               state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
             bgLayout.style.display = state.showBg ? '' : 'none';
             minimap.style.display = state.showMm === false ? 'none' : '';
             updateAutoColorButton();
@@ -3447,7 +3488,7 @@ if(!syncConfig.enabled) return false;
           const remoteData = JSON.parse(remote.content);
           pushUndo();
           state = Object.assign(defaultState(), remoteData);
-             state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1}, c));
+             state.cards = state.cards.map(c => Object.assign({autoH:true, image:null, caption:'', fontScale:1, notes:''}, c));
           bgLayout.style.display = state.showBg ? '' : 'none';
           minimap.style.display = state.showMm === false ? 'none' : '';
           updateAutoColorButton();

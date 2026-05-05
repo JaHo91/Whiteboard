@@ -1945,16 +1945,6 @@ function openPanelForCard(card){
   spStatusText('Geöffnet');
 }
 
-// Angepasste Toolbar-Funktion: Wirkt auf das Feld, das gerade Fokus hat
-function execFmt(cmd, value){
-  const ae = document.activeElement;
-  // Nur formatieren, wenn eines der beiden Felder aktiv ist
-  if(ae === spDetails || ae === spNotes){
-    document.execCommand(cmd, false, value || null);
-    ae.dispatchEvent(new Event('input', {bubbles:true}));
-  }
-  updateFormatButtons();
-}
 
 // Event-Listener für Notiz-Sync
 spNotes.addEventListener('input', ()=>{
@@ -2036,13 +2026,17 @@ spDetails.addEventListener('input', ()=>{
   setTimeout(()=> spStatusText('Automatisch gespeichert'), 400);
 });
 
-// Formatting buttons
 function execFmt(cmd, value){
-  spDetails.focus();
-  document.execCommand(cmd, false, value || null);
-  // Trigger save
-  spDetails.dispatchEvent(new Event('input', {bubbles:true}));
-  updateFormatButtons();
+  const ae = document.activeElement;
+  const spNotes = document.getElementById('spNotes'); // Sicherstellen, dass das Feld bekannt ist
+  
+  // Nur formatieren, wenn der Fokus in einem der beiden Sidepanel-Felder liegt
+  if(ae === spDetails || ae === spNotes){
+    document.execCommand(cmd, false, value || null);
+    // Das 'input' Event auslösen, damit die automatische Speicherung bemerkt, dass sich was geändert hat
+    ae.dispatchEvent(new Event('input', {bubbles:true}));
+    updateFormatButtons();
+  }
 }
 
 spBold.addEventListener('click', ()=> execFmt('bold'));
